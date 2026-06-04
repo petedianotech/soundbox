@@ -1,0 +1,6 @@
+{
+  "name": "Soundbox",
+  "description": "Premium-quality offline music player with folder-based navigation, equalization, and Media3 background playback.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
