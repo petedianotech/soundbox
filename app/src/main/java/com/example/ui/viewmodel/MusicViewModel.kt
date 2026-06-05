@@ -89,6 +89,11 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         playbackManager.playSong(song, customQueue)
     }
 
+    fun playNext(song: Song) = playbackManager.playNext(song)
+    fun addToQueue(song: Song) = playbackManager.addToQueue(song)
+    fun removeFromQueue(index: Int) = playbackManager.removeFromQueue(index)
+    fun clearQueue() = playbackManager.clearQueue()
+    
     fun playPause() = playbackManager.playPause()
     fun skipNext() = playbackManager.skipNext()
     fun skipPrevious() = playbackManager.skipPrevious()

@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Album
+import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Person
@@ -36,10 +37,13 @@ import com.example.ui.screens.playlists.PlaylistsScreen
 import com.example.ui.screens.songs.SongsScreen
 import com.example.ui.viewmodel.MusicViewModel
 
+import com.example.ui.screens.genres.GenresScreen
+
 enum class HomeTab(val title: String, val icon: ImageVector) {
     SONGS("Songs", Icons.Default.MusicNote),
     ALBUMS("Albums", Icons.Default.Album),
     ARTISTS("Artists", Icons.Default.Person),
+    GENRES("Genres", Icons.Default.Category),
     FOLDERS("Folders", Icons.Default.Folder),
     PLAYLISTS("Playlists", Icons.Default.PlaylistPlay)
 }
@@ -98,6 +102,10 @@ fun HomeScreen(
                     onSongSelected = { onNavigateToNowPlaying() }
                 )
                 HomeTab.ARTISTS -> ArtistsScreen(
+                    viewModel = viewModel,
+                    onSongSelected = { onNavigateToNowPlaying() }
+                )
+                HomeTab.GENRES -> GenresScreen(
                     viewModel = viewModel,
                     onSongSelected = { onNavigateToNowPlaying() }
                 )

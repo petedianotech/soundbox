@@ -176,6 +176,72 @@ class PlaybackManager private constructor(private val context: Context) {
         _duration.value = song.duration
     }
 
+    fun playNext(song: Song) {
+        val currentQueue = _queue.value.toMutableList()
+        val currentIndex = player.currentMediaItemIndex
+        
+        // Build new MediaItem
+        val metadata = androidx.media3.common.MediaMetadata.Builder()
+            .setTitle(song.title)
+            .setArtist(song.artist)
+            .setAlbumTitle(song.album)
+            .setDisplayTitle(song.title)
+            .build()
+        val mediaItem = MediaItem.Builder()
+            .setMediaId(song.id)
+            .setUri(song.path)
+            .setMediaMetadata(metadata)
+            .build()
+
+        if (currentIndex < currentQueue.size) {
+            currentQueue.add(currentIndex + 1, song)
+            player.addMediaItem(currentIndex + 1, mediaItem)
+        } else {
+            currentQueue.add(song)
+            player.addMediaItem(mediaItem)
+        }
+        _queue.value = currentQueue
+    }
+
+    fun addToQueue(song: Song) {
+        val currentQueue = _queue.value.toMutableList()
+        currentQueue.add(song)
+        
+        val metadata = androidx.media3.common.MediaMetadata.Builder()
+            .setTitle(song.title)
+            .setArtist(song.artist)
+            .setAlbumTitle(song.album)
+            .setDisplayTitle(song.title)
+            .build()
+        val mediaItem = MediaItem.Builder()
+            .setMediaId(song.id)
+            .setUri(song.path)
+            .setMediaMetadata(metadata)
+            .build()
+            
+        player.addMediaItem(mediaItem)
+        _queue.value = currentQueue
+    }
+
+    fun removeFromQueue(index: Int) {
+        if (index in 0 until player.mediaItemCount) {
+            player.removeMediaItem(index)
+            val updatedQueue = _queue.value.toMutableList()
+            if (index < updatedQueue.size) {
+                updatedQueue.removeAt(index)
+                _queue.value = updatedQueue
+            }
+        }
+    }
+
+    fun clearQueue() {
+        if (player.mediaItemCount > 0) {
+            player.clearMediaItems()
+            _queue.value = emptyList()
+            _currentSong.value = null
+        }
+    }
+
     fun playPause() {
         if (player.isPlaying) {
             player.pause()
