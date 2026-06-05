@@ -10,6 +10,7 @@ import com.example.ui.screens.nowplaying.NowPlayingScreen
 import com.example.ui.screens.search.SearchScreen
 import com.example.ui.screens.settings.SettingsScreen
 import com.example.ui.screens.splash.SplashScreen
+import com.example.ui.screens.lyrics.LyricsSyncEditorScreen
 import com.example.ui.viewmodel.MusicViewModel
 
 @Composable
@@ -37,7 +38,14 @@ fun SoundboxNavGraph(viewModel: MusicViewModel) {
         composable(Routes.NOW_PLAYING) {
             NowPlayingScreen(
                 viewModel = viewModel,
-                onBackClick = { navController.popBackStack() }
+                onBackClick = { navController.popBackStack() },
+                onNavigateToLyricsCreator = { navController.navigate(Routes.LYRICS_CREATOR) }
+            )
+        }
+        composable(Routes.LYRICS_CREATOR) {
+            LyricsSyncEditorScreen(
+                viewModel = viewModel,
+                onNavigateBack = { navController.popBackStack() }
             )
         }
         composable(Routes.SEARCH) {

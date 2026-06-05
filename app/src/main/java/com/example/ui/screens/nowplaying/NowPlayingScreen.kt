@@ -102,7 +102,8 @@ fun getLyricsForSong(context: Context, song: Song, durationMs: Long): List<Lyric
 @Composable
 fun NowPlayingScreen(
     viewModel: MusicViewModel,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    onNavigateToLyricsCreator: () -> Unit
 ) {
     val currentSong by viewModel.currentSong.collectAsState()
     val isPlaying by viewModel.isPlaying.collectAsState()
@@ -328,6 +329,9 @@ fun NowPlayingScreen(
                                                             scaleY = scale
                                                             this.alpha = alpha
                                                         }
+                                                        .clickable(enabled = line.isDynamic) {
+                                                            viewModel.seekTo(line.timeMs)
+                                                        }
                                                         .padding(horizontal = 12.dp)
                                                 )
                                             }
@@ -468,8 +472,9 @@ fun NowPlayingScreen(
                     if (!isLyricsViewActive) {
                         Card(
                             onClick = {
-                                if (lyrics.isEmpty()) showLyricsMenu = true
-                                else isLyricsViewActive = true
+                                if (lyrics.isNotEmpty()) {
+                                    isLyricsViewActive = true
+                                }
                             },
                             colors = CardDefaults.cardColors(
                                 containerColor = dominantColor.copy(alpha = 0.08f)
@@ -941,6 +946,18 @@ fun NowPlayingScreen(
                 title = { Text(if (hasSavedLyrics) "Manage Lyrics" else "Add Lyrics") },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Button(
+                            onClick = {
+                                showLyricsMenu = false
+                                onNavigateToLyricsCreator()
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                        ) {
+                            Icon(Icons.Default.Timer, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Create / Sync LRC Lyrics")
+                        }
                         Button(
                             onClick = { 
                                 val query = LyricsManager.buildSearchQuery(song)

@@ -13,4 +13,5 @@ object Routes {
     const val SETTINGS = "settings"
     const val SEARCH = "search"
     const val ABOUT = "about"
+    const val LYRICS_CREATOR = "lyrics_creator"
 }
