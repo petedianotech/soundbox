@@ -13,9 +13,8 @@ import com.example.ui.screens.splash.SplashScreen
 import com.example.ui.viewmodel.MusicViewModel
 
 @Composable
-fun SoundboxNavGraph() {
+fun SoundboxNavGraph(viewModel: MusicViewModel) {
     val navController = rememberNavController()
-    val viewModel: MusicViewModel = viewModel()
 
     NavHost(navController = navController, startDestination = Routes.SPLASH) {
         composable(Routes.SPLASH) {
@@ -44,12 +43,13 @@ fun SoundboxNavGraph() {
         composable(Routes.SEARCH) {
             SearchScreen(
                 viewModel = viewModel,
-                onSongSelected = { navController.navigate(Routes.NOW_PLAYING) }
+                onNavigateToNowPlaying = { navController.navigate(Routes.NOW_PLAYING) }
             )
         }
         composable(Routes.SETTINGS) {
             SettingsScreen(
                 viewModel = viewModel,
+                onNavigateBack = { navController.popBackStack() },
                 onNavigateToAbout = { navController.navigate(Routes.ABOUT) }
             )
         }

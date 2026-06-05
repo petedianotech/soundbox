@@ -3,15 +3,17 @@ package com.example.ui.screens.settings
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.CompareArrows
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.ui.viewmodel.MusicViewModel
 
@@ -19,139 +21,121 @@ import com.example.ui.viewmodel.MusicViewModel
 @Composable
 fun SettingsScreen(
     viewModel: MusicViewModel,
+    onNavigateBack: () -> Unit,
     onNavigateToAbout: () -> Unit
 ) {
     val songs by viewModel.allSongs.collectAsState()
     val isScanning by viewModel.isScanning.collectAsState()
     val sleepTimerLeft by viewModel.sleepTimerMillis.collectAsState()
     val speed by viewModel.playbackSpeed.collectAsState()
-    val pitch by viewModel.playbackPitch.collectAsState()
-    val crossfade by viewModel.crossfadeDuration.collectAsState()
+    val currentTheme by viewModel.settingsManager.themeFlow.collectAsState()
+    val visibleTabs by viewModel.settingsManager.visibleTabsFlow.collectAsState()
 
     var showTimerDialog by remember { mutableStateOf(false) }
-    var showCrossfadeDialog by remember { mutableStateOf(false) }
+    var showThemeDialog by remember { mutableStateOf(false) }
+    var showTabsDialog by remember { mutableStateOf(false) }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        Text(
-            text = "Storage & Scanning",
-            style = MaterialTheme.typography.titleMedium.copy(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-        )
-
-        SettingsRow(
-            title = "Scan Media Storage",
-            subtitle = if (isScanning) "Searching offline directories..." else "Index local device .mp3 audio caches",
-            icon = Icons.Default.LibraryMusic,
-            action = {
-                if (isScanning) {
-                    CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
-                } else {
-                    Button(onClick = { viewModel.scanStorage() }) {
-                        Text("Scan Now")
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Settings") },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }
+            )
+        }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
+        ) {
+            // PLAYBACK SECTION
+            SettingsSection(title = "Playback") {
+                SettingsCardRow(
+                    title = "Sleep Timer",
+                    subtitle = if (sleepTimerLeft > 0) "${(sleepTimerLeft / 1000) / 60} mins remaining" else "Off",
+                    icon = Icons.Default.Timer,
+                    onClick = { showTimerDialog = true }
+                )
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                SettingsCardRow(
+                    title = "Audio Qualities & Speed",
+                    subtitle = "Current Velocity: ${String.format("%.2fx", speed)}",
+                    icon = Icons.Default.Speed,
+                    onClick = { viewModel.setPlaybackRate(1.0f, 1.0f) }
+                )
             }
-        )
 
-        SettingsRow(
-            title = "Index Database Status",
-            subtitle = "${songs.size} local tracks indexed in Room Cache",
-            icon = Icons.Default.Storage,
-            action = {}
-        )
-
-        HorizontalDivider()
-
-        Text(
-            text = "Audio & Timer Preferences",
-            style = MaterialTheme.typography.titleMedium.copy(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-        )
-
-        SettingsRow(
-            title = "Sleep Timer Setting",
-            subtitle = if (sleepTimerLeft > 0) {
-                val mins = (sleepTimerLeft / 1000) / 60
-                "Ticking... $mins mins remaining to auto-pause"
-            } else {
-                "Not active - click to initialize"
-            },
-            icon = Icons.Default.Timer,
-            action = {
-                Button(
-                    onClick = { showTimerDialog = true },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer, contentColor = MaterialTheme.colorScheme.onSecondaryContainer)
-                ) {
-                    Text(if (sleepTimerLeft > 0) "Adjust" else "Set")
-                }
+            // LIBRARY SECTION
+            SettingsSection(title = "Library") {
+                SettingsCardRow(
+                    title = "Scan Storage",
+                    subtitle = if (isScanning) "Searching offline directories..." else "Index local device cache",
+                    icon = Icons.Default.LibraryMusic,
+                    onClick = { if (!isScanning) viewModel.scanStorage() }
+                )
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                SettingsCardRow(
+                    title = "Indexed Tracks",
+                    subtitle = "${songs.size} local tracks in cache",
+                    icon = Icons.Default.Storage,
+                    onClick = {}
+                )
             }
-        )
 
-        SettingsRow(
-            title = "Crossfade Duration",
-            subtitle = if (crossfade > 0) "Smooth transition: ${crossfade}s" else "Gapless playback (No fade)",
-            icon = Icons.Default.CompareArrows,
-            action = {
-                Button(
-                    onClick = { showCrossfadeDialog = true },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer, contentColor = MaterialTheme.colorScheme.onSecondaryContainer)
-                ) {
-                    Text("Adjust")
-                }
+            // APPEARANCE SECTION
+            SettingsSection(title = "Appearance") {
+                SettingsCardRow(
+                    title = "Theme",
+                    subtitle = when(currentTheme) {
+                        "LIGHT" -> "Light"
+                        "DARK" -> "Dark"
+                        "MIDNIGHT" -> "Midnight Black"
+                        else -> "System Default"
+                    },
+                    icon = Icons.Default.Palette,
+                    onClick = { showThemeDialog = true }
+                )
             }
-        )
-
-        SettingsRow(
-            title = "Default Playback Rates",
-            subtitle = "Current Velocity: ${String.format("%.2fx", speed)} | Pitch: ${String.format("%.2fx", pitch)}",
-            icon = Icons.Default.Speed,
-            action = {
-                IconButton(onClick = { viewModel.setPlaybackRate(1.0f, 1.0f) }) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Reset Speed")
-                }
+            
+            // NAVIGATION SECTION
+            SettingsSection(title = "Navigation") {
+                SettingsCardRow(
+                    title = "Bottom Bar Tabs",
+                    subtitle = "Customize which tabs are visible",
+                    icon = Icons.Default.ViewCompact,
+                    onClick = { showTabsDialog = true }
+                )
             }
-        )
 
-        HorizontalDivider()
-
-        Text(
-            text = "Security & Telemetry Isolation",
-            style = MaterialTheme.typography.titleMedium.copy(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-        )
-
-        SettingsRow(
-            title = "100% Offline Local Sandbox",
-            subtitle = "Isolated with ZERO external trackers, data harvesting, or cloud transfers.",
-            icon = Icons.Default.Shield,
-            action = {}
-        )
-
-        SettingsRow(
-            title = "Soundbox version",
-            subtitle = "v1.0.0 (2026 Edition Pro)",
-            icon = Icons.Default.Info,
-            action = {}
-        )
-
-        SettingsRow(
-            title = "About Developer",
-            subtitle = "Peter Damiano (Petediano)",
-            icon = Icons.Default.Person,
-            action = {
-                Button(onClick = onNavigateToAbout) {
-                    Text("View")
-                }
+            // ABOUT SECTION
+            SettingsSection(title = "About") {
+                SettingsCardRow(
+                    title = "About Developer",
+                    subtitle = "Peter Damiano (Petediano)",
+                    icon = Icons.Default.Person,
+                    onClick = onNavigateToAbout
+                )
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                SettingsCardRow(
+                    title = "App Version",
+                    subtitle = "v1.0.0 (Offline Edition)",
+                    icon = Icons.Default.Info,
+                    onClick = {}
+                )
             }
-        )
 
-        Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.height(32.dp))
+        }
     }
 
-    // Sleep Timer choosing modal
+    // Modal declarations
     if (showTimerDialog) {
         AlertDialog(
             onDismissRequest = { showTimerDialog = false },
@@ -168,11 +152,7 @@ fun SettingsScreen(
                                 onClick = {
                                     viewModel.startSleepTimer(mins)
                                     showTimerDialog = false
-                                },
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                                )
+                                }
                             ) {
                                 Text("${mins}m")
                             }
@@ -197,41 +177,76 @@ fun SettingsScreen(
             }
         )
     }
-
-    // Crossfade choosing modal
-    if (showCrossfadeDialog) {
-        val crossfadeOptions = listOf(0, 2, 4, 8, 12)
+    
+    if (showThemeDialog) {
         AlertDialog(
-            onDismissRequest = { showCrossfadeDialog = false },
-            title = { Text("Crossfade Settings") },
+            onDismissRequest = { showThemeDialog = false },
+            title = { Text("Select Theme") },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Text("Select transition duration (in seconds) between tracks.")
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ) {
-                        crossfadeOptions.forEach { sec ->
-                            Button(
-                                onClick = {
-                                    viewModel.setCrossfadeDuration(sec)
-                                    showCrossfadeDialog = false
-                                },
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (crossfade == sec) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondaryContainer,
-                                    contentColor = if (crossfade == sec) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSecondaryContainer
-                                )
-                            ) {
-                                Text(if (sec == 0) "Off" else "${sec}s")
-                            }
+                Column {
+                    listOf("SYSTEM" to "System Default", "LIGHT" to "Light", "DARK" to "Dark", "MIDNIGHT" to "Midnight Black").forEach { (id, name) ->
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    viewModel.settingsManager.setTheme(id)
+                                    showThemeDialog = false
+                                }
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = currentTheme == id,
+                                onClick = null
+                            )
+                            Spacer(Modifier.width(16.dp))
+                            Text(name)
                         }
                     }
                 }
             },
-            confirmButton = {},
-            dismissButton = {
-                TextButton(onClick = { showCrossfadeDialog = false }) {
-                    Text("Cancel")
+            confirmButton = {
+                TextButton(onClick = { showThemeDialog = false }) {
+                    Text("Close")
+                }
+            }
+        )
+    }
+
+    if (showTabsDialog) {
+        AlertDialog(
+            onDismissRequest = { showTabsDialog = false },
+            title = { Text("Visible Navigation Tabs") },
+            text = {
+                Column {
+                    listOf("SONGS", "ALBUMS", "ARTISTS", "GENRES", "FOLDERS", "PLAYLISTS").forEach { tab ->
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    val isVisible = visibleTabs.contains(tab)
+                                    if (isVisible && visibleTabs.size > 1) {
+                                        viewModel.settingsManager.toggleTabVisibility(tab, false)
+                                    } else if (!isVisible) {
+                                        viewModel.settingsManager.toggleTabVisibility(tab, true)
+                                    }
+                                }
+                                .padding(vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Checkbox(
+                                checked = visibleTabs.contains(tab),
+                                onCheckedChange = null
+                            )
+                            Spacer(Modifier.width(16.dp))
+                            Text(tab.lowercase().replaceFirstChar { it.uppercase() })
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showTabsDialog = false }) {
+                    Text("Close")
                 }
             }
         )
@@ -239,42 +254,59 @@ fun SettingsScreen(
 }
 
 @Composable
-fun SettingsRow(
+fun SettingsSection(title: String, content: @Composable ColumnScope.() -> Unit) {
+    Column {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(start = 16.dp, bottom = 8.dp)
+        )
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        ) {
+            Column(content = content)
+        }
+    }
+}
+
+@Composable
+fun SettingsCardRow(
     title: String,
     subtitle: String,
     icon: ImageVector,
-    action: @Composable () -> Unit
+    onClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
+            .clickable(onClick = onClick)
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.weight(1f)
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(24.dp)
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(24.dp)
+        )
+        Spacer(modifier = Modifier.width(16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface
             )
-            Spacer(modifier = Modifier.width(16.dp))
-            Column {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
-                )
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
-                )
-            }
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
-        Spacer(modifier = Modifier.width(12.dp))
-        action()
     }
 }

@@ -101,14 +101,6 @@ fun TrackRow(
             )
         }
 
-        IconButton(onClick = onFavoriteToggle) {
-            Icon(
-                imageVector = if (song.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                contentDescription = "Favorite",
-                tint = if (song.isFavorite) Color.Red else MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-
         IconButton(onClick = onMenuClick) {
             Icon(
                 imageVector = Icons.Default.MoreVert,

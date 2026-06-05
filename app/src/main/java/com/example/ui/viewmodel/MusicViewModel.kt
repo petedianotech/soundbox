@@ -9,11 +9,14 @@ import com.example.data.repository.MusicRepository
 import com.example.player.PlaybackManager
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import com.example.util.SettingsManager
 
 class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = MusicRepository.getInstance(application)
     private val playbackManager = PlaybackManager.getInstance(application)
+    
+    val settingsManager = SettingsManager(application)
 
     // Player state mapping
     val currentSong: StateFlow<Song?> = playbackManager.currentSong
@@ -28,15 +31,31 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     val sleepTimerMillis: StateFlow<Long> = playbackManager.sleepTimerMillis
     val equalizerEnabled: StateFlow<Boolean> = playbackManager.equalizerEnabled
     val bassBoostStrength: StateFlow<Int> = playbackManager.bassBoostStrength
-    val crossfadeDuration: StateFlow<Int> = playbackManager.crossfadeDuration
 
     // Scanning states
     private val _isScanning = MutableStateFlow(false)
     val isScanning: StateFlow<Boolean> = _isScanning.asStateFlow()
 
+    enum class SortOrder {
+        A_TO_Z, Z_TO_A, DATE_ADDED, DURATION
+    }
+
+    private val _sortOrder = MutableStateFlow(SortOrder.DATE_ADDED)
+    val sortOrder: StateFlow<SortOrder> = _sortOrder.asStateFlow()
+
+    fun setSortOrder(order: SortOrder) {
+        _sortOrder.value = order
+    }
+
     // Core dataset flows
-    val allSongs: StateFlow<List<Song>> = repository.allSongs
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val allSongs: StateFlow<List<Song>> = combine(repository.allSongs, _sortOrder) { songs, order ->
+        when (order) {
+            SortOrder.A_TO_Z -> songs.sortedBy { it.title.lowercase() }
+            SortOrder.Z_TO_A -> songs.sortedByDescending { it.title.lowercase() }
+            SortOrder.DATE_ADDED -> songs.sortedByDescending { it.dateAdded }
+            SortOrder.DURATION -> songs.sortedByDescending { it.duration }
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val favoriteSongs: StateFlow<List<Song>> = repository.favoriteSongs
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -105,7 +124,6 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     
     fun toggleEqualizer() = playbackManager.toggleEqualizer()
     fun setBassBoost(strength: Int) = playbackManager.setBassBoost(strength)
-    fun setCrossfadeDuration(seconds: Int) = playbackManager.setCrossfadeDuration(seconds)
     fun startSleepTimer(minutes: Int) = playbackManager.startSleepTimer(minutes)
     fun stopSleepTimer() = playbackManager.stopSleepTimer()
 

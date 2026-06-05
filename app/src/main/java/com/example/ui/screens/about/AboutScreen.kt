@@ -25,7 +25,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
+import androidx.compose.material.icons.filled.Person
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,15 +55,15 @@ fun AboutScreen(
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Profile Image
-            AsyncImage(
-                model = "https://i.ibb.co/cXpLmLVC/20260516-210805.jpg",
-                contentDescription = "Peter Damiano Profile Image",
+            Icon(
+                imageVector = Icons.Default.Person,
+                contentDescription = "Developer Icon",
                 modifier = Modifier
-                    .size(160.dp)
+                    .size(80.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-                contentScale = ContentScale.Crop
+                    .background(MaterialTheme.colorScheme.primaryContainer)
+                    .padding(16.dp),
+                tint = MaterialTheme.colorScheme.onPrimaryContainer
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -97,7 +97,7 @@ fun AboutScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
                 ),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
@@ -124,7 +124,7 @@ fun AboutScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
                 ),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
@@ -151,10 +151,10 @@ fun AboutScreen(
             ActionRow(
                 icon = Icons.Default.Email,
                 title = "Contact via Email",
-                subtitle = "peterleodamiano@gmail.com",
+                subtitle = "petedianotech@gmail.com",
                 onClick = {
                     val intent = Intent(Intent.ACTION_SENDTO).apply {
-                        data = Uri.parse("mailto:peterleodamiano@gmail.com")
+                        data = Uri.parse("mailto:petedianotech@gmail.com")
                     }
                     context.startActivity(intent)
                 }
@@ -184,7 +184,6 @@ fun AboutScreen(
                 onClick = { /* Placeholder for privacy policy */ }
             )
 
-            Spacer(modifier = Modifier.weight(1f))
             Spacer(modifier = Modifier.height(32.dp))
 
             // Version Info

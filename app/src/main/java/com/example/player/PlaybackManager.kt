@@ -82,9 +82,6 @@ class PlaybackManager private constructor(private val context: Context) {
     private val _bassBoostStrength = MutableStateFlow(0) // 0 to 1000 millibels
     val bassBoostStrength: StateFlow<Int> = _bassBoostStrength.asStateFlow()
 
-    private val _crossfadeDuration = MutableStateFlow(0) // 0 to 12 seconds
-    val crossfadeDuration: StateFlow<Int> = _crossfadeDuration.asStateFlow()
-
     private var sleepTimer: Timer? = null
     private val handler = Handler(Looper.getMainLooper())
 
@@ -96,29 +93,8 @@ class PlaybackManager private constructor(private val context: Context) {
         override fun run() {
             if (player.isPlaying) {
                 _currentPosition.value = player.currentPosition
-                
-                // Handle Crossfade (V-fade smooth transition)
-                val crossfadeSecs = _crossfadeDuration.value
-                if (crossfadeSecs > 0 && _duration.value > 0) {
-                    val crossfadeMs = crossfadeSecs * 1000L
-                    val remaining = _duration.value - _currentPosition.value
-                    
-                    if (remaining > 0 && remaining <= crossfadeMs) {
-                        // Fade out at end
-                        val ratio = remaining.toFloat() / crossfadeMs
-                        player.volume = ratio.coerceIn(0f, 1f)
-                    } else if (_currentPosition.value <= crossfadeMs && _currentPosition.value > 0) {
-                        // Fade in at start
-                        val ratio = _currentPosition.value.toFloat() / crossfadeMs
-                        player.volume = ratio.coerceIn(0f, 1f)
-                    } else {
-                        if (player.volume != 1.0f) player.volume = 1.0f
-                    }
-                } else {
-                    if (player.volume != 1.0f) player.volume = 1.0f
-                }
             }
-            handler.postDelayed(this, 100) // Lowered delay for smoother volume transition tracking
+            handler.postDelayed(this, 500) // Default delay for position tracking
         }
     }
 
@@ -406,14 +382,6 @@ class PlaybackManager private constructor(private val context: Context) {
         _sleepTimerMillis.value = 0L
     }
 
-    fun setCrossfadeDuration(seconds: Int) {
-        _crossfadeDuration.value = seconds
-        context.getSharedPreferences("soundbox_playback", Context.MODE_PRIVATE)
-            .edit()
-            .putInt("crossfade_duration", seconds)
-            .apply()
-    }
-
     private fun saveCurrentState(songId: String, position: Long) {
         val prefs = context.getSharedPreferences("soundbox_playback", Context.MODE_PRIVATE)
         prefs.edit()
@@ -427,8 +395,6 @@ class PlaybackManager private constructor(private val context: Context) {
             val prefs = context.getSharedPreferences("soundbox_playback", Context.MODE_PRIVATE)
             val lastSongId = prefs.getString("last_song_id", null)
             val lastPos = prefs.getLong("last_position", 0L)
-            
-            _crossfadeDuration.value = prefs.getInt("crossfade_duration", 0)
 
             if (lastSongId != null) {
                 val song = repository.getSongById(lastSongId)

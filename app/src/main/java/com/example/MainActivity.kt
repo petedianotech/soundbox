@@ -9,6 +9,10 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import com.example.ui.navigation.SoundboxNavGraph
 import com.example.ui.theme.MyApplicationTheme
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.ui.viewmodel.MusicViewModel
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 
 class MainActivity : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
@@ -18,8 +22,11 @@ class MainActivity : ComponentActivity() {
     requestPlaybackAndStoragePermissions()
 
     setContent {
-      MyApplicationTheme {
-        SoundboxNavGraph()
+      val viewModel: MusicViewModel = viewModel()
+      val themeFlow by viewModel.settingsManager.themeFlow.collectAsState()
+      
+      MyApplicationTheme(themeConfig = themeFlow) {
+        SoundboxNavGraph(viewModel)
       }
     }
   }

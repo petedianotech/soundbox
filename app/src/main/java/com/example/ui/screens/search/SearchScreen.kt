@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.data.model.Song
 import com.example.ui.components.EmptyPlaceholder
+import com.example.ui.components.MiniPlayer
 import com.example.ui.components.TrackRow
 import com.example.ui.viewmodel.MusicViewModel
 
@@ -21,12 +22,13 @@ import com.example.ui.viewmodel.MusicViewModel
 @Composable
 fun SearchScreen(
     viewModel: MusicViewModel,
-    onSongSelected: (Song) -> Unit
+    onNavigateToNowPlaying: () -> Unit
 ) {
     val songs by viewModel.allSongs.collectAsState()
     val currentSong by viewModel.currentSong.collectAsState()
 
     var searchQuery by remember { mutableStateOf("") }
+    val isPlaying by viewModel.isPlaying.collectAsState()
 
     val filteredSongs = remember(songs, searchQuery) {
         if (searchQuery.isBlank()) {
@@ -95,13 +97,24 @@ fun SearchScreen(
                         isPlaying = currentSong?.id == song.id,
                         onClick = {
                             viewModel.playSong(song, filteredSongs)
-                            onSongSelected(song)
                         },
                         onFavoriteToggle = { viewModel.toggleFavorite(song) },
                         onMenuClick = {}
                     )
                 }
             }
+        }
+        
+        // Persistent Floating MiniPlayer for Search screen
+        Box(modifier = Modifier.fillMaxSize()) {
+            MiniPlayer(
+                currentSong = currentSong,
+                isPlaying = isPlaying,
+                onPlayPause = { viewModel.playPause() },
+                onSkipNext = { viewModel.skipNext() },
+                onOpenNowPlaying = onNavigateToNowPlaying,
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
         }
     }
 }

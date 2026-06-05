@@ -37,6 +37,13 @@ import com.example.data.model.Song
 import com.example.ui.components.EmptyPlaceholder
 import com.example.ui.components.SongImagePlaceholder
 import com.example.ui.viewmodel.MusicViewModel
+import androidx.compose.ui.platform.LocalContext
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import com.example.player.LyricsManager
 import java.util.Locale
 
 data class LyricLine(
@@ -44,77 +51,51 @@ data class LyricLine(
     val text: String
 )
 
-/**
- * Dynamically computes a beautiful synchronized lyric set mathematical to track length.
- */
-fun getLyricsForSong(song: Song, durationMs: Long): List<LyricLine> {
-    val title = song.title.lowercase()
-    val startOffset = 3000L
-    val finalDuration = if (durationMs <= 0) 180000L else durationMs
+fun parseLyrics(content: String, durationMs: Long): List<LyricLine> {
+    val lines = content.lines()
+    val parsedLines = mutableListOf<LyricLine>()
+    val lrcRegex = Regex("\\[(\\d{2}):(\\d{2})\\.(\\d{2,3})](.*)")
     
-    val baseLyrics = when {
-        title.contains("ambient") || title.contains("synth") || title.contains("loop") || title.contains("beat") -> listOf(
-            "🎵 [Instrumental Synthesizer Intro]",
-            "Deep resonance spreading through the air...",
-            "Waves of analog oscillators rising...",
-            "A cosmic heartbeat pulsing in slow motion.",
-            "Filtering the cutoff frequencies from negative peaks...",
-            "Sub-bass rattling the physical foundations.",
-            "🌌 [Shimmering Echo Patterns]",
-            "Modulated audio delays creating endless virtual space.",
-            "Harmonic overtones blending into a wash of pink noise...",
-            "Sinking deep into the offline soundscape floor.",
-            "🎛️ [Filter Sweep Resonance Peak]",
-            "The synthetic breeze cools down.",
-            "Fading out into pure, isolated offline silence."
-        )
-        title.contains("acoustic") || title.contains("guitar") || title.contains("folk") || title.contains("live") -> listOf(
-            "🎸 [Soft Acoustic Fingerpicking Intro]",
-            "Cold wind blowing through the open mountain pines...",
-            "I found an old guitar under the dust of forgotten times.",
-            "No cloud servers reaching where we stand,",
-            "Just raw solid wood and copper string within my hand.",
-            "Every acoustic vibration tells a beautiful past legacy,",
-            "A tactile custom frequency that is built to last.",
-            "🍃 [Warm Melodic Chorus]",
-            "Oh, Soundbox, humming in the twilight gray,",
-            "Carry these acoustic memories from yesterday.",
-            "We don't need the server, we don't need the line,",
-            "This local sandbox keeps our chords aligned.",
-            "🍂 [Chuckle and Harmonic Tap Outro]",
-            "The stars are settling in a quiet offline array.",
-            "Fading like wildfire smoke, we drift away."
-        )
-        else -> listOf(
-            "🎶 [Acoustic Melodic Intro]",
-            "Walking through the neon lit offline streets,",
-            "Feel the direct connection as the hardware tempo beats.",
-            "No telemetry trackers following, no central cloud constraint,",
-            "Just raw offline storage, with nothing left to paint.",
-            "You ask for premium styling, you ask to break the chain,",
-            "We build this local temple in the offline rain.",
-            "🔥 [Swell of Resonance Chorus]",
-            "Oh, Soundbox calling, clear and loud!",
-            "Wander isolated, far away from any crowd.",
-            "With custom dynamic themes, and bass boost tuned so fine,",
-            "A masterwork of code, aligned in design offline.",
-            "Let the high-fidelity frequencies engage,",
-            "We write our names upon the premium page.",
-            "✨ [Guitar Solo Reverb Outro]",
-            "Feel the beautiful drift, peaceful energy,",
-            "Ending in a sweet offline acoustic harmony."
-        )
+    var hasTimestamps = false
+    
+    for (rawLine in lines) {
+        val match = lrcRegex.find(rawLine)
+        if (match != null) {
+            hasTimestamps = true
+            val min = match.groupValues[1].toLong()
+            val sec = match.groupValues[2].toLong()
+            val milliStr = match.groupValues[3]
+            val ms = if (milliStr.length == 2) milliStr.toLong() * 10 else milliStr.toLong()
+            val text = match.groupValues[4].trim()
+            if (text.isNotEmpty() || hasTimestamps) {
+                val totalMs = (min * 60 * 1000) + (sec * 1000) + ms
+                parsedLines.add(LyricLine(totalMs, text))
+            }
+        }
     }
-
-    val activeTime = (finalDuration - startOffset - 5000L).coerceAtLeast(10000L)
-    val interval = if (baseLyrics.size > 1) activeTime / (baseLyrics.size - 1) else 0L
-
-    return baseLyrics.mapIndexed { index, text ->
-        LyricLine(
-            timeMs = startOffset + (index * interval),
-            text = text
-        )
+    
+    if (hasTimestamps) {
+        return parsedLines.sortedBy { it.timeMs }
+    } else {
+        // Static lyrics without timestamps
+        val validLines = lines.filter { it.isNotBlank() }
+        val activeTime = (durationMs - 3000L - 5000L).coerceAtLeast(10000L)
+        val interval = if (validLines.size > 1) activeTime / (validLines.size - 1) else 0L
+        return validLines.mapIndexed { index, text ->
+            LyricLine(
+                timeMs = 3000L + (index * interval),
+                text = text.trim()
+            )
+        }
     }
+}
+
+fun getLyricsForSong(context: Context, song: Song, durationMs: Long): List<LyricLine> {
+    val saved = LyricsManager.loadLyrics(context, song)
+    if (saved != null && saved.isNotBlank()) {
+        return parseLyrics(saved, durationMs)
+    }
+    return emptyList()
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -140,6 +121,27 @@ fun NowPlayingScreen(
     
     // Track if user wants full-focus lyrics view in center instead of artwork
     var isLyricsViewActive by remember { mutableStateOf(false) }
+    var showLyricsMenu by remember { mutableStateOf(false) }
+    var showPasteDialog by remember { mutableStateOf(false) }
+    var pastedLyricsContent by remember { mutableStateOf("") }
+    var refreshTrigger by remember { mutableStateOf(0) }
+    val context = LocalContext.current
+    
+    val fileLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        uri?.let {
+            try {
+                context.contentResolver.openInputStream(it)?.bufferedReader()?.use { reader ->
+                    val content = reader.readText()
+                    if (currentSong != null) {
+                        LyricsManager.saveLyrics(context, currentSong!!, content)
+                        refreshTrigger++
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
 
     if (currentSong == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -164,7 +166,7 @@ fun NowPlayingScreen(
         val dominantColor = colors[colorIndex]
 
         // Setup live synchronized local lyrics
-        val lyrics = remember(song.id, duration) { getLyricsForSong(song, duration) }
+        val lyrics = remember(song.id, duration, refreshTrigger) { getLyricsForSong(context, song, duration) }
         val activeVerseIndexByTime = lyrics.indexOfLast { position >= it.timeMs }
         val currentActiveIndex = activeVerseIndexByTime.coerceAtLeast(0)
 
@@ -229,15 +231,20 @@ fun NowPlayingScreen(
                     }
             ) {
                 Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    modifier = Modifier.fillMaxSize()
                 ) {
-                    Spacer(modifier = Modifier.height(8.dp))
+                    // TOP SCROLLABLE SECTION
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                            .verticalScroll(rememberScrollState())
+                            .padding(horizontal = 24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Spacer(modifier = Modifier.height(8.dp))
 
-                    // CENTER INTERACTIVE AREA: Animated Crossfade between Artwork & Live Lyrics
+                        // CENTER INTERACTIVE AREA: Animated Crossfade between Artwork & Live Lyrics
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -262,75 +269,93 @@ fun NowPlayingScreen(
                                         .clickable { isLyricsViewActive = false }
                                         .padding(16.dp)
                                 ) {
-                                    LazyColumn(
-                                        state = lyricsListState,
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentPadding = PaddingValues(vertical = 110.dp),
-                                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                                    ) {
-                                        itemsIndexed(lyrics) { index, line ->
-                                            val isActive = index == currentActiveIndex
-                                            val scale by animateFloatAsState(
-                                                targetValue = if (isActive) 1.05f else 0.95f,
-                                                animationSpec = spring(stiffness = Spring.StiffnessLow),
-                                                label = "LyricScale"
-                                            )
-                                            val alpha by animateFloatAsState(
-                                                targetValue = if (isActive) 1f else 0.4f,
-                                                animationSpec = tween(280),
-                                                label = "LyricAlpha"
-                                            )
-                                            
+                                    if (lyrics.isEmpty()) {
+                                        Column(
+                                            modifier = Modifier.fillMaxSize(),
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.Center
+                                        ) {
                                             Text(
-                                                text = line.text,
-                                                style = MaterialTheme.typography.titleLarge.copy(
-                                                    fontWeight = if (isActive) FontWeight.ExtraBold else FontWeight.Bold,
-                                                    fontSize = 20.sp,
-                                                    lineHeight = 28.sp
-                                                ),
-                                                textAlign = TextAlign.Center,
-                                                color = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .graphicsLayer {
-                                                        scaleX = scale
-                                                        scaleY = scale
-                                                        this.alpha = alpha
-                                                    }
-                                                    .padding(horizontal = 12.dp)
+                                                "No lyrics found.",
+                                                color = MaterialTheme.colorScheme.onSurface,
+                                                style = MaterialTheme.typography.titleMedium
                                             )
+                                            Spacer(modifier = Modifier.height(16.dp))
+                                            Button(onClick = { showLyricsMenu = true }) {
+                                                Text("Add Lyrics")
+                                            }
                                         }
+                                    } else {
+                                        LazyColumn(
+                                            state = lyricsListState,
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentPadding = PaddingValues(vertical = 110.dp),
+                                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                                        ) {
+                                            itemsIndexed(lyrics) { index, line ->
+                                                val isActive = index == currentActiveIndex
+                                                val scale by animateFloatAsState(
+                                                    targetValue = if (isActive) 1.05f else 0.95f,
+                                                    animationSpec = spring(stiffness = Spring.StiffnessLow),
+                                                    label = "LyricScale"
+                                                )
+                                                val alpha by animateFloatAsState(
+                                                    targetValue = if (isActive) 1f else 0.4f,
+                                                    animationSpec = tween(280),
+                                                    label = "LyricAlpha"
+                                                )
+                                                
+                                                Text(
+                                                    text = line.text,
+                                                    style = MaterialTheme.typography.titleLarge.copy(
+                                                        fontWeight = if (isActive) FontWeight.ExtraBold else FontWeight.Bold,
+                                                        fontSize = 20.sp,
+                                                        lineHeight = 28.sp
+                                                    ),
+                                                    textAlign = TextAlign.Center,
+                                                    color = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .graphicsLayer {
+                                                            scaleX = scale
+                                                            scaleY = scale
+                                                            this.alpha = alpha
+                                                        }
+                                                        .padding(horizontal = 12.dp)
+                                                )
+                                            }
+                                        }
+                                        
+                                        // Soft fade indicator overlays upper/lower
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(40.dp)
+                                                .align(Alignment.TopCenter)
+                                                .background(
+                                                    Brush.verticalGradient(
+                                                        listOf(
+                                                            MaterialTheme.colorScheme.background.copy(alpha = 0.8f),
+                                                            Color.Transparent
+                                                        )
+                                                    )
+                                                )
+                                        )
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(40.dp)
+                                                .align(Alignment.BottomCenter)
+                                                .background(
+                                                    Brush.verticalGradient(
+                                                        listOf(
+                                                            Color.Transparent,
+                                                            MaterialTheme.colorScheme.background.copy(alpha = 0.8f)
+                                                        )
+                                                    )
+                                                )
+                                        )
                                     }
-                                    
-                                    // Soft fade indicator overlays upper/lower
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(40.dp)
-                                            .align(Alignment.TopCenter)
-                                            .background(
-                                                Brush.verticalGradient(
-                                                    listOf(
-                                                        MaterialTheme.colorScheme.background.copy(alpha = 0.8f),
-                                                        Color.Transparent
-                                                    )
-                                                )
-                                            )
-                                    )
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(40.dp)
-                                            .align(Alignment.BottomCenter)
-                                            .background(
-                                                Brush.verticalGradient(
-                                                    listOf(
-                                                        Color.Transparent,
-                                                        MaterialTheme.colorScheme.background.copy(alpha = 0.8f)
-                                                    )
-                                                )
-                                            )
-                                    )
                                 }
                             } else {
                                 // Beautiful large Album Artwork Card with vinyl metallic ring depth elements
@@ -416,7 +441,102 @@ fun NowPlayingScreen(
 
                     Spacer(modifier = Modifier.height(18.dp))
 
-                    // Active Sleep Timer Pill indicator if ticking
+                    // Secondary Dynamic Spotify-style lyrics drawer preview box (placed strategically under control set)
+                    if (!isLyricsViewActive) {
+                        Card(
+                            onClick = {
+                                if (lyrics.isEmpty()) showLyricsMenu = true
+                                else isLyricsViewActive = true
+                            },
+                            colors = CardDefaults.cardColors(
+                                containerColor = dominantColor.copy(alpha = 0.08f)
+                            ),
+                            shape = RoundedCornerShape(24.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 120.dp, max = 150.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(20.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Lyrics Sync",
+                                        style = MaterialTheme.typography.labelMedium.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            color = dominantColor,
+                                            letterSpacing = 1.sp
+                                        )
+                                    )
+                                    Icon(
+                                        imageVector = Icons.Default.OpenInFull,
+                                        contentDescription = "Fullscreen lyrics mode",
+                                        tint = dominantColor,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                                
+                                Spacer(modifier = Modifier.height(12.dp))
+                                
+                                if (lyrics.isEmpty()) {
+                                    Text(
+                                        text = "Tap to add lyrics",
+                                        style = MaterialTheme.typography.bodyLarge.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 17.sp,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                    )
+                                } else {
+                                    val activeLineText = lyrics.getOrNull(currentActiveIndex)?.text ?: ""
+                                    val nextLineText = lyrics.getOrNull(currentActiveIndex + 1)?.text ?: ""
+                                    
+                                    Text(
+                                        text = activeLineText.ifEmpty { "🎵 Instrumental section..." },
+                                        style = MaterialTheme.typography.bodyLarge.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 17.sp,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        ),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    if (nextLineText.isNotEmpty()) {
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = nextLineText,
+                                            style = MaterialTheme.typography.bodyMedium.copy(
+                                                fontWeight = FontWeight.Medium,
+                                                fontSize = 15.sp,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                            ),
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(24.dp))
+                    }
+
+                    } // End Top Scrollable
+
+                    // BOTTOM FIXED ACTION CONTROLS
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp)
+                            .padding(bottom = 12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        // Active Sleep Timer Pill indicator if ticking
                     if (sleepTimerLeft > 0) {
                         val minutes = (sleepTimerLeft / 1000) / 60
                         val seconds = (sleepTimerLeft / 1000) % 60
@@ -454,12 +574,12 @@ fun NowPlayingScreen(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(
-                                text = formatDuration(position),
+                                text = formatPosition(position),
                                 style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
-                                text = formatDuration(duration),
+                                text = formatPosition(duration),
                                 style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -547,82 +667,11 @@ fun NowPlayingScreen(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // Secondary Dynamic Spotify-style lyrics drawer preview box (placed strategically under control set)
-                    if (!isLyricsViewActive && lyrics.isNotEmpty()) {
-                        Card(
-                            onClick = { isLyricsViewActive = true },
-                            colors = CardDefaults.cardColors(
-                                containerColor = dominantColor.copy(alpha = 0.08f)
-                            ),
-                            shape = RoundedCornerShape(24.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 120.dp, max = 150.dp)
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(20.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = "Lyrics Live Sync",
-                                        style = MaterialTheme.typography.labelMedium.copy(
-                                            fontWeight = FontWeight.Bold,
-                                            color = dominantColor,
-                                            letterSpacing = 1.sp
-                                        )
-                                    )
-                                    Icon(
-                                        imageVector = Icons.Default.OpenInFull,
-                                        contentDescription = "Fullscreen lyrics mode",
-                                        tint = dominantColor,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
-                                
-                                Spacer(modifier = Modifier.height(12.dp))
-                                
-                                val activeLineText = lyrics.getOrNull(currentActiveIndex)?.text ?: ""
-                                val nextLineText = lyrics.getOrNull(currentActiveIndex + 1)?.text ?: ""
-                                
-                                Text(
-                                    text = activeLineText.ifEmpty { "🎵 Instrumental section..." },
-                                    style = MaterialTheme.typography.bodyLarge.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 17.sp,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    ),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                if (nextLineText.isNotEmpty()) {
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = nextLineText,
-                                        style = MaterialTheme.typography.bodyMedium.copy(
-                                            fontWeight = FontWeight.Medium,
-                                            fontSize = 15.sp,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                                        ),
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(24.dp))
-                    }
-
                     // Favorite and Sleep Timer Quick Actions bar
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(bottom = 32.dp),
+                            .padding(bottom = 16.dp),
                         horizontalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         OutlinedButton(
@@ -660,9 +709,10 @@ fun NowPlayingScreen(
                     }
 
                     Spacer(modifier = Modifier.height(24.dp))
-                }
-            }
-        }
+                } // ends bottom controls Column
+                } // ends top level wrapper Column
+            } // ends box
+        } // ends scaffold
 
         // Timer chooser dialog set
         if (showTimerDialog) {
@@ -860,12 +910,98 @@ fun NowPlayingScreen(
                 }
             }
         }
-    }
-}
 
-private fun formatDuration(durationMs: Long): String {
+        if (showLyricsMenu) {
+            AlertDialog(
+                onDismissRequest = { showLyricsMenu = false },
+                title = { Text("Add Lyrics") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Button(
+                            onClick = { 
+                                val query = LyricsManager.buildSearchQuery(song)
+                                val intent = Intent(Intent.ACTION_WEB_SEARCH).apply {
+                                    putExtra("query", query)
+                                }
+                                try {
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    // Fallback to browser
+                                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/search?q=${Uri.encode(query)}")))
+                                }
+                                showLyricsMenu = false 
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Search Web (Google)")
+                        }
+                        Button(
+                            onClick = { 
+                                showLyricsMenu = false
+                                pastedLyricsContent = ""
+                                showPasteDialog = true
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Paste Lyrics Manually")
+                        }
+                        Button(
+                            onClick = { 
+                                showLyricsMenu = false
+                                fileLauncher.launch("*/*")
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Select Lyrics File (.lrc/.txt)")
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showLyricsMenu = false }) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
+
+        if (showPasteDialog) {
+            AlertDialog(
+                onDismissRequest = { showPasteDialog = false },
+                title = { Text("Paste Lyrics") },
+                text = {
+                    OutlinedTextField(
+                        value = pastedLyricsContent,
+                        onValueChange = { pastedLyricsContent = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(200.dp),
+                        placeholder = { Text("Paste lyrics here...") }
+                    )
+                },
+                confirmButton = {
+                    Button(onClick = {
+                        if (pastedLyricsContent.isNotBlank()) {
+                            LyricsManager.saveLyrics(context, song, pastedLyricsContent)
+                            refreshTrigger++
+                        }
+                        showPasteDialog = false
+                    }) {
+                        Text("Save")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showPasteDialog = false }) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
+    }
+} // ends NowPlayingScreen
+
+private fun formatPosition(durationMs: Long): String {
     val totalSecs = durationMs / 1000
     val mins = totalSecs / 60
     val secs = totalSecs % 60
-    return String.format(Locale.getDefault(), "%02d:%02d", mins, secs)
+    return String.format(java.util.Locale.getDefault(), "%02d:%02d", mins, secs)
 }

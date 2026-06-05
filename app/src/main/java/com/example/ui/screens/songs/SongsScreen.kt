@@ -11,6 +11,9 @@ import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Sort
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -35,6 +38,7 @@ fun SongsScreen(
     var songToManage by remember { mutableStateOf<Song?>(null) }
     var showPlaylistDialog by remember { mutableStateOf(false) }
     var showActionSheet by remember { mutableStateOf(false) }
+    var showSortMenu by remember { mutableStateOf(false) }
 
     var selectedSongIds by remember { mutableStateOf(setOf<String>()) }
     val inSelectionMode = selectedSongIds.isNotEmpty()
@@ -99,11 +103,39 @@ fun SongsScreen(
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        IconButton(onClick = { viewModel.scanStorage() }) {
-                            if (isScanning) {
-                                CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
-                            } else {
-                                Icon(Icons.Default.Refresh, contentDescription = "Refresh Scan")
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box {
+                                IconButton(onClick = { showSortMenu = true }) {
+                                    Icon(Icons.Default.Sort, contentDescription = "Sort")
+                                }
+                                DropdownMenu(
+                                    expanded = showSortMenu,
+                                    onDismissRequest = { showSortMenu = false }
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text("A to Z") },
+                                        onClick = { viewModel.setSortOrder(MusicViewModel.SortOrder.A_TO_Z); showSortMenu = false }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Z to A") },
+                                        onClick = { viewModel.setSortOrder(MusicViewModel.SortOrder.Z_TO_A); showSortMenu = false }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Date Added") },
+                                        onClick = { viewModel.setSortOrder(MusicViewModel.SortOrder.DATE_ADDED); showSortMenu = false }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Duration") },
+                                        onClick = { viewModel.setSortOrder(MusicViewModel.SortOrder.DURATION); showSortMenu = false }
+                                    )
+                                }
+                            }
+                            IconButton(onClick = { viewModel.scanStorage() }) {
+                                if (isScanning) {
+                                    CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                                } else {
+                                    Icon(Icons.Default.Refresh, contentDescription = "Refresh Scan")
+                                }
                             }
                         }
                     }
@@ -161,6 +193,21 @@ fun SongsScreen(
                         modifier = Modifier.padding(16.dp)
                     )
                     Divider()
+                    ListItem(
+                        headlineContent = { Text(if (songToManage!!.isFavorite) "Remove from Favorites" else "Add to Favorites") },
+                        leadingContent = { 
+                            Icon(
+                                imageVector = if (songToManage!!.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder, 
+                                contentDescription = null, 
+                                tint = if (songToManage!!.isFavorite) androidx.compose.ui.graphics.Color.Red else LocalContentColor.current
+                            ) 
+                        },
+                        modifier = Modifier.clickable {
+                            viewModel.toggleFavorite(songToManage!!)
+                            showActionSheet = false
+                            songToManage = null
+                        }
+                    )
                     ListItem(
                         headlineContent = { Text("Play Next") },
                         leadingContent = { Icon(Icons.Default.MusicNote, null) },

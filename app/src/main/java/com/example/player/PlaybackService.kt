@@ -4,6 +4,7 @@ import android.content.Intent
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import androidx.media3.session.DefaultMediaNotificationProvider
+import com.example.R
 
 class PlaybackService : MediaSessionService() {
 
@@ -18,7 +19,8 @@ class PlaybackService : MediaSessionService() {
             .build()
             
         // Use DefaultMediaNotificationProvider which implements MediaStyle notification under the hood
-        val notificationProvider = DefaultMediaNotificationProvider(this)
+        val notificationProvider = DefaultMediaNotificationProvider.Builder(this).build()
+        notificationProvider.setSmallIcon(R.drawable.ic_launcher_foreground)
         setMediaNotificationProvider(notificationProvider)
     }
 

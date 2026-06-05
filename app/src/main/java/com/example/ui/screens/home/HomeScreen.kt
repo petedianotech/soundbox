@@ -59,6 +59,18 @@ fun HomeScreen(
     var selectedTab by remember { mutableStateOf(HomeTab.SONGS) }
     val currentSong by viewModel.currentSong.collectAsState()
     val isPlaying by viewModel.isPlaying.collectAsState()
+    
+    val visibleTabsStrings by viewModel.settingsManager.visibleTabsFlow.collectAsState()
+    val visibleTabs = remember(visibleTabsStrings) {
+        HomeTab.values().filter { it.name in visibleTabsStrings }
+    }
+    
+    androidx.compose.runtime.LaunchedEffect(visibleTabsStrings) {
+        if (selectedTab.name !in visibleTabsStrings) {
+            val fallback = HomeTab.values().firstOrNull { it.name in visibleTabsStrings } ?: HomeTab.SONGS
+            selectedTab = fallback
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -76,7 +88,7 @@ fun HomeScreen(
         },
         bottomBar = {
             NavigationBar {
-                HomeTab.values().forEach { tab ->
+                visibleTabs.forEach { tab ->
                     NavigationBarItem(
                         selected = selectedTab == tab,
                         onClick = { selectedTab = tab },
@@ -95,27 +107,27 @@ fun HomeScreen(
             when (selectedTab) {
                 HomeTab.SONGS -> SongsScreen(
                     viewModel = viewModel,
-                    onSongSelected = { onNavigateToNowPlaying() }
+                    onSongSelected = { }
                 )
                 HomeTab.ALBUMS -> AlbumsScreen(
                     viewModel = viewModel,
-                    onSongSelected = { onNavigateToNowPlaying() }
+                    onSongSelected = { }
                 )
                 HomeTab.ARTISTS -> ArtistsScreen(
                     viewModel = viewModel,
-                    onSongSelected = { onNavigateToNowPlaying() }
+                    onSongSelected = { }
                 )
                 HomeTab.GENRES -> GenresScreen(
                     viewModel = viewModel,
-                    onSongSelected = { onNavigateToNowPlaying() }
+                    onSongSelected = { }
                 )
                 HomeTab.FOLDERS -> FoldersScreen(
                     viewModel = viewModel,
-                    onSongSelected = { onNavigateToNowPlaying() }
+                    onSongSelected = { }
                 )
                 HomeTab.PLAYLISTS -> PlaylistsScreen(
                     viewModel = viewModel,
-                    onSongSelected = { onNavigateToNowPlaying() }
+                    onSongSelected = { }
                 )
             }
             
