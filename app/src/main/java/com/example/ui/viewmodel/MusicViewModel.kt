@@ -133,6 +133,13 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun updateSongMetadata(updatedSong: Song) {
+        viewModelScope.launch {
+            repository.updateSongMetadata(updatedSong)
+            playbackManager.refreshCurrentSongMetadata(updatedSong)
+        }
+    }
+
     // Playlist Commands
     fun createPlaylist(name: String) {
         viewModelScope.launch {

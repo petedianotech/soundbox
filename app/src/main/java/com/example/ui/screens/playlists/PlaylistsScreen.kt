@@ -196,7 +196,8 @@ fun PlaylistsScreen(
                             .padding(vertical = 12.dp, horizontal = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        SongImagePlaceholder(title = playlist.name, size = 48f)
+                        val firstSongId = playlistSongs.firstOrNull()?.id
+                        com.example.ui.components.ArtworkThumbnail(songId = firstSongId, title = playlist.name, size = 48f)
 
                         Spacer(modifier = Modifier.width(16.dp))
 
@@ -287,7 +288,8 @@ fun PlaylistsScreen(
                             .padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        SongImagePlaceholder(title = activeListName!!, size = 64f)
+                        val firstSongId = activeListSongs.firstOrNull()?.id
+                        com.example.ui.components.ArtworkThumbnail(songId = firstSongId, title = activeListName!!, size = 64f)
                         Spacer(modifier = Modifier.width(16.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
@@ -318,6 +320,11 @@ fun PlaylistsScreen(
                             .weight(1f, fill = false)
                     ) {
                         items(activeListSongs) { song ->
+                            val extraInfo = when (activeListName) {
+                                "Most Played" -> if (song.playCount == 1) "1 play" else "${song.playCount} plays"
+                                "Recently Played" -> formatRelativeTime(song.lastPlayedTime)
+                                else -> null
+                            }
                             TrackRow(
                                 song = song,
                                 isPlaying = currentSong?.id == song.id,
@@ -334,7 +341,8 @@ fun PlaylistsScreen(
                                         // Update state directly for swift responsive feed
                                         activeListSongs = activeListSongs.toMutableList().apply { remove(song) }
                                     }
-                                }
+                                },
+                                extraInfo = extraInfo
                             )
                         }
                     }
@@ -342,6 +350,23 @@ fun PlaylistsScreen(
             }
         }
     }
+}
+
+fun formatRelativeTime(timestamp: Long): String {
+    if (timestamp == 0L) return ""
+    val diff = System.currentTimeMillis() - timestamp
+    if (diff < 0) return "Just now"
+    val diffSecs = diff / 1000
+    if (diffSecs < 60) return "Just now"
+    val diffMins = diffSecs / 60
+    if (diffMins < 60) return "${diffMins}m ago"
+    val diffHours = diffMins / 60
+    if (diffHours < 24) return "${diffHours}h ago"
+    val diffDays = diffHours / 24
+    if (diffDays == 1L) return "Yesterday"
+    if (diffDays < 7) return "${diffDays} days ago"
+    val sdf = java.text.SimpleDateFormat("MMM dd", java.util.Locale.getDefault())
+    return sdf.format(java.util.Date(timestamp))
 }
 
 @Composable

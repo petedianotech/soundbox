@@ -53,6 +53,48 @@ fun SongImagePlaceholder(
     }
 }
 
+@Composable
+fun ArtworkThumbnail(
+    songId: String?,
+    title: String,
+    modifier: Modifier = Modifier,
+    size: Float = 48f,
+    isCircle: Boolean = false
+) {
+    val artworkUri = remember(songId) {
+        if (!songId.isNullOrEmpty()) {
+            android.net.Uri.parse("content://media/external/audio/media/${songId}/albumart")
+        } else {
+            null
+        }
+    }
+
+    val shape = if (isCircle) androidx.compose.foundation.shape.CircleShape else RoundedCornerShape(8.dp)
+
+    Box(
+        modifier = modifier
+            .size(size.dp)
+            .clip(shape)
+    ) {
+        if (artworkUri != null) {
+            coil.compose.SubcomposeAsyncImage(
+                model = artworkUri,
+                contentDescription = "Artwork Thumbnail",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                loading = {
+                    SongImagePlaceholder(title = title, modifier = Modifier.fillMaxSize(), size = size)
+                },
+                error = {
+                    SongImagePlaceholder(title = title, modifier = Modifier.fillMaxSize(), size = size)
+                }
+            )
+        } else {
+            SongImagePlaceholder(title = title, modifier = Modifier.fillMaxSize(), size = size)
+        }
+    }
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TrackRow(
@@ -63,7 +105,8 @@ fun TrackRow(
     onMenuClick: () -> Unit,
     modifier: Modifier = Modifier,
     isSelected: Boolean = false,
-    onLongClick: (() -> Unit)? = null
+    onLongClick: (() -> Unit)? = null,
+    extraInfo: String? = null
 ) {
     Row(
         modifier = modifier
@@ -76,7 +119,11 @@ fun TrackRow(
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        SongImagePlaceholder(title = song.title)
+        ArtworkThumbnail(
+            songId = song.id,
+            title = song.title,
+            size = 48f
+        )
 
         Spacer(modifier = Modifier.width(16.dp))
 
@@ -91,8 +138,13 @@ fun TrackRow(
                 overflow = TextOverflow.Ellipsis
             )
             Spacer(modifier = Modifier.height(2.dp))
+            val subtitleText = if (!extraInfo.isNullOrEmpty()) {
+                "${song.artist} • ${song.album} • $extraInfo"
+            } else {
+                "${song.artist} • ${song.album}"
+            }
             Text(
-                text = "${song.artist} • ${song.album}",
+                text = subtitleText,
                 style = MaterialTheme.typography.bodyMedium.copy(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 ),
@@ -142,7 +194,11 @@ fun MiniPlayer(
                         .fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    SongImagePlaceholder(title = song.title, size = 44f)
+                    ArtworkThumbnail(
+                        songId = song.id,
+                        title = song.title,
+                        size = 44f
+                    )
 
                     Spacer(modifier = Modifier.width(12.dp))
 

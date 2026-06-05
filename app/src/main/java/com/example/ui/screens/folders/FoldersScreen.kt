@@ -71,21 +71,12 @@ fun FoldersScreen(
                             .padding(horizontal = 16.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(48.dp)
-                                .background(
-                                    MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f),
-                                    shape = MaterialTheme.shapes.small
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Folder,
-                                contentDescription = "Folder",
-                                tint = MaterialTheme.colorScheme.secondary
-                            )
-                        }
+                        val firstSongId = songsInFolder.firstOrNull()?.id
+                        com.example.ui.components.ArtworkThumbnail(
+                            songId = firstSongId,
+                            title = folderName,
+                            size = 48f
+                        )
 
                         Spacer(modifier = Modifier.width(16.dp))
 
@@ -139,18 +130,12 @@ fun FoldersScreen(
                             .padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(54.dp)
-                                .background(MaterialTheme.colorScheme.primaryContainer),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Folder,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
+                        val firstSongId = folderSongs.firstOrNull()?.id
+                        com.example.ui.components.ArtworkThumbnail(
+                            songId = firstSongId,
+                            title = folderNameLabel,
+                            size = 54f
+                        )
                         Spacer(modifier = Modifier.width(16.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(

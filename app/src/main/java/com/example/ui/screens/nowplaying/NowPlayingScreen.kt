@@ -355,6 +355,20 @@ fun NowPlayingScreen(
                                                     )
                                                 )
                                         )
+
+                                        // Floating settings button on active lyric view to change or clear lyrics offline easily
+                                        IconButton(
+                                            onClick = { showLyricsMenu = true },
+                                            modifier = Modifier
+                                                .align(Alignment.TopEnd)
+                                                .padding(8.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Edit,
+                                                contentDescription = "Manage Lyrics",
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
                                     }
                                 }
                             } else {
@@ -912,9 +926,10 @@ fun NowPlayingScreen(
         }
 
         if (showLyricsMenu) {
+            val hasSavedLyrics = LyricsManager.loadLyrics(context, song) != null
             AlertDialog(
                 onDismissRequest = { showLyricsMenu = false },
-                title = { Text("Add Lyrics") },
+                title = { Text(if (hasSavedLyrics) "Manage Lyrics" else "Add Lyrics") },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         Button(
@@ -938,12 +953,12 @@ fun NowPlayingScreen(
                         Button(
                             onClick = { 
                                 showLyricsMenu = false
-                                pastedLyricsContent = ""
+                                pastedLyricsContent = LyricsManager.loadLyrics(context, song) ?: ""
                                 showPasteDialog = true
                             },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("Paste Lyrics Manually")
+                            Text(if (hasSavedLyrics) "Edit Lyrics Manually" else "Paste Lyrics Manually")
                         }
                         Button(
                             onClick = { 
@@ -953,6 +968,19 @@ fun NowPlayingScreen(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text("Select Lyrics File (.lrc/.txt)")
+                        }
+                        if (hasSavedLyrics) {
+                            Button(
+                                onClick = {
+                                    LyricsManager.saveLyrics(context, song, "") // write empty
+                                    refreshTrigger++
+                                    showLyricsMenu = false
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("Delete Saved Lyrics")
+                            }
                         }
                     }
                 },

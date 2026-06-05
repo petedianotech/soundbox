@@ -74,7 +74,9 @@ fun AlbumsScreen(
                             modifier = Modifier.padding(12.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            SongImagePlaceholder(
+                            val firstSongId = songsInAlbum.firstOrNull()?.id
+                            com.example.ui.components.ArtworkThumbnail(
+                                songId = firstSongId,
                                 title = albumName,
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -119,7 +121,12 @@ fun AlbumsScreen(
                             .padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        SongImagePlaceholder(title = selectedAlbum!!, size = 64f)
+                        val firstSongId = albumSongs.firstOrNull()?.id
+                        com.example.ui.components.ArtworkThumbnail(
+                            songId = firstSongId,
+                            title = selectedAlbum!!,
+                            size = 64f
+                        )
                         Spacer(modifier = Modifier.width(16.dp))
                         Column {
                             Text(

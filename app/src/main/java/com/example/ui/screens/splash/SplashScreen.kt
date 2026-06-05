@@ -82,11 +82,11 @@ fun SplashScreen(onNavigateToHome: () -> Unit) {
                 
                 // Real Image Asset Centered
                 Image(
-                    painter = painterResource(id = R.drawable.soundbox_icon_1780600737999),
+                    painter = painterResource(id = R.drawable.soundbox_logo_1780659495671),
                     contentDescription = "Soundbox App Icon",
                     modifier = Modifier
-                        .size(110.dp)
-                        .clip(androidx.compose.foundation.shape.CircleShape)
+                        .size(115.dp)
+                        .clip(androidx.compose.foundation.shape.RoundedCornerShape(28.dp))
                 )
             }
 

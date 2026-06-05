@@ -14,6 +14,11 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -39,6 +44,26 @@ fun SongsScreen(
     var showPlaylistDialog by remember { mutableStateOf(false) }
     var showActionSheet by remember { mutableStateOf(false) }
     var showSortMenu by remember { mutableStateOf(false) }
+    var showTagEditor by remember { mutableStateOf(false) }
+
+    var editTitle by remember { mutableStateOf("") }
+    var editArtist by remember { mutableStateOf("") }
+    var editAlbum by remember { mutableStateOf("") }
+    var editGenre by remember { mutableStateOf("") }
+
+    val genreMap by viewModel.genreList.collectAsState()
+    val existingGenres = remember(genreMap) {
+        genreMap.keys.filter { it.isNotBlank() && it.lowercase() != "unknown" }
+    }
+
+    LaunchedEffect(songToManage, showTagEditor) {
+        if (showTagEditor && songToManage != null) {
+            editTitle = songToManage!!.title
+            editArtist = songToManage!!.artist
+            editAlbum = songToManage!!.album
+            editGenre = songToManage!!.genre
+        }
+    }
 
     var selectedSongIds by remember { mutableStateOf(setOf<String>()) }
     val inSelectionMode = selectedSongIds.isNotEmpty()
@@ -234,6 +259,14 @@ fun SongsScreen(
                             showPlaylistDialog = true
                         }
                     )
+                    ListItem(
+                        headlineContent = { Text("Edit Metadata Tags") },
+                        leadingContent = { Icon(Icons.Default.Edit, null) },
+                        modifier = Modifier.clickable {
+                            showActionSheet = false
+                            showTagEditor = true
+                        }
+                    )
                 }
             }
         }
@@ -291,6 +324,130 @@ fun SongsScreen(
                         showPlaylistDialog = false
                         songToManage = null
                     }) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
+
+        // Tag Editor Dialog
+        if (showTagEditor && songToManage != null) {
+            AlertDialog(
+                onDismissRequest = {
+                    showTagEditor = false
+                    songToManage = null
+                },
+                title = { Text("Edit Metadata Tags") },
+                text = {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        OutlinedTextField(
+                            value = editTitle,
+                            onValueChange = { editTitle = it },
+                            label = { Text("Title") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        OutlinedTextField(
+                            value = editArtist,
+                            onValueChange = { editArtist = it },
+                            label = { Text("Artist") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        OutlinedTextField(
+                            value = editAlbum,
+                            onValueChange = { editAlbum = it },
+                            label = { Text("Album") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        OutlinedTextField(
+                            value = editGenre,
+                            onValueChange = { editGenre = it },
+                            label = { Text("Genre") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        if (existingGenres.isNotEmpty()) {
+                            Text(
+                                text = "Quick Auto-Fill Genres:",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                existingGenres.forEach { genre ->
+                                    Surface(
+                                        shape = RoundedCornerShape(16.dp),
+                                        color = if (editGenre.lowercase().trim() == genre.lowercase().trim()) {
+                                            MaterialTheme.colorScheme.primaryContainer
+                                        } else {
+                                            MaterialTheme.colorScheme.surfaceVariant
+                                        },
+                                        border = androidx.compose.foundation.BorderStroke(
+                                            width = 1.dp,
+                                            color = if (editGenre.lowercase().trim() == genre.lowercase().trim()) {
+                                                MaterialTheme.colorScheme.primary
+                                            } else {
+                                                MaterialTheme.colorScheme.outlineVariant
+                                            }
+                                        ),
+                                        modifier = Modifier.clickable { editGenre = genre }
+                                    ) {
+                                        Text(
+                                            text = genre,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                            color = if (editGenre.lowercase().trim() == genre.lowercase().trim()) {
+                                                MaterialTheme.colorScheme.onPrimaryContainer
+                                            } else {
+                                                MaterialTheme.colorScheme.onSurfaceVariant
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            val updatedSong = songToManage!!.copy(
+                                title = editTitle,
+                                artist = editArtist,
+                                album = editAlbum,
+                                genre = editGenre
+                            )
+                            viewModel.updateSongMetadata(updatedSong)
+                            showTagEditor = false
+                            songToManage = null
+                        }
+                    ) {
+                        Text("Save Changes")
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = {
+                            showTagEditor = false
+                            songToManage = null
+                        }
+                    ) {
                         Text("Cancel")
                     }
                 }

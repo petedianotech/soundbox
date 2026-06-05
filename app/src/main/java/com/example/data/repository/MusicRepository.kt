@@ -58,6 +58,12 @@ class MusicRepository(private val context: Context) {
         }
     }
 
+    suspend fun updateSongMetadata(song: Song) {
+        withContext(Dispatchers.IO) {
+            songDao.updateSong(song)
+        }
+    }
+
     // Playlist Operations
     suspend fun createPlaylist(name: String) {
         withContext(Dispatchers.IO) {

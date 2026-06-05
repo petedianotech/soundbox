@@ -406,6 +406,19 @@ class PlaybackManager private constructor(private val context: Context) {
         }
     }
 
+    fun refreshCurrentSongMetadata(updatedSong: Song) {
+        if (_currentSong.value?.id == updatedSong.id) {
+            _currentSong.value = updatedSong
+        }
+        val currentQueue = _queue.value
+        val index = currentQueue.indexOfFirst { it.id == updatedSong.id }
+        if (index != -1) {
+            val nextQueue = currentQueue.toMutableList()
+            nextQueue[index] = updatedSong
+            _queue.value = nextQueue
+        }
+    }
+
     companion object {
         @Volatile
         private var INSTANCE: PlaybackManager? = null

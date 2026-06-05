@@ -69,12 +69,14 @@ fun ArtistsScreen(
                             .clickable { selectedArtist = artistName },
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        SongImagePlaceholder(
+                        val songsInArtist = artistMap[artistName] ?: emptyList()
+                        val firstSongId = songsInArtist.firstOrNull()?.id
+                        com.example.ui.components.ArtworkThumbnail(
+                            songId = firstSongId,
                             title = artistName,
-                            modifier = Modifier
-                                .size(90.dp)
-                                .clip(CircleShape),
-                            size = 90f
+                            modifier = Modifier.size(90.dp),
+                            size = 90f,
+                            isCircle = true
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
@@ -111,10 +113,13 @@ fun ArtistsScreen(
                             .padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        SongImagePlaceholder(
+                        val firstSongId = artistSongs.firstOrNull()?.id
+                        com.example.ui.components.ArtworkThumbnail(
+                            songId = firstSongId,
                             title = selectedArtist!!,
                             modifier = Modifier.clip(CircleShape),
-                            size = 64f
+                            size = 64f,
+                            isCircle = true
                         )
                         Spacer(modifier = Modifier.width(16.dp))
                         Column {
