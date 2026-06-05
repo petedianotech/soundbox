@@ -43,7 +43,8 @@ fun SoundboxNavGraph(viewModel: MusicViewModel) {
         composable(Routes.SEARCH) {
             SearchScreen(
                 viewModel = viewModel,
-                onNavigateToNowPlaying = { navController.navigate(Routes.NOW_PLAYING) }
+                onNavigateToNowPlaying = { navController.navigate(Routes.NOW_PLAYING) },
+                onBackClick = { navController.popBackStack() }
             )
         }
         composable(Routes.SETTINGS) {

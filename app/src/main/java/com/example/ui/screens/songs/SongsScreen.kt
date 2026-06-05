@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
@@ -43,6 +44,7 @@ fun SongsScreen(
     var songToManage by remember { mutableStateOf<Song?>(null) }
     var showPlaylistDialog by remember { mutableStateOf(false) }
     var showActionSheet by remember { mutableStateOf(false) }
+    var showDetailsDialog by remember { mutableStateOf(false) }
     var showSortMenu by remember { mutableStateOf(false) }
     var showTagEditor by remember { mutableStateOf(false) }
 
@@ -218,6 +220,14 @@ fun SongsScreen(
                         modifier = Modifier.padding(16.dp)
                     )
                     Divider()
+                    ListItem(
+                        headlineContent = { Text("View Song Details") },
+                        leadingContent = { Icon(Icons.Default.Info, null) },
+                        modifier = Modifier.clickable {
+                            showActionSheet = false
+                            showDetailsDialog = true
+                        }
+                    )
                     ListItem(
                         headlineContent = { Text(if (songToManage!!.isFavorite) "Remove from Favorites" else "Add to Favorites") },
                         leadingContent = { 
@@ -453,5 +463,82 @@ fun SongsScreen(
                 }
             )
         }
+
+        // Song Details Dialog
+        if (showDetailsDialog && songToManage != null) {
+            val song = songToManage!!
+            val formattedDuration = remember(song.duration) {
+                val totalSec = song.duration / 1000
+                val min = totalSec / 60
+                val sec = totalSec % 60
+                String.format("%02d:%02d", min, sec)
+            }
+            val formattedSize = remember(song.size) {
+                if (song.size <= 0) {
+                    "0 B"
+                } else {
+                    val units = arrayOf("B", "KB", "MB", "GB")
+                    val digitGroups = (Math.log10(song.size.toDouble()) / Math.log10(1024.0)).toInt()
+                    String.format("%.2f %s", song.size / Math.pow(1024.0, digitGroups.toDouble()), units[digitGroups])
+                }
+            }
+
+            AlertDialog(
+                onDismissRequest = {
+                    showDetailsDialog = false
+                    songToManage = null
+                },
+                title = { Text("Track Specifications", style = MaterialTheme.typography.titleLarge) },
+                text = {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        DetailItem(label = "Title", value = song.title)
+                        DetailItem(label = "Artist", value = song.artist)
+                        DetailItem(label = "Album", value = song.album)
+                        DetailItem(label = "Genre", value = song.genre.ifBlank { "Unknown" })
+                        DetailItem(label = "Duration", value = formattedDuration)
+                        DetailItem(label = "File Size", value = formattedSize)
+                        DetailItem(label = "Location Path", value = song.path, isCode = true)
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            showDetailsDialog = false
+                            songToManage = null
+                        }
+                    ) {
+                        Text("Dismiss")
+                    }
+                }
+            )
+        }
+    }
+}
+
+@Composable
+private fun DetailItem(label: String, value: String, isCode: Boolean = false) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.primary
+        )
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+            text = value,
+            style = if (isCode) {
+                MaterialTheme.typography.bodySmall.copy(
+                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                )
+            } else {
+                MaterialTheme.typography.bodyLarge
+            },
+            color = MaterialTheme.colorScheme.onSurface
+        )
     }
 }

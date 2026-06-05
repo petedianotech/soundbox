@@ -48,7 +48,8 @@ import java.util.Locale
 
 data class LyricLine(
     val timeMs: Long,
-    val text: String
+    val text: String,
+    val isDynamic: Boolean = true
 )
 
 fun parseLyrics(content: String, durationMs: Long): List<LyricLine> {
@@ -69,7 +70,7 @@ fun parseLyrics(content: String, durationMs: Long): List<LyricLine> {
             val text = match.groupValues[4].trim()
             if (text.isNotEmpty() || hasTimestamps) {
                 val totalMs = (min * 60 * 1000) + (sec * 1000) + ms
-                parsedLines.add(LyricLine(totalMs, text))
+                parsedLines.add(LyricLine(totalMs, text, isDynamic = true))
             }
         }
     }
@@ -79,12 +80,11 @@ fun parseLyrics(content: String, durationMs: Long): List<LyricLine> {
     } else {
         // Static lyrics without timestamps
         val validLines = lines.filter { it.isNotBlank() }
-        val activeTime = (durationMs - 3000L - 5000L).coerceAtLeast(10000L)
-        val interval = if (validLines.size > 1) activeTime / (validLines.size - 1) else 0L
-        return validLines.mapIndexed { index, text ->
+        return validLines.map { text ->
             LyricLine(
-                timeMs = 3000L + (index * interval),
-                text = text.trim()
+                timeMs = 0L,
+                text = text.trim(),
+                isDynamic = false
             )
         }
     }
@@ -167,13 +167,14 @@ fun NowPlayingScreen(
 
         // Setup live synchronized local lyrics
         val lyrics = remember(song.id, duration, refreshTrigger) { getLyricsForSong(context, song, duration) }
-        val activeVerseIndexByTime = lyrics.indexOfLast { position >= it.timeMs }
+        val hasTimestamps = remember(lyrics) { lyrics.any { it.isDynamic } }
+        val activeVerseIndexByTime = if (hasTimestamps) lyrics.indexOfLast { position >= it.timeMs } else -1
         val currentActiveIndex = activeVerseIndexByTime.coerceAtLeast(0)
 
         // Keep lyrics scroll aligned
         val lyricsListState = rememberLazyListState()
         LaunchedEffect(currentActiveIndex, isLyricsViewActive) {
-            if (isLyricsViewActive && currentActiveIndex >= 0 && lyrics.isNotEmpty()) {
+            if (isLyricsViewActive && hasTimestamps && currentActiveIndex >= 0 && lyrics.isNotEmpty()) {
                 lyricsListState.animateScrollToItem(currentActiveIndex)
             }
         }
@@ -271,19 +272,22 @@ fun NowPlayingScreen(
                                 ) {
                                     if (lyrics.isEmpty()) {
                                         Column(
-                                            modifier = Modifier.fillMaxSize(),
+                                            modifier = Modifier.fillMaxSize().padding(24.dp),
                                             horizontalAlignment = Alignment.CenterHorizontally,
                                             verticalArrangement = Arrangement.Center
                                         ) {
                                             Text(
-                                                "No lyrics found.",
-                                                color = MaterialTheme.colorScheme.onSurface,
+                                                "No lyrics loaded.",
+                                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                                                 style = MaterialTheme.typography.titleMedium
                                             )
-                                            Spacer(modifier = Modifier.height(16.dp))
-                                            Button(onClick = { showLyricsMenu = true }) {
-                                                Text("Add Lyrics")
-                                            }
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            Text(
+                                                "Tap the Edit pen in the top-right corner to search Google or paste manual lyrics.",
+                                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f),
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                textAlign = TextAlign.Center
+                                            )
                                         }
                                     } else {
                                         LazyColumn(
@@ -293,14 +297,17 @@ fun NowPlayingScreen(
                                             verticalArrangement = Arrangement.spacedBy(16.dp)
                                         ) {
                                             itemsIndexed(lyrics) { index, line ->
-                                                val isActive = index == currentActiveIndex
+                                                val isActive = hasTimestamps && index == currentActiveIndex
+                                                val targetScale = if (isActive) 1.05f else if (hasTimestamps) 0.95f else 1.0f
+                                                val targetAlpha = if (isActive) 1f else if (hasTimestamps) 0.4f else 0.85f
+                                                
                                                 val scale by animateFloatAsState(
-                                                    targetValue = if (isActive) 1.05f else 0.95f,
+                                                    targetValue = targetScale,
                                                     animationSpec = spring(stiffness = Spring.StiffnessLow),
                                                     label = "LyricScale"
                                                 )
                                                 val alpha by animateFloatAsState(
-                                                    targetValue = if (isActive) 1f else 0.4f,
+                                                    targetValue = targetAlpha,
                                                     animationSpec = tween(280),
                                                     label = "LyricAlpha"
                                                 )
@@ -308,9 +315,9 @@ fun NowPlayingScreen(
                                                 Text(
                                                     text = line.text,
                                                     style = MaterialTheme.typography.titleLarge.copy(
-                                                        fontWeight = if (isActive) FontWeight.ExtraBold else FontWeight.Bold,
-                                                        fontSize = 20.sp,
-                                                        lineHeight = 28.sp
+                                                        fontWeight = if (isActive) FontWeight.ExtraBold else FontWeight.Medium,
+                                                        fontSize = if (hasTimestamps) 20.sp else 18.sp,
+                                                        lineHeight = if (hasTimestamps) 28.sp else 26.sp
                                                     ),
                                                     textAlign = TextAlign.Center,
                                                     color = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
@@ -325,7 +332,9 @@ fun NowPlayingScreen(
                                                 )
                                             }
                                         }
-                                        
+                                    }
+
+                                    if (lyrics.isNotEmpty()) {
                                         // Soft fade indicator overlays upper/lower
                                         Box(
                                             modifier = Modifier
@@ -355,20 +364,20 @@ fun NowPlayingScreen(
                                                     )
                                                 )
                                         )
+                                    }
 
-                                        // Floating settings button on active lyric view to change or clear lyrics offline easily
-                                        IconButton(
-                                            onClick = { showLyricsMenu = true },
-                                            modifier = Modifier
-                                                .align(Alignment.TopEnd)
-                                                .padding(8.dp)
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Edit,
-                                                contentDescription = "Manage Lyrics",
-                                                tint = MaterialTheme.colorScheme.primary
-                                            )
-                                        }
+                                    // Floating settings button on active lyric view to change or clear lyrics offline easily
+                                    IconButton(
+                                        onClick = { showLyricsMenu = true },
+                                        modifier = Modifier
+                                            .align(Alignment.TopEnd)
+                                            .padding(8.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Edit,
+                                            contentDescription = "Manage Lyrics",
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
                                     }
                                 }
                             } else {
@@ -500,7 +509,7 @@ fun NowPlayingScreen(
                                 
                                 if (lyrics.isEmpty()) {
                                     Text(
-                                        text = "Tap to add lyrics",
+                                        text = "No lyrics loaded. Tap to import.",
                                         style = MaterialTheme.typography.bodyLarge.copy(
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 17.sp,

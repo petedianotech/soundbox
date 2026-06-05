@@ -1,8 +1,35 @@
 <?xml version="1.0" encoding="utf-8"?>
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item
-        android:width="66dp"
-        android:height="66dp"
-        android:drawable="@drawable/soundbox_logo_1780659495671"
-        android:gravity="center" />
-</layer-list>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    
+    <!-- Sleek premium minimalist headband -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="4.8"
+        android:strokeLineCap="round"
+        android:pathData="M30,54 C30,34 40,24 54,24 C68,24 78,34 78,54" />
+
+    <!-- Left ear cushion -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M24,53 C24,50.5 25.5,49 28,49 L31,49 C33.5,49 35,50.5 35,53 L35,65 C35,67.5 33.5,69 31,69 L28,69 C25.5,69 24,67.5 24,65 Z" />
+
+    <!-- Right ear cushion -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M73,53 C73,50.5 74.5,49 77,49 L80,49 C82.5,49 84,50.5 84,53 L84,65 C84,67.5 82.5,69 80,69 L77,69 C74.5,69 73,67.5 73,65 Z" />
+
+    <!-- Centered golden dynamic soundwave bars -->
+    <path
+        android:fillColor="#FFD700"
+        android:pathData="M43,56 C43,54.9 43.9,54 45,54 C46.1,54 47,54.9 47,56 L47,64 C47,65.1 46.1,66 45,66 C43.9,66 43,65.1 43,64 Z" />
+    <path
+        android:fillColor="#FFD324"
+        android:pathData="M51,49 C51,47.9 51.9,47 53,47 C54.1,47 55,47.9 55,49 L55,71 C55,72.1 54.1,73 53,73 C51.9,73 51,72.1 51,71 Z" />
+    <path
+        android:fillColor="#FFD700"
+        android:pathData="M59,53 C59,51.9 59.9,51 61,51 C62.1,51 63,51.9 63,53 L63,67 C63,68.1 62.1,69 61,69 C59.9,69 59,68.1 59,67 Z" />
+</vector>

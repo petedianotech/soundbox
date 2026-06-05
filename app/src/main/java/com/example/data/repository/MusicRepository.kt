@@ -177,81 +177,20 @@ class MusicRepository(private val context: Context) {
 
             Log.d(TAG, "Scan completed: Found ${fetchedSongs.size} songs on disk.")
 
-            if (fetchedSongs.isEmpty()) {
-                Log.d(TAG, "MediaStore is empty. Seeding with high-quality offline synthetic loop streams.")
-                populateWithSyntheticSongs()
-            } else {
+            // Delete any legacy synthetic/placeholder songs
+            songDao.deleteSyntheticSongs()
+
+            if (fetchedSongs.isNotEmpty()) {
                 // Save physical songs to cache db
                 songDao.insertSongs(fetchedSongs)
                 
                 // Clean up songs that are no longer present on storage
                 val paths = fetchedSongs.map { it.path }
-                if (paths.isNotEmpty()) {
-                    songDao.deleteStaleSongs(paths)
-                }
+                songDao.deleteStaleSongs(paths)
+            } else {
+                // Clear any cached songs if storage is empty
+                songDao.clearAllSongs()
             }
         }
-    }
-
-    private suspend fun populateWithSyntheticSongs() {
-        val synthetics = listOf(
-            Song(
-                id = "syn_1",
-                title = "Acoustic Horizon (Test Loop)",
-                artist = "Soundbox Studio",
-                album = "Cosmic Slate Ambient",
-                duration = 241000L,
-                path = "https://storage.googleapis.com/exoplayer-test-media-0/play.mp3",
-                size = 4050000L,
-                folderPath = "/storage/emulated/0/Music/Soundbox Demo",
-                folderName = "Soundbox Demo",
-                trackNumber = 1,
-                genre = "Acoustic",
-                isFavorite = false
-            ),
-            Song(
-                id = "syn_2",
-                title = "Neon Nights (Electric Drive)",
-                artist = "Retro Synthwave",
-                album = "Vapor Trails",
-                duration = 312000L,
-                path = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
-                size = 5300000L,
-                folderPath = "/storage/emulated/0/Music/Soundbox Demo/Synthwave",
-                folderName = "Synthwave",
-                trackNumber = 2,
-                genre = "Synthwave",
-                isFavorite = false
-            ),
-            Song(
-                id = "syn_3",
-                title = "Chill Lofi Guitar Breeze",
-                artist = "Binaural Beats",
-                album = "Coffee & Rain",
-                duration = 210000L,
-                path = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
-                size = 3500000L,
-                folderPath = "/storage/emulated/0/Music/Lofi",
-                folderName = "Lofi",
-                trackNumber = 3,
-                genre = "Lofi",
-                isFavorite = false
-            ),
-            Song(
-                id = "syn_4",
-                title = "Midnight Odyssey Soundscapes",
-                artist = "Cosmo Dust Engine",
-                album = "Galactic Echoes",
-                duration = 285000L,
-                path = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
-                size = 4800000L,
-                folderPath = "/storage/emulated/0/Music/Ambient Cosmic",
-                folderName = "Ambient Cosmic",
-                trackNumber = 4,
-                genre = "Ambient",
-                isFavorite = false
-            )
-        )
-        songDao.insertSongs(synthetics)
     }
 }

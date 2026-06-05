@@ -18,6 +18,21 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     
     val settingsManager = SettingsManager(application)
 
+    // Search history delegation
+    val searchHistory: StateFlow<List<String>> = settingsManager.searchHistoryFlow
+
+    fun addSearchQuery(query: String) {
+        settingsManager.addSearchQuery(query)
+    }
+
+    fun removeSearchQuery(query: String) {
+        settingsManager.removeSearchQuery(query)
+    }
+
+    fun clearSearchHistory() {
+        settingsManager.clearSearchHistory()
+    }
+
     // Player state mapping
     val currentSong: StateFlow<Song?> = playbackManager.currentSong
     val isPlaying: StateFlow<Boolean> = playbackManager.isPlaying
