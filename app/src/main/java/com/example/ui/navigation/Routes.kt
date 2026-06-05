@@ -12,4 +12,5 @@ object Routes {
     const val PLAYLISTS = "playlists"
     const val SETTINGS = "settings"
     const val SEARCH = "search"
+    const val ABOUT = "about"
 }

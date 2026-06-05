@@ -49,7 +49,13 @@ fun SoundboxNavGraph() {
         }
         composable(Routes.SETTINGS) {
             SettingsScreen(
-                viewModel = viewModel
+                viewModel = viewModel,
+                onNavigateToAbout = { navController.navigate(Routes.ABOUT) }
+            )
+        }
+        composable(Routes.ABOUT) {
+            com.example.ui.screens.about.AboutScreen(
+                onNavigateBack = { navController.popBackStack() }
             )
         }
     }

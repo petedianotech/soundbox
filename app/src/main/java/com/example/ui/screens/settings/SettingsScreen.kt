@@ -18,15 +18,18 @@ import com.example.ui.viewmodel.MusicViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
-    viewModel: MusicViewModel
+    viewModel: MusicViewModel,
+    onNavigateToAbout: () -> Unit
 ) {
     val songs by viewModel.allSongs.collectAsState()
     val isScanning by viewModel.isScanning.collectAsState()
     val sleepTimerLeft by viewModel.sleepTimerMillis.collectAsState()
     val speed by viewModel.playbackSpeed.collectAsState()
     val pitch by viewModel.playbackPitch.collectAsState()
+    val crossfade by viewModel.crossfadeDuration.collectAsState()
 
     var showTimerDialog by remember { mutableStateOf(false) }
+    var showCrossfadeDialog by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -89,6 +92,20 @@ fun SettingsScreen(
         )
 
         SettingsRow(
+            title = "Crossfade Duration",
+            subtitle = if (crossfade > 0) "Smooth transition: ${crossfade}s" else "Gapless playback (No fade)",
+            icon = Icons.Default.CompareArrows,
+            action = {
+                Button(
+                    onClick = { showCrossfadeDialog = true },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer, contentColor = MaterialTheme.colorScheme.onSecondaryContainer)
+                ) {
+                    Text("Adjust")
+                }
+            }
+        )
+
+        SettingsRow(
             title = "Default Playback Rates",
             subtitle = "Current Velocity: ${String.format("%.2fx", speed)} | Pitch: ${String.format("%.2fx", pitch)}",
             icon = Icons.Default.Speed,
@@ -118,6 +135,17 @@ fun SettingsScreen(
             subtitle = "v1.0.0 (2026 Edition Pro)",
             icon = Icons.Default.Info,
             action = {}
+        )
+
+        SettingsRow(
+            title = "About Developer",
+            subtitle = "Peter Damiano (Petediano)",
+            icon = Icons.Default.Person,
+            action = {
+                Button(onClick = onNavigateToAbout) {
+                    Text("View")
+                }
+            }
         )
 
         Spacer(modifier = Modifier.height(48.dp))
@@ -165,6 +193,45 @@ fun SettingsScreen(
                     TextButton(onClick = { showTimerDialog = false }) {
                         Text("Cancel")
                     }
+                }
+            }
+        )
+    }
+
+    // Crossfade choosing modal
+    if (showCrossfadeDialog) {
+        val crossfadeOptions = listOf(0, 2, 4, 8, 12)
+        AlertDialog(
+            onDismissRequest = { showCrossfadeDialog = false },
+            title = { Text("Crossfade Settings") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Text("Select transition duration (in seconds) between tracks.")
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        crossfadeOptions.forEach { sec ->
+                            Button(
+                                onClick = {
+                                    viewModel.setCrossfadeDuration(sec)
+                                    showCrossfadeDialog = false
+                                },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (crossfade == sec) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondaryContainer,
+                                    contentColor = if (crossfade == sec) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                            ) {
+                                Text(if (sec == 0) "Off" else "${sec}s")
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showCrossfadeDialog = false }) {
+                    Text("Cancel")
                 }
             }
         )

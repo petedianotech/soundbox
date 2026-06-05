@@ -28,6 +28,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     val sleepTimerMillis: StateFlow<Long> = playbackManager.sleepTimerMillis
     val equalizerEnabled: StateFlow<Boolean> = playbackManager.equalizerEnabled
     val bassBoostStrength: StateFlow<Int> = playbackManager.bassBoostStrength
+    val crossfadeDuration: StateFlow<Int> = playbackManager.crossfadeDuration
 
     // Scanning states
     private val _isScanning = MutableStateFlow(false)
@@ -104,6 +105,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     
     fun toggleEqualizer() = playbackManager.toggleEqualizer()
     fun setBassBoost(strength: Int) = playbackManager.setBassBoost(strength)
+    fun setCrossfadeDuration(seconds: Int) = playbackManager.setCrossfadeDuration(seconds)
     fun startSleepTimer(minutes: Int) = playbackManager.startSleepTimer(minutes)
     fun stopSleepTimer() = playbackManager.stopSleepTimer()
 
