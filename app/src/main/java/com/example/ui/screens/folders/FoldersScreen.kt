@@ -1,0 +1,205 @@
+package com.example.ui.screens.folders
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import com.example.data.model.Song
+import com.example.ui.components.EmptyPlaceholder
+import com.example.ui.components.TrackRow
+import com.example.ui.viewmodel.MusicViewModel
+import java.io.File
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun FoldersScreen(
+    viewModel: MusicViewModel,
+    onSongSelected: (Song) -> Unit
+) {
+    val folderMap by viewModel.folderList.collectAsState()
+    val isScanning by viewModel.isScanning.collectAsState()
+    val currentSong by viewModel.currentSong.collectAsState()
+
+    var selectedFolderPath by remember { mutableStateOf<String?>(null) }
+    val folderSongs = selectedFolderPath?.let { folderMap[it] } ?: emptyList()
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        if (folderMap.isEmpty()) {
+            if (isScanning) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            } else {
+                EmptyPlaceholder(
+                    title = "No Folder Paths Indexed",
+                    subtitle = "Folders are populated when local storage is indexed.",
+                    icon = Icons.Default.Folder,
+                    actionText = "Re-Scan Media",
+                    onActionClick = { viewModel.scanStorage() }
+                )
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 80.dp)
+            ) {
+                items(folderMap.keys.toList().sorted()) { path ->
+                    val songsInFolder = folderMap[path] ?: emptyList()
+                    val folderName = try {
+                        val file = File(path)
+                        file.name.ifEmpty { "External Storage" }
+                    } catch (e: Exception) {
+                        path.substringAfterLast("/")
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { selectedFolderPath = path }
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .background(
+                                    MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f),
+                                    shape = MaterialTheme.shapes.small
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Folder,
+                                contentDescription = "Folder",
+                                tint = MaterialTheme.colorScheme.secondary
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(16.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = folderName,
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = path,
+                                style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+
+                        Text(
+                            text = "${songsInFolder.size} songs",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                }
+            }
+        }
+
+        // Selected folder contents drawer sheet
+        if (selectedFolderPath != null) {
+            val folderNameLabel = try {
+                File(selectedFolderPath!!).name.ifEmpty { "External Storage" }
+            } catch (e: Exception) {
+                selectedFolderPath!!.substringAfterLast("/")
+            }
+
+            ModalBottomSheet(
+                onDismissRequest = { selectedFolderPath = null },
+                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 24.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(54.dp)
+                                .background(MaterialTheme.colorScheme.primaryContainer),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Folder,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = folderNameLabel,
+                                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
+                            )
+                            Text(
+                                text = selectedFolderPath!!,
+                                style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        Button(
+                            onClick = {
+                                if (folderSongs.isNotEmpty()) {
+                                    viewModel.playSong(folderSongs.first(), folderSongs)
+                                    onSongSelected(folderSongs.first())
+                                    selectedFolderPath = null
+                                }
+                            }
+                        ) {
+                            Text("Play All")
+                        }
+                    }
+
+                    HorizontalDivider()
+
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f, fill = false)
+                    ) {
+                        items(folderSongs) { song ->
+                            TrackRow(
+                                song = song,
+                                isPlaying = currentSong?.id == song.id,
+                                onClick = {
+                                    viewModel.playSong(song, folderSongs)
+                                    onSongSelected(song)
+                                    selectedFolderPath = null
+                                },
+                                onFavoriteToggle = { viewModel.toggleFavorite(song) },
+                                onMenuClick = {}
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

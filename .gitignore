@@ -1,18 +1,36 @@
+# Built artifacts
+*.apk
+*.aar
+*.ap_
+*.aab
+
+# Files for the Artcon / IntelliJ IDEA / Android Studio
 *.iml
-.gradle
-.kotlin
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-.DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
+.idea/
+.navigation/
+captures/
+.externalNativeBuild/
+.cxx/
+*.jks
+*.keystore
+!debug.keystore
+
+# Android Studio local configuration
 local.properties
 .env
-debug.keystore
+.env.*
+debug.keystore.base64
+
+# Gradle files
+.gradle/
+build/
+**/build/
+.kotlin/
+
+# System-level file exclusions
+.DS_Store
+Thumbs.db
+
+# Platform specific outputs
+.build-outputs/
+
