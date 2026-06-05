@@ -3,6 +3,7 @@ package com.example.player
 import android.content.Intent
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
+import androidx.media3.session.DefaultMediaNotificationProvider
 
 class PlaybackService : MediaSessionService() {
 
@@ -12,7 +13,13 @@ class PlaybackService : MediaSessionService() {
         super.onCreate()
         // Bind to the single ExoPlayer instance in PlaybackManager
         val sharedPlayer = PlaybackManager.getInstance(this).player
-        mediaSession = MediaSession.Builder(this, sharedPlayer).build()
+        
+        mediaSession = MediaSession.Builder(this, sharedPlayer)
+            .build()
+            
+        // Use DefaultMediaNotificationProvider which implements MediaStyle notification under the hood
+        val notificationProvider = DefaultMediaNotificationProvider(this)
+        setMediaNotificationProvider(notificationProvider)
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? =

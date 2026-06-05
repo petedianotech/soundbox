@@ -1,6 +1,11 @@
 package com.example.player
 
 import android.content.Context
+import android.content.ComponentName
+import androidx.media3.session.MediaController
+import androidx.media3.session.SessionToken
+import com.google.common.util.concurrent.ListenableFuture
+import com.google.common.util.concurrent.MoreExecutors
 import android.media.audiofx.BassBoost
 import android.media.audiofx.Equalizer
 import android.os.Handler
@@ -26,6 +31,13 @@ class PlaybackManager private constructor(private val context: Context) {
 
     // ExoPlayer reference
     val player: ExoPlayer = ExoPlayer.Builder(context)
+        .setAudioAttributes(
+            androidx.media3.common.AudioAttributes.Builder()
+                .setContentType(androidx.media3.common.C.AUDIO_CONTENT_TYPE_MUSIC)
+                .setUsage(androidx.media3.common.C.USAGE_MEDIA)
+                .build(), 
+            true // handleAudioFocus = true
+        )
         .setHandleAudioBecomingNoisy(true)
         .build()
 
@@ -76,6 +88,10 @@ class PlaybackManager private constructor(private val context: Context) {
     private var sleepTimer: Timer? = null
     private val handler = Handler(Looper.getMainLooper())
 
+    private var controllerFuture: ListenableFuture<MediaController>? = null
+    var mediaController: MediaController? = null
+        private set
+
     private val positionTrackerRunnable = object : Runnable {
         override fun run() {
             if (player.isPlaying) {
@@ -110,6 +126,23 @@ class PlaybackManager private constructor(private val context: Context) {
         setupPlayerListeners()
         handler.post(positionTrackerRunnable)
         restorePlaybackState()
+        initializeMediaController()
+    }
+
+    private fun initializeMediaController() {
+        val sessionToken = SessionToken(context, ComponentName(context, PlaybackService::class.java))
+        controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
+        controllerFuture?.addListener(
+            {
+                try {
+                    mediaController = controllerFuture?.get()
+                    Log.d("PlaybackManager", "MediaController connected successfully")
+                } catch (e: Exception) {
+                    Log.e("PlaybackManager", "Failed to connect MediaController", e)
+                }
+            },
+            MoreExecutors.directExecutor()
+        )
     }
 
     private fun setupPlayerListeners() {
@@ -181,6 +214,7 @@ class PlaybackManager private constructor(private val context: Context) {
                 .setArtist(songItem.artist)
                 .setAlbumTitle(songItem.album)
                 .setDisplayTitle(songItem.title)
+                .setArtworkUri(android.net.Uri.parse(songItem.path))
                 .build()
 
             MediaItem.Builder()
@@ -210,6 +244,7 @@ class PlaybackManager private constructor(private val context: Context) {
             .setArtist(song.artist)
             .setAlbumTitle(song.album)
             .setDisplayTitle(song.title)
+            .setArtworkUri(android.net.Uri.parse(song.path))
             .build()
         val mediaItem = MediaItem.Builder()
             .setMediaId(song.id)
@@ -236,6 +271,7 @@ class PlaybackManager private constructor(private val context: Context) {
             .setArtist(song.artist)
             .setAlbumTitle(song.album)
             .setDisplayTitle(song.title)
+            .setArtworkUri(android.net.Uri.parse(song.path))
             .build()
         val mediaItem = MediaItem.Builder()
             .setMediaId(song.id)
