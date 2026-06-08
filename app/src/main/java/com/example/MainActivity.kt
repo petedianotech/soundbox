@@ -44,7 +44,15 @@ class MainActivity : ComponentActivity() {
     try {
       val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
-      ) { /* Optional handle feedback, main UI handles state checks */ }
+      ) { results ->
+        // If the needed permissions were granted, run a storage scan so the user sees music immediately
+        val readStorageGranted = results[Manifest.permission.READ_EXTERNAL_STORAGE] == true
+        val readAudioGranted = results[Manifest.permission.READ_MEDIA_AUDIO] == true
+        if (readStorageGranted || readAudioGranted) {
+           val vm = androidx.lifecycle.ViewModelProvider(this@MainActivity)[MusicViewModel::class.java]
+           vm.scanStorage()
+        }
+      }
 
       requestPermissionLauncher.launch(permissionsToRequest.toTypedArray())
     } catch (e: Exception) {

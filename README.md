@@ -1,21 +1,49 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# SoundBox
 
-# Run and deploy your AI Studio app
+![Google AI Studio 🚀](https://img.shields.io/badge/Built%20with-Google%20AI%20Studio-blue?style=for-the-badge&logo=google)
 
-This contains everything you need to run your app locally.
+A modern, high-performance offline music player featuring a "Deep Space & Glass-morphism" design. Brought to you with powerful audio processing, seamless background playback, and an exceptionally crafted UI in Jetpack Compose.
 
-View your app in AI Studio: https://ai.studio/apps/8832f044-99c0-45e4-b984-045ab1556cc3
+## 🚀 Built with Google AI Studio
+This project leverages the power of **Google AI Studio** to bring natural language ideas into production-ready Android experiences quickly and reliably.
 
-## Run Locally
+---
 
-**Prerequisites:**  [Android Studio](https://developer.android.com/studio)
+## 👨‍💻 Developed by Peter Damiano
 
+**Peter Damiano | Full-Stack Developer & Innovator**  
+*From Dzenje to the World.*
 
-1. Open Android Studio
-2. Select **Open** and choose the directory containing this project
-3. Allow Android Studio to fix any incompatibilities as it imports the project.
-4. Create a file named `.env` in the project directory and set `GEMINI_API_KEY` in that file to your Gemini API key (see `.env.example` for an example)
-5. Remove this line from the app's `build.gradle.kts` file: `signingConfig = signingConfigs.getByName("debugConfig")`
-6. Run the app on an emulator or physical device
+Discover high-impact projects, scalable web applications, and advanced systems architecture.  
+🌐 **Portfolio**: [peterdamiano.vercel.app](https://peterdamiano.vercel.app)
+
+### 💡 The Innovation Lab
+Creator & Architect behind multiple cutting-edge systems:
+- **Globlync & EducateMW**
+- **OmaxTool & AI Tact**
+- **Oto Creator & OINONE**
+- **SoundBox (This App) & TrendBrainAI**
+- **Physical Engineering & Exhibitions**
+
+### ⚙️ The Engine & Production
+Specializing in **Backend + Architecture** and scalable foundations like the **Next.js Enterprise Boilerplate**.
+
+### 🤝 Partner with an Expert
+Available for:
+- Team Integration & Starter Apps
+- Full-Stack & AI Systems
+
+*For business inquiries or collaborations, visit the [portfolio](https://peterdamiano.vercel.app).*
+
+---
+
+## ✨ Application Features
+* **Deep Space UI**: Blur effects, layered gradients, and Cosmic prism highlights.
+* **Smart Music Scanning**: Finds and sorts your local music with elegant artwork processing.
+* **Reliable Audio**: Powered by ExoPlayer/Media3 for pause, play, seek, and background transitions.
+* **Glass-morphism Controls**: Frosted nebula panels, animated sliders, and dynamic floating elements.
+
+## 🛠 Fixes & Improvements
+* Robust GitHub Actions CI/CD compatibility.
+* KSP Compiler setup resolved for reliable APK generation out of the box.
+* Safe intent handling and media service binding for crash-free experiences across older and newer Android devices.
