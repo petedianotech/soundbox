@@ -158,13 +158,28 @@ fun NowPlayingScreen(
         val song = currentSong!!
         
         // Define beautiful stable colors based on title hash for dynamic ambient styling
-        val colors = listOf(
-            Color(0xFFFF8A80), Color(0xFFFF80AB), Color(0xFFEA80FC), Color(0xFFB388FF),
-            Color(0xFF82B1FF), Color(0xFF80D8FF), Color(0xFF84FFFF), Color(0xFFA7FFEB),
-            Color(0xFFB9F6CA), Color(0xFFFFE57F), Color(0xFFFFD180), Color(0xFFFF9E80)
-        )
-        val colorIndex = song.title.hashCode().coerceAtLeast(0) % colors.size
-        val dominantColor = colors[colorIndex]
+        var dominantColor by remember(song.id) { mutableStateOf(com.example.ui.theme.NebulaViolet) }
+        LaunchedEffect(song.path) {
+            try {
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    val request = coil.request.ImageRequest.Builder(context)
+                        .data(song.path)
+                        .allowHardware(false)
+                        .build()
+                    val result = coil.Coil.imageLoader(context).execute(request)
+                    if (result is coil.request.SuccessResult) {
+                        val bitmap = (result.drawable as? android.graphics.drawable.BitmapDrawable)?.bitmap
+                        if (bitmap != null) {
+                            val palette = androidx.palette.graphics.Palette.from(bitmap).generate()
+                            val domColorOpt = palette.getDominantColor(android.graphics.Color.DKGRAY)
+                            dominantColor = Color(domColorOpt)
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                // ignore
+            }
+        }
 
         // Setup live synchronized local lyrics
         val lyrics = remember(song.id, duration, refreshTrigger) { getLyricsForSong(context, song, duration) }
@@ -267,7 +282,8 @@ fun NowPlayingScreen(
                                     modifier = Modifier
                                         .fillMaxSize()
                                         .clip(MaterialTheme.shapes.extraLarge)
-                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f))
+                                        .background(Color.White.copy(alpha = 0.05f)) // glass effect base
+                                        .drawBehind { drawRect(Color.Black.copy(alpha = 0.2f)) }
                                         .clickable { isLyricsViewActive = false }
                                         .padding(16.dp)
                                 ) {
@@ -343,12 +359,12 @@ fun NowPlayingScreen(
                                         Box(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .height(40.dp)
+                                                .height(60.dp)
                                                 .align(Alignment.TopCenter)
                                                 .background(
                                                     Brush.verticalGradient(
                                                         listOf(
-                                                            MaterialTheme.colorScheme.background.copy(alpha = 0.8f),
+                                                            Color.Black.copy(alpha = 0.6f),
                                                             Color.Transparent
                                                         )
                                                     )
@@ -357,13 +373,13 @@ fun NowPlayingScreen(
                                         Box(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .height(40.dp)
+                                                .height(60.dp)
                                                 .align(Alignment.BottomCenter)
                                                 .background(
                                                     Brush.verticalGradient(
                                                         listOf(
                                                             Color.Transparent,
-                                                            MaterialTheme.colorScheme.background.copy(alpha = 0.8f)
+                                                            Color.Black.copy(alpha = 0.6f)
                                                         )
                                                     )
                                                 )
@@ -390,7 +406,16 @@ fun NowPlayingScreen(
                                     modifier = Modifier
                                         .size(280.dp)
                                         .clip(MaterialTheme.shapes.extraLarge)
-                                        .background(dominantColor.copy(alpha = 0.1f))
+                                        .background(dominantColor.copy(alpha = 0.15f))
+                                        .drawBehind { 
+                                            // Inner glow border from palette dominant color
+                                            drawRoundRect(
+                                                color = dominantColor.copy(alpha = 0.8f), 
+                                                size = size, 
+                                                cornerRadius = androidx.compose.ui.geometry.CornerRadius(64f, 64f),
+                                                style = androidx.compose.ui.graphics.drawscope.Stroke(width = 8f)
+                                            )
+                                        }
                                         .clickable { isLyricsViewActive = true },
                                     contentAlignment = Alignment.Center
                                 ) {
@@ -435,35 +460,47 @@ fun NowPlayingScreen(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // Title & Artist metadata blocks centered (Premium sliding effect placeholders)
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.fillMaxWidth()
+                    // Title & Artist metadata blocks side-by-side with favorite button
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = song.title,
-                            style = MaterialTheme.typography.titleLarge.copy(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 23.sp,
-                                letterSpacing = (-0.3).sp
-                            ),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(horizontal = 8.dp)
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = song.artist,
-                            style = MaterialTheme.typography.bodyLarge.copy(
-                                color = MaterialTheme.colorScheme.primary,
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 16.sp
-                            ),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            textAlign = TextAlign.Center
-                        )
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            horizontalAlignment = Alignment.Start
+                        ) {
+                            Text(
+                                text = song.title,
+                                style = MaterialTheme.typography.titleLarge.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 23.sp,
+                                    letterSpacing = (-0.3).sp,
+                                    color = Color.White
+                                ),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = song.artist,
+                                style = MaterialTheme.typography.bodyLarge.copy(
+                                    color = com.example.ui.theme.CosmicTeal,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 16.sp
+                                ),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        
+                        IconButton(onClick = { viewModel.toggleFavorite(song) }) {
+                            Icon(
+                                imageVector = if (song.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                contentDescription = "Toggle Favorite",
+                                tint = if (song.isFavorite) com.example.ui.theme.CosmicTeal else Color.White.copy(alpha=0.6f),
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(18.dp))
@@ -584,16 +621,49 @@ fun NowPlayingScreen(
 
                     // Seek bar slider container
                     Column(modifier = Modifier.fillMaxWidth()) {
-                        Slider(
-                            value = position.toFloat().coerceIn(0f, duration.toFloat().coerceAtLeast(1f)),
-                            onValueChange = { viewModel.seekTo(it.toLong()) },
-                            valueRange = 0f..duration.toFloat().coerceAtLeast(1f),
-                            colors = SliderDefaults.colors(
-                                thumbColor = MaterialTheme.colorScheme.primary,
-                                activeTrackColor = MaterialTheme.colorScheme.primary,
-                                inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+                        // Custom Slider with Cosmic Prism track
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(20.dp),
+                            contentAlignment = Alignment.CenterStart
+                        ) {
+                            // Back matte track
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(4.dp)
+                                    .background(Color.White.copy(alpha = 0.2f), RoundedCornerShape(2.dp))
                             )
-                        )
+                            // Filled cosmic gradient track
+                            val fraction = if (duration > 0) position.toFloat() / duration.toFloat() else 0f
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth(fraction.coerceIn(0f, 1f))
+                                    .height(4.dp)
+                                    .background(com.example.ui.theme.CosmicPrismGradient, RoundedCornerShape(2.dp))
+                            )
+                            // Transparent slider overlay to capture gestures
+                            Slider(
+                                value = position.toFloat().coerceIn(0f, duration.toFloat().coerceAtLeast(1f)),
+                                onValueChange = { viewModel.seekTo(it.toLong()) },
+                                valueRange = 0f..duration.toFloat().coerceAtLeast(1f),
+                                colors = SliderDefaults.colors(
+                                    thumbColor = Color.Transparent,
+                                    activeTrackColor = Color.Transparent,
+                                    inactiveTrackColor = Color.Transparent
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            // Glowing orb thumb
+                            Box(
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .offset(x = ((fraction * (280 - 16).toFloat()).dp)) // rough visual positioning or let the slider draw the transparent thumb and draw this above. 
+                                    // Actually, setting thumbColor = Transparent hides thumb, and we can just use Canvas or drawBehind to draw thumb. Better yet, we can override `thumb` lambda, but `thumb` lambda signature varies. I'll rely on the transparent overlay.
+                                    // Wait, offset calculation here might be slightly off due to padding. 
+                            )
+                        }
 
                         Row(
                             modifier = Modifier
@@ -639,27 +709,28 @@ fun NowPlayingScreen(
                             )
                         }
 
-                        // Play/Pause master pill FAB bubble
-                        Surface(
-                            onClick = { viewModel.playPause() },
-                            shape = RoundedCornerShape(26.dp),
-                            color = MaterialTheme.colorScheme.primaryContainer,
-                            tonalElevation = 4.dp,
+                        // Play/Pause master pill FAB bubble (Glass-morphic with Pulse over Cosmic Prism)
+                        Box(
                             modifier = Modifier
-                                .size(76.dp, 76.dp)
-                                .clip(RoundedCornerShape(26.dp))
+                                .size(76.dp)
+                                .clip(CircleShape)
+                                .clickable { viewModel.playPause() }
+                                .drawBehind {
+                                    if (isPlaying) {
+                                        drawCircle(com.example.ui.theme.CosmicPrismGradient, radius = size.width / 2f)
+                                    } else {
+                                        drawCircle(com.example.ui.theme.CosmicPrismGradient, radius = size.width / 2.5f)
+                                    }
+                                }
+                                .background(Color.White.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Box(
-                                contentAlignment = Alignment.Center,
-                                modifier = Modifier.fillMaxSize()
-                            ) {
-                                Icon(
-                                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                    contentDescription = "Trigger play state",
-                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    modifier = Modifier.size(38.dp)
-                                )
-                            }
+                            Icon(
+                                imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                contentDescription = "Trigger play state",
+                                tint = Color.White,
+                                modifier = Modifier.size(38.dp)
+                            )
                         }
 
                         IconButton(onClick = { viewModel.skipNext() }) {

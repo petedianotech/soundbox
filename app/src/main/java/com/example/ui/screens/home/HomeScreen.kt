@@ -1,8 +1,7 @@
 package com.example.ui.screens.home
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.*
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Album
 import androidx.compose.material.icons.filled.Category
@@ -28,6 +27,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.*
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.example.ui.components.MiniPlayer
 import com.example.ui.screens.albums.AlbumsScreen
@@ -87,14 +88,53 @@ fun HomeScreen(
             )
         },
         bottomBar = {
-            NavigationBar {
-                visibleTabs.forEach { tab ->
-                    NavigationBarItem(
-                        selected = selectedTab == tab,
-                        onClick = { selectedTab = tab },
-                        icon = { Icon(tab.icon, contentDescription = tab.title) },
-                        label = { Text(tab.title) }
-                    )
+            androidx.compose.foundation.layout.Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .drawBehind { drawRect(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.6f)) }
+                    .background(androidx.compose.ui.graphics.Color.White.copy(alpha=0.08f))
+                    .padding(vertical = 12.dp)
+            ) {
+                androidx.compose.foundation.layout.Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceEvenly
+                ) {
+                    visibleTabs.forEach { tab ->
+                        val selected = selectedTab == tab
+                        androidx.compose.foundation.layout.Column(
+                            modifier = Modifier
+                                .clickable(
+                                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                                    indication = null
+                                ) { selectedTab = tab }
+                                .padding(6.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(
+                                imageVector = tab.icon,
+                                contentDescription = tab.title,
+                                modifier = Modifier
+                                    .size(26.dp)
+                                    .drawWithCache {
+                                        onDrawWithContent {
+                                            drawContent()
+                                            if (selected) {
+                                                drawRect(com.example.ui.theme.CosmicPrismGradient, blendMode = androidx.compose.ui.graphics.BlendMode.SrcIn)
+                                            }
+                                        }
+                                    },
+                                tint = if (selected) androidx.compose.ui.graphics.Color.White else androidx.compose.ui.graphics.Color.White.copy(alpha=0.5f)
+                            )
+                            if (selected) {
+                                androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(6.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .size(width = 18.dp, height = 3.dp)
+                                        .background(com.example.ui.theme.CosmicPrismGradient, androidx.compose.foundation.shape.RoundedCornerShape(1.5.dp))
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }

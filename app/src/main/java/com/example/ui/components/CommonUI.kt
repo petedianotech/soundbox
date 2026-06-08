@@ -12,6 +12,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -28,28 +29,35 @@ fun SongImagePlaceholder(
     modifier: Modifier = Modifier,
     size: Float = 48f
 ) {
-    // Generate a beautiful, stable accent color based on hashing the track title
-    val colors = listOf(
-        Color(0xFFFF8A80), Color(0xFFFF80AB), Color(0xFFEA80FC), Color(0xFFB388FF),
-        Color(0xFF82B1FF), Color(0xFF80D8FF), Color(0xFF84FFFF), Color(0xFFA7FFEB),
-        Color(0xFFB9F6CA), Color(0xFFFFE57F), Color(0xFFFFD180), Color(0xFFFF9E80)
-    )
-    val colorIndex = title.hashCode().coerceAtLeast(0) % colors.size
-    val accentColor = colors[colorIndex]
+    // Generate beautiful abstract nebula/light-streak layout instead of static icon
+    val hash = title.hashCode().coerceAtLeast(0)
+    val color1 = Color(0xFF1A237E)
+    val color2 = Color(hash % 256, (hash / 256) % 256, 255)
+    val color3 = com.example.ui.theme.CosmicTeal
 
     Box(
         modifier = modifier
             .size(size.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .background(accentColor.copy(alpha = 0.2f)),
+            .background(Color.Black),
         contentAlignment = Alignment.Center
     ) {
-        Icon(
-            imageVector = Icons.Default.MusicNote,
-            contentDescription = "Music Art",
-            tint = accentColor,
-            modifier = Modifier.size((size * 0.5f).dp)
-        )
+        androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
+            drawCircle(
+                brush = androidx.compose.ui.graphics.Brush.radialGradient(listOf(color1, Color.Transparent)),
+                radius = size.dp.toPx() * 0.8f,
+                center = androidx.compose.ui.geometry.Offset(size.dp.toPx() * 0.2f, size.dp.toPx() * 0.2f)
+            )
+            drawCircle(
+                brush = androidx.compose.ui.graphics.Brush.radialGradient(listOf(color2.copy(alpha=0.8f), Color.Transparent)),
+                radius = size.dp.toPx() * 0.6f,
+                center = androidx.compose.ui.geometry.Offset(size.dp.toPx() * 0.8f, size.dp.toPx() * 0.8f)
+            )
+            drawCircle(
+                brush = androidx.compose.ui.graphics.Brush.radialGradient(listOf(color3.copy(alpha=0.6f), Color.Transparent)),
+                radius = size.dp.toPx() * 0.5f,
+                center = androidx.compose.ui.geometry.Offset(size.dp.toPx() * 0.5f, size.dp.toPx() * 0.4f)
+            )
+        }
     }
 }
 
@@ -111,12 +119,13 @@ fun TrackRow(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .background(if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) else Color.Transparent)
+            .background(if (isSelected) com.example.ui.theme.NebulaViolet.copy(alpha = 0.15f) else Color.Transparent)
+            .padding(if (isSelected) 8.dp else 0.dp) // Subtle scale/padding interaction for active rows
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongClick
             )
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         ArtworkThumbnail(
@@ -179,25 +188,33 @@ fun MiniPlayer(
         modifier = modifier
     ) {
         currentSong?.let { song ->
-            Surface(
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
-                    .clickable { onOpenNowPlaying() },
-                shadowElevation = 6.dp,
-                shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                    // Cosmic Pod capsule background and deep-purple drop shadow
+                    .drawBehind { 
+                        drawRoundRect(
+                            color = com.example.ui.theme.NebulaViolet.copy(alpha = 0.4f),
+                            size = size,
+                            cornerRadius = androidx.compose.ui.geometry.CornerRadius(64f, 64f)
+                        )
+                    }
+                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(32.dp))
+                    .background(Color.White.copy(alpha = 0.1f)) // Frosted glass overlay
+                    .clickable { onOpenNowPlaying() }
             ) {
                 Row(
                     modifier = Modifier
-                        .padding(12.dp)
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
                         .fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     ArtworkThumbnail(
                         songId = song.id,
                         title = song.title,
-                        size = 44f
+                        size = 44f,
+                        isCircle = true
                     )
 
                     Spacer(modifier = Modifier.width(12.dp))
@@ -205,13 +222,13 @@ fun MiniPlayer(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = song.title,
-                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold, color = Color.White),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                         Text(
                             text = song.artist,
-                            style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant),
+                            style = MaterialTheme.typography.bodySmall.copy(color = Color.White.copy(alpha = 0.7f)),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -220,14 +237,16 @@ fun MiniPlayer(
                     IconButton(onClick = onPlayPause) {
                         Icon(
                             imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                            contentDescription = "Play/Pause"
+                            contentDescription = "Play/Pause",
+                            tint = com.example.ui.theme.CosmicTeal
                         )
                     }
 
                     IconButton(onClick = onSkipNext) {
                         Icon(
                             imageVector = Icons.Default.SkipNext,
-                            contentDescription = "Skip Next"
+                            contentDescription = "Skip Next",
+                            tint = Color.White
                         )
                     }
                 }

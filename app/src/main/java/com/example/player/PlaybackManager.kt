@@ -39,6 +39,7 @@ class PlaybackManager private constructor(private val context: Context) {
             true // handleAudioFocus = true
         )
         .setHandleAudioBecomingNoisy(true)
+        .setWakeMode(androidx.media3.common.C.WAKE_MODE_LOCAL)
         .build()
 
     // Sound FX
@@ -185,17 +186,18 @@ class PlaybackManager private constructor(private val context: Context) {
         _queue.value = currentList
 
         val mediaItems = currentList.map { songItem ->
+            val fileUri = android.net.Uri.fromFile(java.io.File(songItem.path))
             val metadata = androidx.media3.common.MediaMetadata.Builder()
                 .setTitle(songItem.title)
                 .setArtist(songItem.artist)
                 .setAlbumTitle(songItem.album)
                 .setDisplayTitle(songItem.title)
-                .setArtworkUri(android.net.Uri.parse(songItem.path))
+                .setArtworkUri(fileUri)
                 .build()
 
             MediaItem.Builder()
                 .setMediaId(songItem.id)
-                .setUri(songItem.path)
+                .setUri(fileUri)
                 .setMediaMetadata(metadata)
                 .build()
         }
@@ -215,16 +217,17 @@ class PlaybackManager private constructor(private val context: Context) {
         val currentIndex = player.currentMediaItemIndex
         
         // Build new MediaItem
+        val fileUri = android.net.Uri.fromFile(java.io.File(song.path))
         val metadata = androidx.media3.common.MediaMetadata.Builder()
             .setTitle(song.title)
             .setArtist(song.artist)
             .setAlbumTitle(song.album)
             .setDisplayTitle(song.title)
-            .setArtworkUri(android.net.Uri.parse(song.path))
+            .setArtworkUri(fileUri)
             .build()
         val mediaItem = MediaItem.Builder()
             .setMediaId(song.id)
-            .setUri(song.path)
+            .setUri(fileUri)
             .setMediaMetadata(metadata)
             .build()
 
@@ -242,16 +245,17 @@ class PlaybackManager private constructor(private val context: Context) {
         val currentQueue = _queue.value.toMutableList()
         currentQueue.add(song)
         
+        val fileUri = android.net.Uri.fromFile(java.io.File(song.path))
         val metadata = androidx.media3.common.MediaMetadata.Builder()
             .setTitle(song.title)
             .setArtist(song.artist)
             .setAlbumTitle(song.album)
             .setDisplayTitle(song.title)
-            .setArtworkUri(android.net.Uri.parse(song.path))
+            .setArtworkUri(fileUri)
             .build()
         val mediaItem = MediaItem.Builder()
             .setMediaId(song.id)
-            .setUri(song.path)
+            .setUri(fileUri)
             .setMediaMetadata(metadata)
             .build()
             
@@ -401,6 +405,25 @@ class PlaybackManager private constructor(private val context: Context) {
                 if (song != null) {
                     _currentSong.value = song
                     _currentPosition.value = lastPos
+                    // Actually prepare the player so it's ready to resume
+                    val metadata = androidx.media3.common.MediaMetadata.Builder()
+                        .setTitle(song.title)
+                        .setArtist(song.artist)
+                        .setAlbumTitle(song.album)
+                        .setDisplayTitle(song.title)
+                        .setArtworkUri(android.net.Uri.fromFile(java.io.File(song.path)))
+                        .build()
+
+                    val mediaItem = MediaItem.Builder()
+                        .setMediaId(song.id)
+                        .setUri(android.net.Uri.fromFile(java.io.File(song.path)))
+                        .setMediaMetadata(metadata)
+                        .build()
+                    
+                    _queue.value = listOf(song)
+                    player.setMediaItem(mediaItem)
+                    player.seekTo(lastPos)
+                    player.prepare()
                 }
             }
         }
