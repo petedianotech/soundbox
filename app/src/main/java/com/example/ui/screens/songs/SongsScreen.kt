@@ -78,10 +78,10 @@ fun SongsScreen(
                 }
             } else {
                 EmptyPlaceholder(
-                    title = "No Tracks Discovered",
-                    subtitle = "Soundbox scanned your local memory but did not locate audio files.",
+                    title = "No songs found",
+                    subtitle = "Tap below to scan your device for music files.",
                     icon = Icons.Default.MusicNote,
-                    actionText = "Seed Test Loops",
+                    actionText = "Scan for Music",
                     onActionClick = { viewModel.scanStorage() }
                 )
             }
@@ -126,7 +126,7 @@ fun SongsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "${songs.size} local tracks found",
+                            text = "${songs.size} songs",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -161,7 +161,7 @@ fun SongsScreen(
                                 if (isScanning) {
                                     CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
                                 } else {
-                                    Icon(Icons.Default.Refresh, contentDescription = "Refresh Scan")
+                                    Icon(Icons.Default.Refresh, contentDescription = "Scan Storage")
                                 }
                             }
                         }
@@ -221,7 +221,7 @@ fun SongsScreen(
                     )
                     Divider()
                     ListItem(
-                        headlineContent = { Text("View Song Details") },
+                        headlineContent = { Text("Song Info") },
                         leadingContent = { Icon(Icons.Default.Info, null) },
                         modifier = Modifier.clickable {
                             showActionSheet = false
@@ -234,7 +234,7 @@ fun SongsScreen(
                             Icon(
                                 imageVector = if (songToManage!!.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder, 
                                 contentDescription = null, 
-                                tint = if (songToManage!!.isFavorite) androidx.compose.ui.graphics.Color.Red else LocalContentColor.current
+                                tint = if (songToManage!!.isFavorite) MaterialTheme.colorScheme.primary else LocalContentColor.current
                             ) 
                         },
                         modifier = Modifier.clickable {
@@ -270,7 +270,7 @@ fun SongsScreen(
                         }
                     )
                     ListItem(
-                        headlineContent = { Text("Edit Metadata Tags") },
+                        headlineContent = { Text("Edit Song Info") },
                         leadingContent = { Icon(Icons.Default.Edit, null) },
                         modifier = Modifier.clickable {
                             showActionSheet = false
@@ -288,7 +288,7 @@ fun SongsScreen(
                     showPlaylistDialog = false
                     songToManage = null
                 },
-                title = { Text("Add Track to Playlist") },
+                title = { Text("Add Song to Playlist") },
                 text = {
                     Column(
                         modifier = Modifier
@@ -297,7 +297,7 @@ fun SongsScreen(
                     ) {
                         if (playlists.isEmpty()) {
                             Text(
-                                "No custom playlists found. Create one from the Playlists tab.",
+                                "No playlists found. Create one from the Playlists tab.",
                                 modifier = Modifier.padding(vertical = 12.dp)
                             )
                         } else {
@@ -347,7 +347,7 @@ fun SongsScreen(
                     showTagEditor = false
                     songToManage = null
                 },
-                title = { Text("Edit Metadata Tags") },
+                title = { Text("Edit Song Info") },
                 text = {
                     Column(
                         verticalArrangement = Arrangement.spacedBy(12.dp),

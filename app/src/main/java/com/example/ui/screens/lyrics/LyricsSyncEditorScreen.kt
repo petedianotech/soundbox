@@ -209,14 +209,10 @@ fun LyricsSyncEditorScreen(
                                 modifier = Modifier
                                     .size(48.dp)
                                     .clip(RoundedCornerShape(8.dp))
-                                    .background(
-                                        Brush.sweepGradient(
-                                            listOf(songColor, defaultColor)
-                                        )
-                                    ),
+                                    .background(MaterialTheme.colorScheme.primaryContainer),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(Icons.Default.MusicNote, contentDescription = null, tint = Color.White)
+                                Icon(Icons.Default.MusicNote, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
                             }
                             
                             Column(modifier = Modifier.weight(1f)) {
@@ -365,7 +361,7 @@ fun LyricsSyncEditorScreen(
 
                             Surface(
                                 color = containerColor,
-                                border = if (isCurrentTagTarget) ButtonDefaults.outlinedButtonBorder.copy(brush = Brush.linearGradient(listOf(songColor, songColor))) else null,
+                                border = if (isCurrentTagTarget) androidx.compose.foundation.BorderStroke(1.5.dp, songColor) else null,
                                 shape = RoundedCornerShape(12.dp),
                                 modifier = Modifier
                                     .fillMaxWidth()
