@@ -150,12 +150,17 @@ class PlaybackService : MediaSessionService() {
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? =
         mediaSession
 
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        super.onStartCommand(intent, flags, startId)
+        return START_STICKY
+    }
+
     override fun onTaskRemoved(rootIntent: Intent?) {
         val player = mediaSession?.player
-        // Don't stop service if playing. If not, stop self.
-        if (player != null && !player.playWhenReady) {
-            stopSelf()
+        if (player != null && (player.playWhenReady || player.mediaItemCount > 0)) {
+            return
         }
+        stopSelf()
     }
 
     override fun onDestroy() {

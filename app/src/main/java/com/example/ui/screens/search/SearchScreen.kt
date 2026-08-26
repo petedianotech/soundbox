@@ -40,6 +40,11 @@ fun SearchScreen(
 
     var searchQuery by remember { mutableStateOf("") }
     val isPlaying by viewModel.isPlaying.collectAsState()
+    val currentPosition by viewModel.currentPosition.collectAsState()
+    val duration by viewModel.duration.collectAsState()
+    val progress = remember(currentPosition, duration) {
+        if (duration > 0) (currentPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f) else 0f
+    }
 
     val focusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
@@ -272,6 +277,7 @@ fun SearchScreen(
                     onPlayPause = { viewModel.playPause() },
                     onSkipNext = { viewModel.skipNext() },
                     onOpenNowPlaying = onNavigateToNowPlaying,
+                    progress = progress,
                     modifier = Modifier.fillMaxWidth()
                 )
             }

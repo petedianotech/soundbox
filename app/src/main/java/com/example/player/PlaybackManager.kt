@@ -227,6 +227,19 @@ class PlaybackManager private constructor(private val context: Context) {
             .build()
     }
 
+    fun startPlaybackService() {
+        try {
+            val intent = android.content.Intent(context, PlaybackService::class.java)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                context.startForegroundService(intent)
+            } else {
+                context.startService(intent)
+            }
+        } catch (e: Exception) {
+            Log.e("PlaybackManager", "Error starting PlaybackService: ${e.message}")
+        }
+    }
+
     fun playSong(song: Song, customQueue: List<Song> = emptyList()) {
         val currentList = if (customQueue.isNotEmpty()) customQueue else listOf(song)
         _queue.value = currentList
@@ -241,6 +254,9 @@ class PlaybackManager private constructor(private val context: Context) {
 
         _currentSong.value = song
         _duration.value = song.duration
+
+        saveCurrentState(song.id, 0L)
+        startPlaybackService()
     }
 
     fun playNext(song: Song) {
@@ -256,6 +272,7 @@ class PlaybackManager private constructor(private val context: Context) {
             player.addMediaItem(mediaItem)
         }
         _queue.value = currentQueue
+        saveCurrentState(_currentSong.value?.id ?: song.id, player.currentPosition)
     }
 
     fun addToQueue(song: Song) {
@@ -264,6 +281,7 @@ class PlaybackManager private constructor(private val context: Context) {
         val mediaItem = buildMediaItem(song)
         player.addMediaItem(mediaItem)
         _queue.value = currentQueue
+        saveCurrentState(_currentSong.value?.id ?: song.id, player.currentPosition)
     }
 
     fun removeFromQueue(index: Int) {
@@ -273,6 +291,7 @@ class PlaybackManager private constructor(private val context: Context) {
             if (index < updatedQueue.size) {
                 updatedQueue.removeAt(index)
                 _queue.value = updatedQueue
+                saveCurrentState(_currentSong.value?.id ?: "", player.currentPosition)
             }
         }
     }
@@ -282,6 +301,7 @@ class PlaybackManager private constructor(private val context: Context) {
             player.clearMediaItems()
             _queue.value = emptyList()
             _currentSong.value = null
+            saveCurrentState("", 0L)
         }
     }
 
@@ -293,6 +313,7 @@ class PlaybackManager private constructor(private val context: Context) {
                 player.prepare()
             }
             player.play()
+            startPlaybackService()
         }
     }
 
@@ -389,11 +410,15 @@ class PlaybackManager private constructor(private val context: Context) {
         _sleepTimerMillis.value = 0L
     }
 
-    private fun saveCurrentState(songId: String, position: Long) {
+    fun saveCurrentState(songId: String, position: Long) {
         val prefs = context.getSharedPreferences("soundbox_playback", Context.MODE_PRIVATE)
+        val queueIds = _queue.value.joinToString(",") { it.id }
+        val currentIndex = if (player.mediaItemCount > 0) player.currentMediaItemIndex.coerceAtLeast(0) else 0
         prefs.edit()
             .putString("last_song_id", songId)
             .putLong("last_position", position)
+            .putString("last_queue_ids", queueIds)
+            .putInt("last_queue_index", currentIndex)
             .apply()
     }
 
@@ -402,30 +427,41 @@ class PlaybackManager private constructor(private val context: Context) {
             val prefs = context.getSharedPreferences("soundbox_playback", Context.MODE_PRIVATE)
             val lastSongId = prefs.getString("last_song_id", null)
             val lastPos = prefs.getLong("last_position", 0L)
+            val lastQueueIds = prefs.getString("last_queue_ids", null)
+            val lastQueueIndex = prefs.getInt("last_queue_index", 0)
 
             if (lastSongId != null) {
-                val song = repository.getSongById(lastSongId)
-                if (song != null) {
-                    _currentSong.value = song
-                    _currentPosition.value = lastPos
-                    // Actually prepare the player so it's ready to resume
-                    val metadata = androidx.media3.common.MediaMetadata.Builder()
-                        .setTitle(song.title)
-                        .setArtist(song.artist)
-                        .setAlbumTitle(song.album)
-                        .setDisplayTitle(song.title)
-                        .setArtworkUri(android.net.Uri.fromFile(java.io.File(song.path)))
-                        .build()
+                val queueSongIds = lastQueueIds?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
+                val restoredQueue = mutableListOf<Song>()
 
-                    val mediaItem = MediaItem.Builder()
-                        .setMediaId(song.id)
-                        .setUri(android.net.Uri.fromFile(java.io.File(song.path)))
-                        .setMediaMetadata(metadata)
-                        .build()
-                    
-                    _queue.value = listOf(song)
-                    player.setMediaItem(mediaItem)
-                    player.seekTo(lastPos)
+                if (queueSongIds.isNotEmpty()) {
+                    for (id in queueSongIds) {
+                        repository.getSongById(id)?.let { restoredQueue.add(it) }
+                    }
+                }
+
+                if (restoredQueue.isEmpty()) {
+                    val singleSong = repository.getSongById(lastSongId)
+                    if (singleSong != null) {
+                        restoredQueue.add(singleSong)
+                    }
+                }
+
+                if (restoredQueue.isNotEmpty()) {
+                    _queue.value = restoredQueue
+                    val startIndex = if (lastQueueIndex in restoredQueue.indices) {
+                        lastQueueIndex
+                    } else {
+                        restoredQueue.indexOfFirst { it.id == lastSongId }.coerceAtLeast(0)
+                    }
+                    val targetSong = restoredQueue.getOrNull(startIndex) ?: restoredQueue.first()
+
+                    _currentSong.value = targetSong
+                    _currentPosition.value = lastPos
+                    _duration.value = targetSong.duration
+
+                    val mediaItems = restoredQueue.map { buildMediaItem(it) }
+                    player.setMediaItems(mediaItems, startIndex, lastPos)
                     player.prepare()
                 }
             }

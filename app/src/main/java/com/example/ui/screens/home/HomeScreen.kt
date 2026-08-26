@@ -45,6 +45,11 @@ fun HomeScreen(
     var selectedTab by remember { mutableStateOf(HomeTab.SONGS) }
     val currentSong by viewModel.currentSong.collectAsState()
     val isPlaying by viewModel.isPlaying.collectAsState()
+    val currentPosition by viewModel.currentPosition.collectAsState()
+    val duration by viewModel.duration.collectAsState()
+    val progress = remember(currentPosition, duration) {
+        if (duration > 0) (currentPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f) else 0f
+    }
     
     val visibleTabsStrings by viewModel.settingsManager.visibleTabsFlow.collectAsState()
     val visibleTabs = remember(visibleTabsStrings) {
@@ -146,16 +151,17 @@ fun HomeScreen(
                 )
             }
             
-            // Persistent Floating MiniPlayer above bottom bar
+            // Persistent MiniPlayer edge-to-edge above bottom bar
             MiniPlayer(
                 currentSong = currentSong,
                 isPlaying = isPlaying,
                 onPlayPause = { viewModel.playPause() },
                 onSkipNext = { viewModel.skipNext() },
                 onOpenNowPlaying = onNavigateToNowPlaying,
+                progress = progress,
                 modifier = Modifier
+                    .fillMaxWidth()
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = 4.dp)
             )
         }
     }
