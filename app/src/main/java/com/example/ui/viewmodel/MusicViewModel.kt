@@ -4,12 +4,17 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.model.Playlist
+import com.example.data.model.SmartPlaylist
+import com.example.data.model.SmartPlaylistType
 import com.example.data.model.Song
 import com.example.data.repository.MusicRepository
 import com.example.player.PlaybackManager
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import com.example.util.SettingsManager
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.ui.graphics.Color
 
 class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -46,6 +51,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     val sleepTimerMillis: StateFlow<Long> = playbackManager.sleepTimerMillis
     val equalizerEnabled: StateFlow<Boolean> = playbackManager.equalizerEnabled
     val bassBoostStrength: StateFlow<Int> = playbackManager.bassBoostStrength
+    val audioSessionId: StateFlow<Int> = playbackManager.audioSessionId
 
     // Scanning states
     private val _isScanning = MutableStateFlow(false)
@@ -81,6 +87,9 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     val recentlyPlayedSongs: StateFlow<List<Song>> = repository.recentlyPlayedSongs
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val recentlyAddedSongs: StateFlow<List<Song>> = repository.recentlyAddedSongs
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     val allPlaylists: StateFlow<List<Playlist>> = repository.allPlaylists
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -100,6 +109,156 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     val genreList: StateFlow<Map<String, List<Song>>> = repository.allSongs
         .map { songs -> songs.groupBy { it.genre } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
+    // Dynamic Smart Playlists combining metadata, play history, and genres
+    val smartPlaylists: StateFlow<List<SmartPlaylist>> = combine(
+        repository.allSongs,
+        repository.favoriteSongs,
+        repository.mostPlayedSongs,
+        repository.recentlyPlayedSongs,
+        repository.recentlyAddedSongs
+    ) { all, favs, mostPlayed, recentRuns, recentAdded ->
+        val list = mutableListOf<SmartPlaylist>()
+
+        // 1. Favorites
+        if (favs.isNotEmpty()) {
+            list.add(
+                SmartPlaylist(
+                    id = "smart_favorites",
+                    type = SmartPlaylistType.FAVORITES,
+                    title = "Favorites",
+                    description = "Songs you marked with a heart",
+                    icon = Icons.Default.Favorite,
+                    tintColor = Color(0xFFE53935),
+                    songs = favs
+                )
+            )
+        }
+
+        // 2. Most Played
+        val playedOnly = mostPlayed.filter { it.playCount > 0 }
+        if (playedOnly.isNotEmpty()) {
+            list.add(
+                SmartPlaylist(
+                    id = "smart_most_played",
+                    type = SmartPlaylistType.MOST_PLAYED,
+                    title = "Most Played",
+                    description = "Your top listened tracks",
+                    icon = Icons.Default.Whatshot,
+                    tintColor = Color(0xFFFF9800),
+                    songs = playedOnly
+                )
+            )
+        }
+
+        // 3. Recently Added
+        if (recentAdded.isNotEmpty()) {
+            list.add(
+                SmartPlaylist(
+                    id = "smart_recently_added",
+                    type = SmartPlaylistType.RECENTLY_ADDED,
+                    title = "Recently Added",
+                    description = "Newest music added to library",
+                    icon = Icons.Default.NewReleases,
+                    tintColor = Color(0xFF00ACC1),
+                    songs = recentAdded
+                )
+            )
+        }
+
+        // 4. Recently Played
+        val recentPlayedOnly = recentRuns.filter { it.lastPlayedTime > 0 }
+        if (recentPlayedOnly.isNotEmpty()) {
+            list.add(
+                SmartPlaylist(
+                    id = "smart_recently_played",
+                    type = SmartPlaylistType.RECENTLY_PLAYED,
+                    title = "Recently Played",
+                    description = "Tracks you listened to recently",
+                    icon = Icons.Default.History,
+                    tintColor = Color(0xFF5C6BC0),
+                    songs = recentPlayedOnly
+                )
+            )
+        }
+
+        // 5. Long Tracks (> 5 minutes)
+        val longTracks = all.filter { it.duration >= 300_000 }
+        if (longTracks.isNotEmpty()) {
+            list.add(
+                SmartPlaylist(
+                    id = "smart_long_tracks",
+                    type = SmartPlaylistType.LONG_TRACKS,
+                    title = "Long Mixes",
+                    description = "Tracks longer than 5 minutes",
+                    icon = Icons.Default.Timer,
+                    tintColor = Color(0xFF8E24AA),
+                    songs = longTracks
+                )
+            )
+        }
+
+        // 6. Quick Tracks (< 3 minutes)
+        val quickTracks = all.filter { it.duration in 10_000..180_000 }
+        if (quickTracks.isNotEmpty()) {
+            list.add(
+                SmartPlaylist(
+                    id = "smart_quick_tracks",
+                    type = SmartPlaylistType.SHORT_TRACKS,
+                    title = "Quick Hits",
+                    description = "Short tracks under 3 minutes",
+                    icon = Icons.Default.Bolt,
+                    tintColor = Color(0xFFFDD835),
+                    songs = quickTracks
+                )
+            )
+        }
+
+        // 7. Forgotten Gems (Never Played)
+        val unplayed = all.filter { it.playCount == 0 }
+        if (unplayed.isNotEmpty() && unplayed.size != all.size) {
+            list.add(
+                SmartPlaylist(
+                    id = "smart_unplayed",
+                    type = SmartPlaylistType.NEVER_PLAYED,
+                    title = "Forgotten Gems",
+                    description = "Songs you haven't played yet",
+                    icon = Icons.Default.AutoAwesome,
+                    tintColor = Color(0xFF43A047),
+                    songs = unplayed
+                )
+            )
+        }
+
+        // 8. Auto-created Genre Smart Playlists for all detected genres
+        val genreGroups = all.groupBy { it.genre }.filter { it.key.isNotBlank() && !it.key.equals("Unknown", ignoreCase = true) && !it.key.equals("Music", ignoreCase = true) }
+        val genrePalette = listOf(
+            Color(0xFFE91E63), Color(0xFF9C27B0), Color(0xFF673AB7),
+            Color(0xFF3F51B5), Color(0xFF2196F3), Color(0xFF009688),
+            Color(0xFF4CAF50), Color(0xFFFF5722), Color(0xFF795548)
+        )
+        var colorIdx = 0
+        genreGroups.forEach { (genreName, genreSongs) ->
+            if (genreSongs.isNotEmpty()) {
+                val color = genrePalette[colorIdx % genrePalette.size]
+                colorIdx++
+                list.add(
+                    SmartPlaylist(
+                        id = "smart_genre_${genreName.lowercase().replace(" ", "_")}",
+                        type = SmartPlaylistType.GENRE,
+                        title = "$genreName Radio",
+                        description = "All $genreName tracks in library",
+                        icon = Icons.Default.Category,
+                        tintColor = color,
+                        songs = genreSongs,
+                        genreName = genreName
+                    )
+                )
+            }
+        }
+
+        list
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     init {
         // Run first local scan to populate music database
@@ -159,6 +318,30 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     fun createPlaylist(name: String) {
         viewModelScope.launch {
             repository.createPlaylist(name)
+        }
+    }
+
+    fun createPlaylistWithSongs(name: String, songIds: List<String>) {
+        viewModelScope.launch {
+            repository.createPlaylistWithSongs(name, songIds)
+        }
+    }
+
+    fun saveSmartPlaylistAsCustom(smartPlaylist: SmartPlaylist) {
+        viewModelScope.launch {
+            val songIds = smartPlaylist.songs.map { it.id }
+            repository.createPlaylistWithSongs(smartPlaylist.title, songIds)
+        }
+    }
+
+    fun autoGenerateSmartPlaylists() {
+        viewModelScope.launch {
+            val currentSmartPlaylists = smartPlaylists.value
+            currentSmartPlaylists.forEach { sp ->
+                if (sp.songs.isNotEmpty()) {
+                    repository.createPlaylistWithSongs(sp.title, sp.songs.map { it.id })
+                }
+            }
         }
     }
 

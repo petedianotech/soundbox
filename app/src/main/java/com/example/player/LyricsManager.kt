@@ -58,30 +58,85 @@ object LyricsManager {
 
     /**
      * Loads lyrics with robust auto-detection rules:
-     * 1. Check same folder as audio file (e.g. SongTitle.lrc)
-     * 2. Check app private lyrics folder by ID (song.id.lrc)
-     * 3. Check app private lyrics folder matching of the format CleanArtist_CleanTitle.lrc
+     * 1. Check beside audio file (SongName.lrc, SongName.txt, SongTitle.lrc)
+     * 2. Check nearby lyrics/ directory beside audio file
+     * 3. Check embedded ID3 lyrics in the audio file
+     * 4. Check app private lyrics folder by ID (song.id.lrc)
+     * 5. Check app private lyrics folder matching of the format CleanArtist_CleanTitle.lrc or CleanTitle.lrc
      */
     fun loadLyrics(context: Context, song: Song): String? {
-        // 1. Check beside audio file
+        // 1. Check beside audio file (.lrc and .txt)
         if (song.path.startsWith("/") && !song.path.contains("://")) {
             try {
                 val audioFile = File(song.path)
-                val lrcFileName = audioFile.nameWithoutExtension + ".lrc"
-                val besideFile = File(audioFile.parent, lrcFileName)
-                if (besideFile.exists()) {
-                    val content = besideFile.readText()
-                    if (content.isNotBlank()) {
-                        Log.d(TAG, "Auto-detected lyrics beside audio file: ${besideFile.absolutePath}")
-                        return content
+                val parent = audioFile.parentFile
+                if (parent != null && parent.exists()) {
+                    val nameWithoutExt = audioFile.nameWithoutExtension
+                    val candidateNames = listOf(
+                        "$nameWithoutExt.lrc",
+                        "$nameWithoutExt.txt",
+                        "${song.title}.lrc",
+                        "${song.title}.txt",
+                        "${song.artist} - ${song.title}.lrc",
+                        "${song.artist} - ${song.title}.txt"
+                    )
+                    
+                    for (candidate in candidateNames) {
+                        val file = File(parent, candidate)
+                        if (file.exists() && file.length() > 0) {
+                            val content = file.readText()
+                            if (content.isNotBlank()) {
+                                Log.d(TAG, "Auto-detected lyrics beside audio file: ${file.absolutePath}")
+                                return content
+                            }
+                        }
+                    }
+
+                    // Check subfolder "lyrics" or "Lyrics" beside audio file
+                    val subLyricsDir = File(parent, "lyrics")
+                    val subLyricsDirCap = File(parent, "Lyrics")
+                    val lyricsFolders = listOfNotNull(
+                        if (subLyricsDir.exists() && subLyricsDir.isDirectory) subLyricsDir else null,
+                        if (subLyricsDirCap.exists() && subLyricsDirCap.isDirectory) subLyricsDirCap else null
+                    )
+                    for (dir in lyricsFolders) {
+                        for (candidate in candidateNames) {
+                            val file = File(dir, candidate)
+                            if (file.exists() && file.length() > 0) {
+                                val content = file.readText()
+                                if (content.isNotBlank()) {
+                                    Log.d(TAG, "Auto-detected lyrics in subfolder: ${file.absolutePath}")
+                                    return content
+                                }
+                            }
+                        }
                     }
                 }
             } catch (e: Exception) {
-                Log.d(TAG, "Failed reading beside file (ignore on standard build): ${e.message}")
+                Log.d(TAG, "Failed reading beside file: ${e.message}")
             }
         }
 
-        // 2. Check private folder by ID
+        // 2. Check embedded lyrics via custom ID3 / metadata tag key
+        try {
+            val retriever = android.media.MediaMetadataRetriever()
+            if (song.path.startsWith("content://")) {
+                retriever.setDataSource(context, android.net.Uri.parse(song.path))
+            } else {
+                retriever.setDataSource(song.path)
+            }
+            // Key 1000 is used by FFmpeg/Android media frameworks for USLT/lyrics metadata
+            val embeddedLyrics = retriever.extractMetadata(1000)
+            retriever.release()
+            if (!embeddedLyrics.isNullOrBlank()) {
+                Log.d(TAG, "Auto-detected embedded lyrics in audio track metadata")
+                return embeddedLyrics
+            }
+        } catch (e: Exception) {
+            // Ignore retrieval errors for unsupported containers
+        }
+
+        // 3. Check private folder by ID
         val privateFile = getLyricsFile(context, song)
         if (privateFile.exists()) {
             val content = privateFile.readText()
@@ -90,7 +145,7 @@ object LyricsManager {
             }
         }
 
-        // 3. Check private folder by Artist & Title
+        // 4. Check private folder by Artist & Title or Title
         try {
             val dir = File(context.filesDir, "lyrics")
             if (dir.exists()) {
@@ -102,6 +157,15 @@ object LyricsManager {
                         val content = backupFile.readText()
                         if (content.isNotBlank()) {
                             Log.d(TAG, "Auto-detected lyrics by Artist & Title matching: ${backupFile.name}")
+                            return content
+                        }
+                    }
+                }
+                if (cleanTitle.isNotBlank()) {
+                    val titleOnlyFile = File(dir, "${cleanTitle}.lrc")
+                    if (titleOnlyFile.exists()) {
+                        val content = titleOnlyFile.readText()
+                        if (content.isNotBlank()) {
                             return content
                         }
                     }

@@ -23,6 +23,8 @@ class MusicRepository(private val context: Context) {
     val favoriteSongs: Flow<List<Song>> = songDao.getFavoriteSongs()
     val mostPlayedSongs: Flow<List<Song>> = songDao.getMostPlayedSongs()
     val recentlyPlayedSongs: Flow<List<Song>> = songDao.getRecentlyPlayedSongs()
+    val recentlyAddedSongs: Flow<List<Song>> = songDao.getRecentlyAddedSongs()
+    val distinctGenres: Flow<List<String>> = songDao.getDistinctGenres()
     val allPlaylists: Flow<List<Playlist>> = playlistDao.getAllPlaylists()
 
     companion object {
@@ -71,6 +73,12 @@ class MusicRepository(private val context: Context) {
         }
     }
 
+    suspend fun createPlaylistWithSongs(name: String, songIds: List<String>): Long {
+        return withContext(Dispatchers.IO) {
+            playlistDao.insertPlaylist(Playlist(name = name, songIds = songIds))
+        }
+    }
+
     suspend fun deletePlaylist(playlistId: Long) {
         withContext(Dispatchers.IO) {
             playlistDao.deletePlaylistById(playlistId)
@@ -103,7 +111,7 @@ class MusicRepository(private val context: Context) {
             Log.d(TAG, "Starting media scan...")
             val fetchedSongs = mutableListOf<Song>()
 
-            val projection = arrayOf(
+            val projection = mutableListOf(
                 MediaStore.Audio.Media._ID,
                 MediaStore.Audio.Media.TITLE,
                 MediaStore.Audio.Media.ARTIST,
@@ -115,15 +123,19 @@ class MusicRepository(private val context: Context) {
                 MediaStore.Audio.Media.DATE_ADDED
             )
 
+            val hasGenreColumn = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q
+            if (hasGenreColumn) {
+                projection.add(MediaStore.Audio.Media.GENRE)
+            }
+
             // Filtering for only music sounds
             val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0 AND ${MediaStore.Audio.Media.DURATION} >= 5000"
-
             val queryUri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
 
             try {
                 context.contentResolver.query(
                     queryUri,
-                    projection,
+                    projection.toTypedArray(),
                     selection,
                     null,
                     "${MediaStore.Audio.Media.TITLE} ASC"
@@ -137,6 +149,7 @@ class MusicRepository(private val context: Context) {
                     val sizeCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.SIZE)
                     val trackCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TRACK)
                     val dateAddedCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_ADDED)
+                    val genreCol = if (hasGenreColumn) cursor.getColumnIndex(MediaStore.Audio.Media.GENRE) else -1
 
                     while (cursor.moveToNext()) {
                         val id = cursor.getLong(idCol).toString()
@@ -148,6 +161,24 @@ class MusicRepository(private val context: Context) {
                         val size = cursor.getLong(sizeCol)
                         val trackNumber = cursor.getInt(trackCol)
                         val dateAdded = cursor.getLong(dateAddedCol) * 1000 // Convert sec to ms
+
+                        var genre = if (genreCol >= 0) cursor.getString(genreCol) ?: "" else ""
+                        if (genre.isBlank() || genre.equals("Unknown", ignoreCase = true)) {
+                            // Extract genre using lightweight fallback
+                            try {
+                                val retriever = android.media.MediaMetadataRetriever()
+                                retriever.setDataSource(path)
+                                val extracted = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_GENRE)
+                                retriever.release()
+                                if (!extracted.isNullOrBlank()) {
+                                    genre = extracted.trim()
+                                }
+                            } catch (ignored: Exception) {}
+                        }
+
+                        if (genre.isBlank()) {
+                            genre = "Music"
+                        }
 
                         val file = File(path)
                         val folderPath = file.parent ?: "/storage/emulated/0/Music"
@@ -165,6 +196,7 @@ class MusicRepository(private val context: Context) {
                                 folderPath = folderPath,
                                 folderName = folderName,
                                 trackNumber = trackNumber,
+                                genre = genre,
                                 isFavorite = false,
                                 dateAdded = dateAdded
                             )

@@ -83,6 +83,9 @@ class PlaybackManager private constructor(private val context: Context) {
     private val _bassBoostStrength = MutableStateFlow(0) // 0 to 1000 millibels
     val bassBoostStrength: StateFlow<Int> = _bassBoostStrength.asStateFlow()
 
+    private val _audioSessionId = MutableStateFlow(player.audioSessionId)
+    val audioSessionId: StateFlow<Int> = _audioSessionId.asStateFlow()
+
     private var sleepTimer: Timer? = null
     private val handler = Handler(Looper.getMainLooper())
 
@@ -158,6 +161,7 @@ class PlaybackManager private constructor(private val context: Context) {
 
             override fun onAudioSessionIdChanged(audioSessionId: Int) {
                 super.onAudioSessionIdChanged(audioSessionId)
+                _audioSessionId.value = audioSessionId
                 initAudioEffects(audioSessionId)
             }
         })
@@ -181,26 +185,53 @@ class PlaybackManager private constructor(private val context: Context) {
         }
     }
 
+    private fun extractArtworkBytes(path: String): ByteArray? {
+        return try {
+            val retriever = android.media.MediaMetadataRetriever()
+            if (path.startsWith("content://")) {
+                retriever.setDataSource(context, android.net.Uri.parse(path))
+            } else {
+                retriever.setDataSource(path)
+            }
+            val art = retriever.embeddedPicture
+            retriever.release()
+            art
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun buildMediaItem(songItem: Song): MediaItem {
+        val fileUri = if (songItem.path.startsWith("content://") || songItem.path.startsWith("file://")) {
+            android.net.Uri.parse(songItem.path)
+        } else {
+            android.net.Uri.fromFile(java.io.File(songItem.path))
+        }
+
+        val metadataBuilder = androidx.media3.common.MediaMetadata.Builder()
+            .setTitle(songItem.title)
+            .setArtist(songItem.artist)
+            .setAlbumTitle(songItem.album)
+            .setDisplayTitle(songItem.title)
+            .setArtworkUri(fileUri)
+
+        val artworkBytes = extractArtworkBytes(songItem.path)
+        if (artworkBytes != null) {
+            metadataBuilder.setArtworkData(artworkBytes, androidx.media3.common.MediaMetadata.PICTURE_TYPE_FRONT_COVER)
+        }
+
+        return MediaItem.Builder()
+            .setMediaId(songItem.id)
+            .setUri(fileUri)
+            .setMediaMetadata(metadataBuilder.build())
+            .build()
+    }
+
     fun playSong(song: Song, customQueue: List<Song> = emptyList()) {
         val currentList = if (customQueue.isNotEmpty()) customQueue else listOf(song)
         _queue.value = currentList
 
-        val mediaItems = currentList.map { songItem ->
-            val fileUri = android.net.Uri.fromFile(java.io.File(songItem.path))
-            val metadata = androidx.media3.common.MediaMetadata.Builder()
-                .setTitle(songItem.title)
-                .setArtist(songItem.artist)
-                .setAlbumTitle(songItem.album)
-                .setDisplayTitle(songItem.title)
-                .setArtworkUri(fileUri)
-                .build()
-
-            MediaItem.Builder()
-                .setMediaId(songItem.id)
-                .setUri(fileUri)
-                .setMediaMetadata(metadata)
-                .build()
-        }
+        val mediaItems = currentList.map { songItem -> buildMediaItem(songItem) }
 
         player.setMediaItems(mediaItems)
         val index = currentList.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
@@ -215,21 +246,7 @@ class PlaybackManager private constructor(private val context: Context) {
     fun playNext(song: Song) {
         val currentQueue = _queue.value.toMutableList()
         val currentIndex = player.currentMediaItemIndex
-        
-        // Build new MediaItem
-        val fileUri = android.net.Uri.fromFile(java.io.File(song.path))
-        val metadata = androidx.media3.common.MediaMetadata.Builder()
-            .setTitle(song.title)
-            .setArtist(song.artist)
-            .setAlbumTitle(song.album)
-            .setDisplayTitle(song.title)
-            .setArtworkUri(fileUri)
-            .build()
-        val mediaItem = MediaItem.Builder()
-            .setMediaId(song.id)
-            .setUri(fileUri)
-            .setMediaMetadata(metadata)
-            .build()
+        val mediaItem = buildMediaItem(song)
 
         if (currentIndex < currentQueue.size) {
             currentQueue.add(currentIndex + 1, song)
@@ -244,21 +261,7 @@ class PlaybackManager private constructor(private val context: Context) {
     fun addToQueue(song: Song) {
         val currentQueue = _queue.value.toMutableList()
         currentQueue.add(song)
-        
-        val fileUri = android.net.Uri.fromFile(java.io.File(song.path))
-        val metadata = androidx.media3.common.MediaMetadata.Builder()
-            .setTitle(song.title)
-            .setArtist(song.artist)
-            .setAlbumTitle(song.album)
-            .setDisplayTitle(song.title)
-            .setArtworkUri(fileUri)
-            .build()
-        val mediaItem = MediaItem.Builder()
-            .setMediaId(song.id)
-            .setUri(fileUri)
-            .setMediaMetadata(metadata)
-            .build()
-            
+        val mediaItem = buildMediaItem(song)
         player.addMediaItem(mediaItem)
         _queue.value = currentQueue
     }

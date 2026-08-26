@@ -19,6 +19,15 @@ interface SongDao {
     @Query("SELECT * FROM songs ORDER BY lastPlayedTime DESC LIMIT 50")
     fun getRecentlyPlayedSongs(): Flow<List<Song>>
 
+    @Query("SELECT * FROM songs ORDER BY dateAdded DESC LIMIT 50")
+    fun getRecentlyAddedSongs(): Flow<List<Song>>
+
+    @Query("SELECT * FROM songs WHERE genre = :genre ORDER BY title ASC")
+    fun getSongsByGenre(genre: String): Flow<List<Song>>
+
+    @Query("SELECT DISTINCT genre FROM songs WHERE genre != '' AND genre != 'Unknown' ORDER BY genre ASC")
+    fun getDistinctGenres(): Flow<List<String>>
+
     @Query("SELECT * FROM songs WHERE path = :path LIMIT 1")
     suspend fun getSongByPath(path: String): Song?
 

@@ -36,6 +36,7 @@ import androidx.media3.common.Player
 import com.example.data.model.Song
 import com.example.ui.components.EmptyPlaceholder
 import com.example.ui.components.SongImagePlaceholder
+import com.example.ui.components.RealtimeAudioVisualizer
 import com.example.ui.viewmodel.MusicViewModel
 import androidx.compose.ui.platform.LocalContext
 import android.content.Context
@@ -116,7 +117,9 @@ fun NowPlayingScreen(
     val sleepTimerLeft by viewModel.sleepTimerMillis.collectAsState()
     val eqEnabled by viewModel.equalizerEnabled.collectAsState()
     val bassStrength by viewModel.bassBoostStrength.collectAsState()
+    val audioSessionId by viewModel.audioSessionId.collectAsState()
 
+    var showVisualizer by remember { mutableStateOf(true) }
     var showTimerDialog by remember { mutableStateOf(false) }
     var showEffectsSheet by remember { mutableStateOf(false) }
     
@@ -277,40 +280,110 @@ fun NowPlayingScreen(
                             label = "ArtworkLyricsTransition"
                         ) { showLyrics ->
                             if (showLyrics) {
-                                // Full focus beautiful interactive synchronized lyrics screen (Oto Music/Spotify)
+                                // Full focus interactive synchronized lyrics screen
                                 Box(
                                     modifier = Modifier
                                         .fillMaxSize()
                                         .clip(MaterialTheme.shapes.extraLarge)
-                                        .background(Color.White.copy(alpha = 0.05f)) // glass effect base
-                                        .drawBehind { drawRect(Color.Black.copy(alpha = 0.2f)) }
-                                        .clickable { isLyricsViewActive = false }
+                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
                                         .padding(16.dp)
                                 ) {
                                     if (lyrics.isEmpty()) {
                                         Column(
-                                            modifier = Modifier.fillMaxSize().padding(24.dp),
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .verticalScroll(rememberScrollState())
+                                                .padding(16.dp),
                                             horizontalAlignment = Alignment.CenterHorizontally,
                                             verticalArrangement = Arrangement.Center
                                         ) {
-                                            Text(
-                                                "No lyrics loaded.",
-                                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                                                style = MaterialTheme.typography.titleMedium
+                                            Icon(
+                                                imageVector = Icons.Default.Lyrics,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(40.dp)
                                             )
-                                            Spacer(modifier = Modifier.height(8.dp))
+                                            Spacer(modifier = Modifier.height(10.dp))
                                             Text(
-                                                "Tap the Edit pen in the top-right corner to search Google or paste manual lyrics.",
-                                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f),
-                                                style = MaterialTheme.typography.bodyMedium,
+                                                "No lyrics found for this song",
+                                                color = MaterialTheme.colorScheme.onSurface,
+                                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                                                 textAlign = TextAlign.Center
                                             )
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Text(
+                                                "Add a matching .lrc or .txt file beside your music or choose an option below.",
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                textAlign = TextAlign.Center
+                                            )
+                                            Spacer(modifier = Modifier.height(14.dp))
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                FilledTonalButton(
+                                                    onClick = { fileLauncher.launch("*/*") },
+                                                    modifier = Modifier.weight(1f),
+                                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
+                                                ) {
+                                                    Icon(Icons.Default.FileOpen, contentDescription = null, modifier = Modifier.size(16.dp))
+                                                    Spacer(modifier = Modifier.width(4.dp))
+                                                    Text("Pick File", style = MaterialTheme.typography.labelMedium)
+                                                }
+                                                OutlinedButton(
+                                                    onClick = {
+                                                        pastedLyricsContent = ""
+                                                        showPasteDialog = true
+                                                    },
+                                                    modifier = Modifier.weight(1f),
+                                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
+                                                ) {
+                                                    Icon(Icons.Default.ContentPaste, contentDescription = null, modifier = Modifier.size(16.dp))
+                                                    Spacer(modifier = Modifier.width(4.dp))
+                                                    Text("Paste", style = MaterialTheme.typography.labelMedium)
+                                                }
+                                            }
+                                            Spacer(modifier = Modifier.height(6.dp))
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                OutlinedButton(
+                                                    onClick = {
+                                                        val query = LyricsManager.buildSearchQuery(song)
+                                                        val intent = Intent(Intent.ACTION_WEB_SEARCH).apply {
+                                                            putExtra("query", query)
+                                                        }
+                                                        try {
+                                                            context.startActivity(intent)
+                                                        } catch (e: Exception) {
+                                                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/search?q=${Uri.encode(query)}")))
+                                                        }
+                                                    },
+                                                    modifier = Modifier.weight(1f),
+                                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
+                                                ) {
+                                                    Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(16.dp))
+                                                    Spacer(modifier = Modifier.width(4.dp))
+                                                    Text("Search Web", style = MaterialTheme.typography.labelMedium)
+                                                }
+                                                OutlinedButton(
+                                                    onClick = onNavigateToLyricsCreator,
+                                                    modifier = Modifier.weight(1f),
+                                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
+                                                ) {
+                                                    Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                                                    Spacer(modifier = Modifier.width(4.dp))
+                                                    Text("Create", style = MaterialTheme.typography.labelMedium)
+                                                }
+                                            }
                                         }
                                     } else {
                                         LazyColumn(
                                             state = lyricsListState,
                                             modifier = Modifier.fillMaxSize(),
-                                            contentPadding = PaddingValues(vertical = 110.dp),
+                                            contentPadding = PaddingValues(vertical = 100.dp),
                                             verticalArrangement = Arrangement.spacedBy(16.dp)
                                         ) {
                                             itemsIndexed(lyrics) { index, line ->
@@ -354,50 +427,27 @@ fun NowPlayingScreen(
                                         }
                                     }
 
-                                    if (lyrics.isNotEmpty()) {
-                                        // Soft fade indicator overlays upper/lower
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .height(60.dp)
-                                                .align(Alignment.TopCenter)
-                                                .background(
-                                                    Brush.verticalGradient(
-                                                        listOf(
-                                                            Color.Black.copy(alpha = 0.6f),
-                                                            Color.Transparent
-                                                        )
-                                                    )
-                                                )
-                                        )
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .height(60.dp)
-                                                .align(Alignment.BottomCenter)
-                                                .background(
-                                                    Brush.verticalGradient(
-                                                        listOf(
-                                                            Color.Transparent,
-                                                            Color.Black.copy(alpha = 0.6f)
-                                                        )
-                                                    )
-                                                )
-                                        )
-                                    }
-
-                                    // Floating settings button on active lyric view to change or clear lyrics offline easily
-                                    IconButton(
-                                        onClick = { showLyricsMenu = true },
+                                    // Floating buttons row on active lyric view
+                                    Row(
                                         modifier = Modifier
                                             .align(Alignment.TopEnd)
-                                            .padding(8.dp)
+                                            .padding(4.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                                     ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Edit,
-                                            contentDescription = "Manage Lyrics",
-                                            tint = MaterialTheme.colorScheme.primary
-                                        )
+                                        IconButton(onClick = { isLyricsViewActive = false }) {
+                                            Icon(
+                                                imageVector = Icons.Default.Image,
+                                                contentDescription = "Show Artwork",
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                        IconButton(onClick = { showLyricsMenu = true }) {
+                                            Icon(
+                                                imageVector = Icons.Default.MoreVert,
+                                                contentDescription = "Manage Lyrics",
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
                                     }
                                 }
                             } else {
@@ -619,51 +669,32 @@ fun NowPlayingScreen(
                         Spacer(modifier = Modifier.height(10.dp))
                     }
 
-                    // Seek bar slider container
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        // Custom Slider with Cosmic Prism track
-                        Box(
+                    // Real-time Audio Frequency Spectrum Visualizer
+                    if (showVisualizer) {
+                        RealtimeAudioVisualizer(
+                            audioSessionId = audioSessionId,
+                            isPlaying = isPlaying,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(20.dp),
-                            contentAlignment = Alignment.CenterStart
-                        ) {
-                            // Back matte track
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(4.dp)
-                                    .background(Color.White.copy(alpha = 0.2f), RoundedCornerShape(2.dp))
-                            )
-                            // Filled cosmic gradient track
-                            val fraction = if (duration > 0) position.toFloat() / duration.toFloat() else 0f
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth(fraction.coerceIn(0f, 1f))
-                                    .height(4.dp)
-                                    .background(com.example.ui.theme.CosmicPrismGradient, RoundedCornerShape(2.dp))
-                            )
-                            // Transparent slider overlay to capture gestures
-                            Slider(
-                                value = position.toFloat().coerceIn(0f, duration.toFloat().coerceAtLeast(1f)),
-                                onValueChange = { viewModel.seekTo(it.toLong()) },
-                                valueRange = 0f..duration.toFloat().coerceAtLeast(1f),
-                                colors = SliderDefaults.colors(
-                                    thumbColor = Color.Transparent,
-                                    activeTrackColor = Color.Transparent,
-                                    inactiveTrackColor = Color.Transparent
-                                ),
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                            // Glowing orb thumb
-                            Box(
-                                modifier = Modifier
-                                    .size(16.dp)
-                                    .offset(x = ((fraction * (280 - 16).toFloat()).dp)) // rough visual positioning or let the slider draw the transparent thumb and draw this above. 
-                                    // Actually, setting thumbColor = Transparent hides thumb, and we can just use Canvas or drawBehind to draw thumb. Better yet, we can override `thumb` lambda, but `thumb` lambda signature varies. I'll rely on the transparent overlay.
-                                    // Wait, offset calculation here might be slightly off due to padding. 
-                            )
-                        }
+                                .padding(bottom = 8.dp),
+                            accentColor = MaterialTheme.colorScheme.primary,
+                            secondaryColor = MaterialTheme.colorScheme.secondary
+                        )
+                    }
+
+                    // Seek bar slider container
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Slider(
+                            value = position.toFloat().coerceIn(0f, duration.toFloat().coerceAtLeast(1f)),
+                            onValueChange = { viewModel.seekTo(it.toLong()) },
+                            valueRange = 0f..duration.toFloat().coerceAtLeast(1f),
+                            colors = SliderDefaults.colors(
+                                thumbColor = MaterialTheme.colorScheme.primary,
+                                activeTrackColor = MaterialTheme.colorScheme.primary,
+                                inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
 
                         Row(
                             modifier = Modifier
@@ -766,13 +797,52 @@ fun NowPlayingScreen(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // Favorite and Sleep Timer Quick Actions bar
+                    // Quick Actions bar: Lyrics, Favorite, Sleep Timer
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(bottom = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
+                        if (isLyricsViewActive) {
+                            FilledTonalButton(
+                                onClick = { isLyricsViewActive = false },
+                                shape = MaterialTheme.shapes.extraLarge,
+                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(vertical = 12.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Lyrics,
+                                    contentDescription = "Show Artwork",
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Lyrics",
+                                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
+                                )
+                            }
+                        } else {
+                            OutlinedButton(
+                                onClick = { isLyricsViewActive = true },
+                                shape = MaterialTheme.shapes.extraLarge,
+                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(vertical = 12.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Lyrics,
+                                    contentDescription = "Show Lyrics",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Lyrics",
+                                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
+                                )
+                            }
+                        }
+
                         OutlinedButton(
                             onClick = { viewModel.toggleFavorite(song) },
                             shape = MaterialTheme.shapes.extraLarge,
@@ -783,12 +853,12 @@ fun NowPlayingScreen(
                                 imageVector = if (song.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                                 contentDescription = null,
                                 tint = if (song.isFavorite) Color.Red else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(18.dp)
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = if (song.isFavorite) "Favorited" else "Favorite",
-                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
+                                text = if (song.isFavorite) "Liked" else "Favorite",
+                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
                             )
                         }
 
@@ -798,11 +868,16 @@ fun NowPlayingScreen(
                             modifier = Modifier.weight(1f),
                             contentPadding = PaddingValues(vertical = 12.dp)
                         ) {
-                            Icon(Icons.Default.Timer, contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
-                            Spacer(modifier = Modifier.width(8.dp))
+                            Icon(
+                                imageVector = Icons.Default.Timer,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                                tint = if (sleepTimerLeft > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = if (sleepTimerLeft > 0) "Adjust Sleep" else "Sleep Timer",
-                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
+                                text = if (sleepTimerLeft > 0) "Timer" else "Timer",
+                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
                             )
                         }
                     }
