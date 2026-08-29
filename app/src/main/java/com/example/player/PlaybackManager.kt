@@ -220,41 +220,70 @@ class PlaybackManager private constructor(private val context: Context) {
             .apply()
     }
 
+    private var activeAudioEffectsSessionId: Int = -1
+
     private fun initAudioEffects(sessionId: Int) {
-        if (sessionId <= 0) return
+        ensureAudioEffectsInitialized(sessionId)
+    }
+
+    fun ensureAudioEffectsInitialized(requestedSessionId: Int = -1) {
+        var sid = if (requestedSessionId > 0) requestedSessionId else player.audioSessionId
+        if (sid <= 0) sid = _audioSessionId.value
+        val targetSession = if (sid > 0) sid else 0
+
+        if (equalizer != null && activeAudioEffectsSessionId == targetSession) {
+            return
+        }
+
         try {
             equalizer?.release()
             bassBoost?.release()
             virtualizer?.release()
 
-            equalizer = Equalizer(0, sessionId).apply {
+            equalizer = Equalizer(0, targetSession).apply {
                 enabled = _equalizerEnabled.value
                 applyStoredBandLevelsToHardware(this)
             }
-            bassBoost = BassBoost(0, sessionId).apply {
+            bassBoost = BassBoost(0, targetSession).apply {
                 enabled = _bassBoostStrength.value > 0
-                if (enabled) {
-                    setStrength(_bassBoostStrength.value.toShort())
+                if (_bassBoostStrength.value > 0) {
+                    setStrength(_bassBoostStrength.value.coerceIn(0, 1000).toShort())
                 }
             }
-            virtualizer = android.media.audiofx.Virtualizer(0, sessionId).apply {
+            virtualizer = android.media.audiofx.Virtualizer(0, targetSession).apply {
                 enabled = _virtualizerStrength.value > 0
-                if (enabled) {
-                    setStrength(_virtualizerStrength.value.toShort())
+                if (_virtualizerStrength.value > 0) {
+                    setStrength(_virtualizerStrength.value.coerceIn(0, 1000).toShort())
                 }
             }
-            Log.d("PlaybackManager", "Audio effects successfully initialized on session $sessionId")
+            activeAudioEffectsSessionId = targetSession
+            Log.d("PlaybackManager", "Audio effects successfully initialized on session $targetSession")
         } catch (e: Exception) {
-            Log.e("PlaybackManager", "Equalizer/BassBoost activation skipped: ${e.message}")
+            Log.e("PlaybackManager", "Equalizer/BassBoost activation error on session $targetSession: ${e.message}")
+            if (targetSession != 0) {
+                try {
+                    equalizer = Equalizer(0, 0).apply {
+                        enabled = _equalizerEnabled.value
+                        applyStoredBandLevelsToHardware(this)
+                    }
+                    activeAudioEffectsSessionId = 0
+                    Log.d("PlaybackManager", "Audio effects fallback initialized on session 0")
+                } catch (ex: Exception) {
+                    Log.e("PlaybackManager", "Fallback EQ failed: ${ex.message}")
+                }
+            }
         }
     }
 
     private fun applyStoredBandLevelsToHardware(eq: Equalizer) {
         try {
             val numBands = eq.numberOfBands.toInt().coerceAtLeast(1)
+            val range = eq.bandLevelRange // Array of 2 shorts: [min, max]
+            val minMb = range?.getOrNull(0) ?: -1500
+            val maxMb = range?.getOrNull(1) ?: 1500
             val currentLevels = _equalizerBands.value
             for (i in 0 until numBands) {
-                val levelMb = currentLevels.getOrElse(i) { 0 }.toShort()
+                val levelMb = currentLevels.getOrElse(i) { 0 }.toShort().coerceIn(minMb, maxMb)
                 eq.setBandLevel(i.toShort(), levelMb)
             }
         } catch (e: Exception) {
@@ -336,9 +365,40 @@ class PlaybackManager private constructor(private val context: Context) {
             .setArtist(songItem.artist)
             .setAlbumTitle(songItem.album)
             .setDisplayTitle(songItem.title)
-            .setArtworkUri(fileUri)
 
-        val artworkBytes = extractArtworkBytes(songItem.path)
+        var artworkBytes: ByteArray? = null
+
+        // 1. Check custom online downloaded cover file first
+        val customCoverFile = com.example.util.OnlineCoverFetcher.getSavedCoverFile(context, songItem.id)
+        if (customCoverFile.exists()) {
+            try {
+                artworkBytes = customCoverFile.readBytes()
+                metadataBuilder.setArtworkUri(android.net.Uri.fromFile(customCoverFile))
+            } catch (e: Exception) { }
+        }
+
+        // 2. Check embedded ID3 artwork
+        if (artworkBytes == null) {
+            artworkBytes = extractArtworkBytes(songItem.path)
+            if (artworkBytes != null) {
+                metadataBuilder.setArtworkUri(fileUri)
+            }
+        }
+
+        // 3. Fallback to app generated thumbnail resource bitmap
+        if (artworkBytes == null) {
+            try {
+                val thumbIndex = settingsManager.songThumbnailMapFlow.value[songItem.id] ?: -1
+                val thumbRes = com.example.ui.components.getDefaultThumbnailResId(songItem.title, thumbIndex)
+                val bitmap = android.graphics.BitmapFactory.decodeResource(context.resources, thumbRes)
+                if (bitmap != null) {
+                    val stream = java.io.ByteArrayOutputStream()
+                    bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, stream)
+                    artworkBytes = stream.toByteArray()
+                }
+            } catch (e: Exception) { }
+        }
+
         if (artworkBytes != null) {
             metadataBuilder.setArtworkData(artworkBytes, androidx.media3.common.MediaMetadata.PICTURE_TYPE_FRONT_COVER)
         }
@@ -348,6 +408,19 @@ class PlaybackManager private constructor(private val context: Context) {
             .setUri(fileUri)
             .setMediaMetadata(metadataBuilder.build())
             .build()
+    }
+
+    fun refreshCurrentSongArtwork() {
+        val song = _currentSong.value ?: return
+        try {
+            val updatedMediaItem = buildMediaItem(song)
+            val currentIdx = player.currentMediaItemIndex
+            if (currentIdx >= 0 && currentIdx < player.mediaItemCount) {
+                player.replaceMediaItem(currentIdx, updatedMediaItem)
+            }
+        } catch (e: Exception) {
+            Log.w("PlaybackManager", "Error refreshing song artwork: ${e.message}")
+        }
     }
 
     fun startPlaybackService() {
@@ -512,6 +585,7 @@ class PlaybackManager private constructor(private val context: Context) {
         val nextState = !_equalizerEnabled.value
         _equalizerEnabled.value = nextState
         saveEqualizerState()
+        ensureAudioEffectsInitialized()
         try {
             equalizer?.enabled = nextState
         } catch (e: Exception) {
@@ -529,10 +603,15 @@ class PlaybackManager private constructor(private val context: Context) {
         _equalizerPreset.value = "Custom"
         saveEqualizerState()
 
+        ensureAudioEffectsInitialized()
         try {
             equalizer?.let { eq ->
+                val range = eq.bandLevelRange
+                val minMb = range?.getOrNull(0) ?: -1500
+                val maxMb = range?.getOrNull(1) ?: 1500
+                val clampedMb = levelMb.toShort().coerceIn(minMb, maxMb)
                 if (bandIndex < eq.numberOfBands) {
-                    eq.setBandLevel(bandIndex.toShort(), levelMb.toShort())
+                    eq.setBandLevel(bandIndex.toShort(), clampedMb)
                 }
             }
         } catch (e: Exception) {
@@ -558,11 +637,16 @@ class PlaybackManager private constructor(private val context: Context) {
         _equalizerBands.value = presetBands
         saveEqualizerState()
 
+        ensureAudioEffectsInitialized()
         try {
             equalizer?.let { eq ->
+                val range = eq.bandLevelRange
+                val minMb = range?.getOrNull(0) ?: -1500
+                val maxMb = range?.getOrNull(1) ?: 1500
                 for (i in presetBands.indices) {
                     if (i < eq.numberOfBands) {
-                        eq.setBandLevel(i.toShort(), presetBands[i].toShort())
+                        val clampedMb = presetBands[i].toShort().coerceIn(minMb, maxMb)
+                        eq.setBandLevel(i.toShort(), clampedMb)
                     }
                 }
             }
@@ -574,11 +658,12 @@ class PlaybackManager private constructor(private val context: Context) {
     fun setBassBoost(strength: Int) { // 0 to 1000
         _bassBoostStrength.value = strength
         saveEqualizerState()
+        ensureAudioEffectsInitialized()
         try {
             bassBoost?.let { boost ->
                 boost.enabled = strength > 0
                 if (strength > 0) {
-                    boost.setStrength(strength.toShort())
+                    boost.setStrength(strength.coerceIn(0, 1000).toShort())
                 }
             }
         } catch (e: Exception) {
@@ -589,11 +674,12 @@ class PlaybackManager private constructor(private val context: Context) {
     fun setVirtualizer(strength: Int) { // 0 to 1000
         _virtualizerStrength.value = strength
         saveEqualizerState()
+        ensureAudioEffectsInitialized()
         try {
             virtualizer?.let { virt ->
                 virt.enabled = strength > 0
                 if (strength > 0) {
-                    virt.setStrength(strength.toShort())
+                    virt.setStrength(strength.coerceIn(0, 1000).toShort())
                 }
             }
         } catch (e: Exception) {

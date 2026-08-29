@@ -313,6 +313,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     fun setSongThumbnailIndex(songId: String, index: Int) = settingsManager.setSongThumbnailIndex(songId, index)
     fun startSleepTimer(minutes: Int) = playbackManager.startSleepTimer(minutes)
     fun stopSleepTimer() = playbackManager.stopSleepTimer()
+    fun refreshCurrentSongArtwork() = playbackManager.refreshCurrentSongArtwork()
 
     fun toggleFavorite(song: Song) {
         viewModelScope.launch {

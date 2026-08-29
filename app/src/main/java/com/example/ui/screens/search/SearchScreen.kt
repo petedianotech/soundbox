@@ -1,5 +1,6 @@
 package com.example.ui.screens.search
 
+import androidx.activity.compose.rememberLauncherForActivityResult
 import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -49,6 +50,53 @@ fun SearchScreen(
     var searchQuery by remember { mutableStateOf("") }
     var selectedSongForMenu by remember { mutableStateOf<Song?>(null) }
     var songToDelete by remember { mutableStateOf<Song?>(null) }
+
+    var songForDeviceCover by remember { mutableStateOf<Song?>(null) }
+
+    val deviceCoverLauncher = rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
+    ) { uri: android.net.Uri? ->
+        uri?.let {
+            val song = songForDeviceCover
+            if (song != null) {
+                coroutineScope.launch {
+                    val success = com.example.util.OnlineCoverFetcher.saveUriAsCover(context, song.id, it)
+                    if (success) {
+                        viewModel.refreshCurrentSongArtwork()
+                        viewModel.scanStorage()
+                        android.widget.Toast.makeText(context, "Album art updated", android.widget.Toast.LENGTH_SHORT).show()
+                    } else {
+                        android.widget.Toast.makeText(context, "Failed to load image", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                    songForDeviceCover = null
+                }
+            }
+        }
+    }
+
+    val storagePermissionLauncher = rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            deviceCoverLauncher.launch("image/*")
+        } else {
+            android.widget.Toast.makeText(context, "Permission denied. Cannot select image.", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    val requestCoverPermissionAndLaunch = { song: Song ->
+        songForDeviceCover = song
+        val permission = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            android.Manifest.permission.READ_MEDIA_IMAGES
+        } else {
+            android.Manifest.permission.READ_EXTERNAL_STORAGE
+        }
+        if (androidx.core.content.ContextCompat.checkSelfPermission(context, permission) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            deviceCoverLauncher.launch("image/*")
+        } else {
+            storagePermissionLauncher.launch(permission)
+        }
+    }
 
     val isPlaying by viewModel.isPlaying.collectAsState()
     val currentPosition by viewModel.currentPosition.collectAsState()
@@ -311,7 +359,8 @@ fun SearchScreen(
                 },
                 onDeleteSong = {
                     songToDelete = song
-                }
+                },
+                onChooseFromDevice = { requestCoverPermissionAndLaunch(song) }
             )
         }
 

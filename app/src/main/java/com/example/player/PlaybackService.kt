@@ -53,9 +53,9 @@ class PlaybackService : MediaSessionService() {
         val customCommandForward10 = SessionCommand(ACTION_FORWARD_10, Bundle.EMPTY)
 
         val toggleFavoriteButton = CommandButton.Builder()
-            .setDisplayName("Favorite")
+            .setDisplayName("Like")
             .setSessionCommand(customCommandToggleFavorite)
-            .setIconResId(R.drawable.ic_heart) 
+            .setIconResId(R.drawable.ic_thumb_up) 
             .build()
 
         val rewindButton = CommandButton.Builder()
@@ -127,8 +127,8 @@ class PlaybackService : MediaSessionService() {
             .setChannelId(CHANNEL_ID)
             .setChannelName(R.string.notification_channel_name)
             .build()
-        // Improve small icon visibility by using a simple recognizable shape
-        notificationProvider.setSmallIcon(R.drawable.ic_notification_large)
+        // Set app icon as notification icon
+        notificationProvider.setSmallIcon(R.mipmap.ic_launcher)
         setMediaNotificationProvider(notificationProvider)
     }
 

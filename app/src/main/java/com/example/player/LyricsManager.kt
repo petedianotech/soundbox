@@ -197,6 +197,38 @@ object LyricsManager {
         return "$cleanArtist $cleanTitle lyrics".replace("\\s+".toRegex(), " ").trim()
     }
 
+    /**
+     * Builds an ultra-short, Google-optimized query: [Main Artist] [Core Word] lyrics
+     * Ideal for Google Search (e.g., "Jason Derulo Jalebi lyrics")
+     */
+    fun buildCompactSearchQuery(song: Song): String {
+        var mainArtist = song.artist
+            .replace("(?i)\\b(x|&|feat|ft|featuring|with|,|and)\\b.*".toRegex(), "")
+            .trim()
+        if (mainArtist.isBlank()) mainArtist = song.artist
+
+        var titleClean = song.title
+            .replace("\\s*\\([^)]*\\)".toRegex(), "")
+            .replace("\\s*\\[[^]]*\\]".toRegex(), "")
+            .replace("(?i)\\b(official|music|video|audio|lyric|lyrics|remix|hd|4k|mp3|feat|ft)\\b".toRegex(), "")
+
+        if (titleClean.contains("-")) {
+            val parts = titleClean.split("-")
+            titleClean = parts.lastOrNull { it.isNotBlank() } ?: parts[0]
+        }
+        if (titleClean.contains("|")) {
+            titleClean = titleClean.substringBefore("|")
+        }
+
+        val words = titleClean.replace("[^a-zA-Z0-9\\s]".toRegex(), " ")
+            .split("\\s+".toRegex())
+            .filter { it.isNotBlank() && it.length > 1 }
+
+        val shortTitle = if (words.size >= 2) "${words[0]} ${words[1]}" else words.firstOrNull() ?: song.title
+        val queryArtist = cleanString(mainArtist, isArtist = true)
+        return "$queryArtist $shortTitle lyrics".replace("\\s+".toRegex(), " ").trim()
+    }
+
     private fun cleanString(input: String, isArtist: Boolean): String {
         var s = input
 

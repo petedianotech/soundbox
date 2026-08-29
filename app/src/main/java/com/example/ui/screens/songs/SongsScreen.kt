@@ -1,5 +1,7 @@
 package com.example.ui.screens.songs
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.material.icons.filled.Image
 import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -8,7 +10,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.DeleteForever
+import com.example.ui.components.OnlineCoverDialog
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.List
@@ -16,8 +20,8 @@ import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Sort
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.ThumbUp
+import androidx.compose.material.icons.outlined.ThumbUp
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.foundation.rememberScrollState
@@ -48,6 +52,53 @@ fun SongsScreen(
     val coroutineScope = rememberCoroutineScope()
     val songs by viewModel.allSongs.collectAsState()
     val isScanning by viewModel.isScanning.collectAsState()
+
+    var songForDeviceCover by remember { mutableStateOf<Song?>(null) }
+
+    val deviceCoverLauncher = rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
+    ) { uri: android.net.Uri? ->
+        uri?.let {
+            val song = songForDeviceCover
+            if (song != null) {
+                coroutineScope.launch {
+                    val success = com.example.util.OnlineCoverFetcher.saveUriAsCover(context, song.id, it)
+                    if (success) {
+                        viewModel.refreshCurrentSongArtwork()
+                        viewModel.scanStorage()
+                        android.widget.Toast.makeText(context, "Album art updated", android.widget.Toast.LENGTH_SHORT).show()
+                    } else {
+                        android.widget.Toast.makeText(context, "Failed to load image", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                    songForDeviceCover = null
+                }
+            }
+        }
+    }
+
+    val storagePermissionLauncher = rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            deviceCoverLauncher.launch("image/*")
+        } else {
+            android.widget.Toast.makeText(context, "Permission denied. Cannot select image.", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    val requestCoverPermissionAndLaunch = { song: Song ->
+        songForDeviceCover = song
+        val permission = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            android.Manifest.permission.READ_MEDIA_IMAGES
+        } else {
+            android.Manifest.permission.READ_EXTERNAL_STORAGE
+        }
+        if (androidx.core.content.ContextCompat.checkSelfPermission(context, permission) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            deviceCoverLauncher.launch("image/*")
+        } else {
+            storagePermissionLauncher.launch(permission)
+        }
+    }
     val currentSong by viewModel.currentSong.collectAsState()
     val playlists by viewModel.allPlaylists.collectAsState()
 
@@ -58,6 +109,7 @@ fun SongsScreen(
     var showSortMenu by remember { mutableStateOf(false) }
     var showTagEditor by remember { mutableStateOf(false) }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
+    var onlineCoverSongTarget by remember { mutableStateOf<Song?>(null) }
 
     var editTitle by remember { mutableStateOf("") }
     var editArtist by remember { mutableStateOf("") }
@@ -240,10 +292,10 @@ fun SongsScreen(
                         }
                     )
                     ListItem(
-                        headlineContent = { Text(if (songToManage!!.isFavorite) "Remove from Favorites" else "Add to Favorites") },
+                        headlineContent = { Text(if (songToManage!!.isFavorite) "Unlike Song" else "Like Song") },
                         leadingContent = { 
                             Icon(
-                                imageVector = if (songToManage!!.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder, 
+                                imageVector = if (songToManage!!.isFavorite) Icons.Default.ThumbUp else Icons.Outlined.ThumbUp, 
                                 contentDescription = null, 
                                 tint = if (songToManage!!.isFavorite) MaterialTheme.colorScheme.primary else LocalContentColor.current
                             ) 
@@ -289,7 +341,45 @@ fun SongsScreen(
                         }
                     )
                     ListItem(
-                        headlineContent = { Text("Download Thumbnail") },
+                        headlineContent = { Text("Download Online Cover Art") },
+                        supportingContent = { Text("Search & fetch HD album covers from web") },
+                        leadingContent = { 
+                            Icon(
+                                imageVector = Icons.Default.CloudDownload, 
+                                contentDescription = null, 
+                                tint = MaterialTheme.colorScheme.primary
+                            ) 
+                        },
+                        modifier = Modifier.clickable {
+                            val target = songToManage
+                            showActionSheet = false
+                            songToManage = null
+                            if (target != null) {
+                                onlineCoverSongTarget = target
+                            }
+                        }
+                    )
+                    ListItem(
+                        headlineContent = { Text("Choose Cover from Device") },
+                        supportingContent = { Text("Select an image from local storage") },
+                        leadingContent = { 
+                            Icon(
+                                imageVector = Icons.Default.Image, 
+                                contentDescription = null, 
+                                tint = MaterialTheme.colorScheme.primary
+                            ) 
+                        },
+                        modifier = Modifier.clickable {
+                            val target = songToManage
+                            showActionSheet = false
+                            songToManage = null
+                            if (target != null) {
+                                requestCoverPermissionAndLaunch(target)
+                            }
+                        }
+                    )
+                    ListItem(
+                        headlineContent = { Text("Export Artwork to Gallery") },
                         supportingContent = { Text("Save album art to device Pictures") },
                         leadingContent = { 
                             Icon(
@@ -621,6 +711,17 @@ fun SongsScreen(
                     ) {
                         Text("Dismiss")
                     }
+                }
+            )
+        }
+
+        if (onlineCoverSongTarget != null) {
+            OnlineCoverDialog(
+                song = onlineCoverSongTarget!!,
+                onDismissRequest = { onlineCoverSongTarget = null },
+                onCoverUpdated = {
+                    viewModel.refreshCurrentSongArtwork()
+                    viewModel.scanStorage()
                 }
             )
         }

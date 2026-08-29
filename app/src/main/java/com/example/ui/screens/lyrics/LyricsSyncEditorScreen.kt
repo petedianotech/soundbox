@@ -1,5 +1,6 @@
 package com.example.ui.screens.lyrics
 
+import com.example.ui.components.SleekRoundSlider
 import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -235,17 +236,16 @@ fun LyricsSyncEditorScreen(
                         
                         // Progress slider/tracker
                         val ratio = if (songDuration > 0) position.toFloat() / songDuration else 0f
-                        Slider(
+                        SleekRoundSlider(
                             value = ratio.coerceIn(0f, 1f),
                             onValueChange = { targetVal ->
                                 val targetPosition = (targetVal * songDuration).toLong()
                                 viewModel.seekTo(targetPosition)
                             },
-                            colors = SliderDefaults.colors(
-                                thumbColor = songColor,
-                                activeTrackColor = songColor
-                            ),
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            thumbColor = songColor,
+                            activeTrackColor = songColor,
+                            inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
                         )
                         
                         Row(

@@ -688,3 +688,165 @@ fun RealtimeAudioVisualizer(
     }
 }
 }
+
+@Composable
+fun CosmicHoloSpectrumRing(
+    audioSessionId: Int,
+    isPlaying: Boolean,
+    enabled: Boolean = true,
+    modifier: Modifier = Modifier,
+    innerRadiusDp: androidx.compose.ui.unit.Dp? = null,
+    content: @Composable () -> Unit
+) {
+    val context = LocalContext.current
+    var hasRecordPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.RECORD_AUDIO
+            ) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+
+    val rayCount = 44
+    val magnitudes = remember { mutableStateListOf<Float>().apply { repeat(rayCount) { add(0.08f) } } }
+
+    val infiniteTransition = rememberInfiniteTransition(label = "CosmicRingTransition")
+    val rotationPhase by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(10000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "rotationPhase"
+    )
+    val pulsePhase by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = (Math.PI * 2).toFloat(),
+        animationSpec = infiniteRepeatable(
+            animation = tween(2200, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "pulsePhase"
+    )
+
+    DisposableEffect(audioSessionId, isPlaying, hasRecordPermission, enabled) {
+        var visualizer: Visualizer? = null
+        if (hasRecordPermission && isPlaying && enabled && audioSessionId > 0) {
+            try {
+                visualizer = Visualizer(audioSessionId).apply {
+                    captureSize = 128
+                    setDataCaptureListener(
+                        object : Visualizer.OnDataCaptureListener {
+                            override fun onWaveFormDataCapture(v: Visualizer?, waveform: ByteArray?, samplingRate: Int) {}
+                            override fun onFftDataCapture(v: Visualizer?, fft: ByteArray?, samplingRate: Int) {
+                                if (fft == null || !isPlaying) return
+                                val n = fft.size / 2
+                                val step = (n / rayCount).coerceAtLeast(1)
+                                for (i in 0 until rayCount) {
+                                    val reIdx = 2 * (i * step)
+                                    val imIdx = reIdx + 1
+                                    if (imIdx < fft.size) {
+                                        val mag = hypot(fft[reIdx].toFloat(), fft[imIdx].toFloat()) / 55f
+                                        val norm = mag.coerceIn(0.06f, 1.0f)
+                                        if (i < magnitudes.size) {
+                                            magnitudes[i] = (magnitudes[i] * 0.35f) + (norm * 0.65f)
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        Visualizer.getMaxCaptureRate() / 2,
+                        false,
+                        true
+                    )
+                    this.setEnabled(true)
+                }
+            } catch (e: Exception) {
+                Log.w("CosmicHoloSpectrum", "Visualizer init error: ${e.message}")
+            }
+        }
+        onDispose {
+            try {
+                visualizer?.setEnabled(false)
+                visualizer?.release()
+            } catch (e: Exception) { }
+        }
+    }
+
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.Center
+    ) {
+        if (enabled) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val center = Offset(size.width / 2f, size.height / 2f)
+                val baseRadius = innerRadiusDp?.toPx() ?: ((min(size.width, size.height) / 2f) - 22.dp.toPx())
+                val angleStep = 360f / rayCount
+
+                val holoBrush = Brush.sweepGradient(
+                    colors = listOf(
+                        Color(0xFF00F2FE), // Holo Cyan
+                        Color(0xFFFF0844), // Neon Pink
+                        Color(0xFF7F00FF), // Electric Purple
+                        Color(0xFFFFD700), // Cyber Gold
+                        Color(0xFF00F2FE)  // Repeat Cyan
+                    ),
+                    center = center
+                )
+
+                val auraPulse = if (isPlaying) (sin(pulsePhase) * 4.dp.toPx()) + 4.dp.toPx() else 2.dp.toPx()
+                drawCircle(
+                    brush = holoBrush,
+                    radius = baseRadius + auraPulse + 3.dp.toPx(),
+                    center = center,
+                    style = Stroke(width = 5.dp.toPx(), cap = StrokeCap.Round),
+                    alpha = if (isPlaying) 0.65f else 0.25f
+                )
+
+                for (i in 0 until rayCount) {
+                    val angleDeg = (i * angleStep) + rotationPhase
+                    val angleRad = Math.toRadians(angleDeg.toDouble()).toFloat()
+
+                    val mag = if (isPlaying) {
+                        magnitudes.getOrElse(i) { 0.1f }
+                    } else {
+                        (sin(pulsePhase + i * 0.2f) * 0.15f + 0.15f).toFloat()
+                    }
+
+                    val rayLength = 5.dp.toPx() + (mag * 22.dp.toPx())
+                    val startX = center.x + baseRadius * cos(angleRad)
+                    val startY = center.y + baseRadius * sin(angleRad)
+                    val endX = center.x + (baseRadius + rayLength) * cos(angleRad)
+                    val endY = center.y + (baseRadius + rayLength) * sin(angleRad)
+
+                    val rayColor = when (i % 4) {
+                        0 -> Color(0xFF00F2FE)
+                        1 -> Color(0xFFFF0844)
+                        2 -> Color(0xFF7F00FF)
+                        else -> Color(0xFFFFD700)
+                    }
+
+                    drawLine(
+                        color = rayColor,
+                        start = Offset(startX, startY),
+                        end = Offset(endX, endY),
+                        strokeWidth = 3.dp.toPx(),
+                        cap = StrokeCap.Round,
+                        alpha = (0.4f + mag * 0.6f).coerceIn(0.2f, 1f)
+                    )
+
+                    drawCircle(
+                        color = rayColor,
+                        radius = 2.dp.toPx(),
+                        center = Offset(endX, endY),
+                        alpha = mag.coerceIn(0.3f, 1f)
+                    )
+                }
+            }
+        }
+
+        content()
+    }
+}

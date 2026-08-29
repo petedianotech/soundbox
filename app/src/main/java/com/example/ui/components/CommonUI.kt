@@ -1,5 +1,13 @@
 package com.example.ui.components
 
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.animation.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -86,8 +94,18 @@ fun ArtworkThumbnail(
     isCircle: Boolean = false,
     thumbnailIndex: Int = -1
 ) {
-    val artworkUri = remember(songId) {
-        if (!songId.isNullOrEmpty()) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val customCoverFile = remember(songId) {
+        if (!songId.isNullOrEmpty()) com.example.util.OnlineCoverFetcher.getSavedCoverFile(context, songId) else null
+    }
+    val hasCustomCover = remember(customCoverFile) {
+        customCoverFile?.exists() == true
+    }
+
+    val artworkModel = remember(songId, hasCustomCover) {
+        if (hasCustomCover && customCoverFile != null) {
+            customCoverFile
+        } else if (!songId.isNullOrEmpty()) {
             android.net.Uri.parse("content://media/external/audio/media/${songId}/albumart")
         } else {
             null
@@ -103,9 +121,9 @@ fun ArtworkThumbnail(
         shape = shape,
         color = MaterialTheme.colorScheme.surfaceVariant
     ) {
-        if (artworkUri != null) {
+        if (artworkModel != null) {
             coil.compose.SubcomposeAsyncImage(
-                model = artworkUri,
+                model = artworkModel,
                 contentDescription = "Song artwork",
                 modifier = Modifier.fillMaxSize(),
                 contentScale = androidx.compose.ui.layout.ContentScale.Crop,
@@ -387,7 +405,9 @@ fun SongOptionsBottomSheet(
     onDeleteSong: () -> Unit,
     onEditSong: (() -> Unit)? = null,
     onSongDetails: (() -> Unit)? = null,
-    onChangeThumbnail: (() -> Unit)? = null
+    onChangeThumbnail: (() -> Unit)? = null,
+    onDownloadOnlineCover: (() -> Unit)? = null,
+    onChooseFromDevice: (() -> Unit)? = null
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss
@@ -454,9 +474,45 @@ fun SongOptionsBottomSheet(
                 }
             )
 
+            if (onDownloadOnlineCover != null) {
+                ListItem(
+                    headlineContent = { Text("Download Online Cover Art") },
+                    supportingContent = { Text("Search & fetch HD album covers from web") },
+                    leadingContent = {
+                        Icon(
+                            imageVector = Icons.Default.CloudDownload,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    },
+                    modifier = Modifier.clickable {
+                        onDismiss()
+                        onDownloadOnlineCover()
+                    }
+                )
+            }
+
+            if (onChooseFromDevice != null) {
+                ListItem(
+                    headlineContent = { Text("Choose Cover from Device") },
+                    supportingContent = { Text("Select an image from local storage") },
+                    leadingContent = {
+                        Icon(
+                            imageVector = Icons.Default.Image,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    },
+                    modifier = Modifier.clickable {
+                        onDismiss()
+                        onChooseFromDevice()
+                    }
+                )
+            }
+
             if (onChangeThumbnail != null) {
                 ListItem(
-                    headlineContent = { Text("Change Thumbnail / Artwork") },
+                    headlineContent = { Text("Change Preset Artwork") },
                     leadingContent = {
                         Icon(
                             imageVector = Icons.Default.Palette,
@@ -738,5 +794,86 @@ fun ThumbnailPickerSheet(
         }
     }
 }
+
+@Composable
+fun SleekRoundSlider(
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
+    modifier: Modifier = Modifier,
+    thumbColor: Color = MaterialTheme.colorScheme.primary,
+    activeTrackColor: Color = MaterialTheme.colorScheme.primary,
+    inactiveTrackColor: Color = MaterialTheme.colorScheme.surfaceVariant
+) {
+    var widthPx by remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(24.dp)
+            .onGloballyPositioned { widthPx = it.size.width.toFloat() }
+            .pointerInput(valueRange) {
+                detectTapGestures { offset ->
+                    if (widthPx > 0) {
+                        val fraction = (offset.x / widthPx).coerceIn(0f, 1f)
+                        val newValue = valueRange.start + fraction * (valueRange.endInclusive - valueRange.start)
+                        onValueChange(newValue)
+                    }
+                }
+            }
+            .pointerInput(valueRange) {
+                detectDragGestures { change, _ ->
+                    change.consume()
+                    if (widthPx > 0) {
+                        val fraction = (change.position.x / widthPx).coerceIn(0f, 1f)
+                        val newValue = valueRange.start + fraction * (valueRange.endInclusive - valueRange.start)
+                        onValueChange(newValue)
+                    }
+                }
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val h = size.height
+            val w = size.width
+            val centerY = h / 2f
+            val trackHeight = 4.dp.toPx()
+
+            val norm = ((value - valueRange.start) / (valueRange.endInclusive - valueRange.start)).coerceIn(0f, 1f)
+            val thumbX = w * norm
+
+            // Background Track
+            drawRoundRect(
+                color = inactiveTrackColor,
+                topLeft = Offset(0f, centerY - trackHeight / 2f),
+                size = Size(w, trackHeight),
+                cornerRadius = CornerRadius(trackHeight / 2f, trackHeight / 2f)
+            )
+
+            // Active Track
+            if (thumbX > 0) {
+                drawRoundRect(
+                    color = activeTrackColor,
+                    topLeft = Offset(0f, centerY - trackHeight / 2f),
+                    size = Size(thumbX, trackHeight),
+                    cornerRadius = CornerRadius(trackHeight / 2f, trackHeight / 2f)
+                )
+            }
+
+            // Beautiful compact round thumb
+            drawCircle(
+                color = thumbColor,
+                radius = 7.dp.toPx(),
+                center = Offset(thumbX, centerY)
+            )
+            drawCircle(
+                color = Color.White,
+                radius = 2.5.dp.toPx(),
+                center = Offset(thumbX, centerY)
+            )
+        }
+    }
+}
+
 
 
