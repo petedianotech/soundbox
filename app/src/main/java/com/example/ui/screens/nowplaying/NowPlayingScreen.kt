@@ -750,7 +750,7 @@ fun NowPlayingScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                     // Quick Action Buttons (Simple English)
+                    // Quick Action Buttons (Simple English)
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -766,22 +766,6 @@ fun NowPlayingScreen(
                             Icon(Icons.Default.Lyrics, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
                             Text("Lyrics", style = MaterialTheme.typography.labelMedium)
-                        }
-
-                        FilledTonalButton(
-                            onClick = { viewModel.toggleFavorite(song) },
-                            shape = CircleShape,
-                            modifier = Modifier.weight(1f),
-                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)
-                        ) {
-                            Icon(
-                                imageVector = if (song.isFavorite) Icons.Default.ThumbUp else Icons.Outlined.ThumbUp,
-                                contentDescription = null,
-                                tint = if (song.isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(if (song.isFavorite) "Liked" else "Like", style = MaterialTheme.typography.labelMedium)
                         }
 
                         FilledTonalButton(
