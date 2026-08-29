@@ -1,1 +1,1 @@
-SEE_LOCAL_FILE
+SEE_FILE:/tmp/soundbox/app/src/main/java/com/example/ui/screens/nowplaying/NowPlayingScreen.kt
