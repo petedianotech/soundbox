@@ -66,6 +66,32 @@ class MusicRepository(private val context: Context) {
         }
     }
 
+    suspend fun deleteSong(song: Song): Boolean {
+        return withContext(Dispatchers.IO) {
+            try {
+                if (song.path.startsWith("content://")) {
+                    context.contentResolver.delete(android.net.Uri.parse(song.path), null, null)
+                } else {
+                    val file = File(song.path)
+                    if (file.exists()) {
+                        file.delete()
+                    }
+                    val songIdLong = song.id.toLongOrNull()
+                    if (songIdLong != null) {
+                        val uri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, songIdLong)
+                        context.contentResolver.delete(uri, null, null)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error deleting physical file for song ${song.title}: ${e.message}")
+            }
+
+            // Remove from room cache database
+            songDao.deleteSongById(song.id)
+            true
+        }
+    }
+
     // Playlist Operations
     suspend fun createPlaylist(name: String) {
         withContext(Dispatchers.IO) {

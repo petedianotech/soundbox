@@ -1,5 +1,6 @@
 package com.example.ui.screens.songs
 
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.background
@@ -7,6 +8,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.DeleteForever
+import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlaylistAdd
@@ -24,11 +28,15 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.data.model.Song
 import com.example.ui.components.EmptyPlaceholder
 import com.example.ui.components.TrackRow
 import com.example.ui.viewmodel.MusicViewModel
+import com.example.util.ThumbnailExporter
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -36,6 +44,8 @@ fun SongsScreen(
     viewModel: MusicViewModel,
     onSongSelected: (Song) -> Unit
 ) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val songs by viewModel.allSongs.collectAsState()
     val isScanning by viewModel.isScanning.collectAsState()
     val currentSong by viewModel.currentSong.collectAsState()
@@ -47,6 +57,7 @@ fun SongsScreen(
     var showDetailsDialog by remember { mutableStateOf(false) }
     var showSortMenu by remember { mutableStateOf(false) }
     var showTagEditor by remember { mutableStateOf(false) }
+    var showDeleteConfirmDialog by remember { mutableStateOf(false) }
 
     var editTitle by remember { mutableStateOf("") }
     var editArtist by remember { mutableStateOf("") }
@@ -277,8 +288,104 @@ fun SongsScreen(
                             showTagEditor = true
                         }
                     )
+                    ListItem(
+                        headlineContent = { Text("Download Thumbnail") },
+                        supportingContent = { Text("Save album art to device Pictures") },
+                        leadingContent = { 
+                            Icon(
+                                imageVector = Icons.Default.Download, 
+                                contentDescription = null, 
+                                tint = MaterialTheme.colorScheme.primary
+                            ) 
+                        },
+                        modifier = Modifier.clickable {
+                            val target = songToManage
+                            showActionSheet = false
+                            songToManage = null
+                            if (target != null) {
+                                coroutineScope.launch {
+                                    ThumbnailExporter.exportSongThumbnail(context, target)
+                                }
+                            }
+                        }
+                    )
+                    ListItem(
+                        headlineContent = { 
+                            Text(
+                                text = "Delete Song", 
+                                color = MaterialTheme.colorScheme.error,
+                                fontWeight = FontWeight.SemiBold
+                            ) 
+                        },
+                        supportingContent = { 
+                            Text(
+                                text = "Permanently remove from device storage",
+                                color = MaterialTheme.colorScheme.error.copy(alpha = 0.8f)
+                            ) 
+                        },
+                        leadingContent = { 
+                            Icon(
+                                imageVector = Icons.Default.DeleteOutline, 
+                                contentDescription = null, 
+                                tint = MaterialTheme.colorScheme.error
+                            ) 
+                        },
+                        modifier = Modifier.clickable {
+                            showActionSheet = false
+                            showDeleteConfirmDialog = true
+                        }
+                    )
                 }
             }
+        }
+
+        // Delete Confirmation Dialog
+        if (showDeleteConfirmDialog && songToManage != null) {
+            AlertDialog(
+                onDismissRequest = {
+                    showDeleteConfirmDialog = false
+                    songToManage = null
+                },
+                icon = {
+                    Icon(
+                        imageVector = Icons.Default.DeleteForever,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(32.dp)
+                    )
+                },
+                title = { Text("Delete Song?") },
+                text = {
+                    Text("Are you sure you want to delete \"${songToManage!!.title}\"? This will permanently remove the audio file from your device and library.")
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            val songToDelete = songToManage
+                            showDeleteConfirmDialog = false
+                            songToManage = null
+                            if (songToDelete != null) {
+                                viewModel.deleteSong(songToDelete)
+                                Toast.makeText(context, "Song deleted", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error,
+                            contentColor = MaterialTheme.colorScheme.onError
+                        )
+                    ) {
+                        Text("Delete")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = {
+                        showDeleteConfirmDialog = false
+                        songToManage = null
+                    }) {
+                        Text("Cancel")
+                    }
+                }
+            )
         }
 
         // Playlist associations popup dialog

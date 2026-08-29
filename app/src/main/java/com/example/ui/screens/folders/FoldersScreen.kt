@@ -1,5 +1,6 @@
 package com.example.ui.screens.folders
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -13,13 +14,18 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.data.model.Song
 import com.example.ui.components.EmptyPlaceholder
+import com.example.ui.components.SongDeleteDialog
+import com.example.ui.components.SongOptionsBottomSheet
 import com.example.ui.components.TrackRow
 import com.example.ui.viewmodel.MusicViewModel
+import com.example.util.ThumbnailExporter
+import kotlinx.coroutines.launch
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -28,11 +34,15 @@ fun FoldersScreen(
     viewModel: MusicViewModel,
     onSongSelected: (Song) -> Unit
 ) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val folderMap by viewModel.folderList.collectAsState()
     val isScanning by viewModel.isScanning.collectAsState()
     val currentSong by viewModel.currentSong.collectAsState()
 
     var selectedFolderPath by remember { mutableStateOf<String?>(null) }
+    var selectedSongForMenu by remember { mutableStateOf<Song?>(null) }
+    var songToDelete by remember { mutableStateOf<Song?>(null) }
     val folderSongs = selectedFolderPath?.let { folderMap[it] } ?: emptyList()
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -179,12 +189,47 @@ fun FoldersScreen(
                                     selectedFolderPath = null
                                 },
                                 onFavoriteToggle = { viewModel.toggleFavorite(song) },
-                                onMenuClick = {}
+                                onMenuClick = { selectedSongForMenu = song }
                             )
                         }
                     }
                 }
             }
+        }
+
+        // Song Options Bottom Sheet
+        if (selectedSongForMenu != null) {
+            val song = selectedSongForMenu!!
+            SongOptionsBottomSheet(
+                song = song,
+                onDismiss = { selectedSongForMenu = null },
+                onPlayNext = { viewModel.playNext(song) },
+                onAddToQueue = { viewModel.addToQueue(song) },
+                onToggleFavorite = { viewModel.toggleFavorite(song) },
+                onAddToPlaylist = { /* Playlists */ },
+                onDownloadThumbnail = {
+                    coroutineScope.launch {
+                        ThumbnailExporter.exportSongThumbnail(context, song)
+                    }
+                },
+                onDeleteSong = {
+                    songToDelete = song
+                }
+            )
+        }
+
+        // Delete confirmation dialog
+        if (songToDelete != null) {
+            val song = songToDelete!!
+            SongDeleteDialog(
+                song = song,
+                onConfirm = {
+                    viewModel.deleteSong(song)
+                    songToDelete = null
+                    Toast.makeText(context, "Song deleted", Toast.LENGTH_SHORT).show()
+                },
+                onDismiss = { songToDelete = null }
+            )
         }
     }
 }

@@ -3,6 +3,7 @@ package com.example.ui.screens.nowplaying
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
@@ -37,9 +38,15 @@ import androidx.media3.common.Player
 import com.example.data.model.Song
 import com.example.player.LyricsManager
 import com.example.ui.components.EmptyPlaceholder
+import com.example.ui.components.EqualizerPanel
 import com.example.ui.components.RealtimeAudioVisualizer
+import com.example.ui.components.SongDeleteDialog
 import com.example.ui.components.SongImagePlaceholder
+import com.example.ui.components.SongOptionsBottomSheet
+import com.example.ui.components.ThumbnailPickerSheet
 import com.example.ui.viewmodel.MusicViewModel
+import com.example.util.ThumbnailExporter
+import kotlinx.coroutines.launch
 import java.util.Locale
 
 data class LyricLine(
@@ -104,10 +111,17 @@ fun NowPlayingScreen(
     val pitch by viewModel.playbackPitch.collectAsState()
     val sleepTimerLeft by viewModel.sleepTimerMillis.collectAsState()
     val eqEnabled by viewModel.equalizerEnabled.collectAsState()
+    val eqPreset by viewModel.equalizerPreset.collectAsState()
+    val eqBands by viewModel.equalizerBands.collectAsState()
     val bassStrength by viewModel.bassBoostStrength.collectAsState()
+    val virtStrength by viewModel.virtualizerStrength.collectAsState()
     val audioSessionId by viewModel.audioSessionId.collectAsState()
+    val showSpectrum by viewModel.showSpectrum.collectAsState()
+    val globalThumbIndex by viewModel.globalThumbnailIndex.collectAsState()
+    val songThumbMap by viewModel.songThumbnailMap.collectAsState()
 
     var showVisualizer by remember { mutableStateOf(true) }
+    var showThumbnailPicker by remember { mutableStateOf(false) }
     var showTimerDialog by remember { mutableStateOf(false) }
     var showEffectsSheet by remember { mutableStateOf(false) }
     var isLyricsViewActive by remember { mutableStateOf(false) }
@@ -115,6 +129,9 @@ fun NowPlayingScreen(
     var showPasteDialog by remember { mutableStateOf(false) }
     var pastedLyricsContent by remember { mutableStateOf("") }
     var refreshTrigger by remember { mutableStateOf(0) }
+    var showTrackOptionsSheet by remember { mutableStateOf(false) }
+    var showDeleteConfirmDialog by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
 
     val fileLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
@@ -172,6 +189,20 @@ fun NowPlayingScreen(
                         }
                     },
                     actions = {
+                        IconButton(onClick = { viewModel.setShowSpectrum(!showSpectrum) }) {
+                            Icon(
+                                imageVector = if (showSpectrum) Icons.Default.GraphicEq else Icons.Default.VisibilityOff,
+                                contentDescription = if (showSpectrum) "Hide Spectrum Visualizer" else "Show Spectrum Visualizer",
+                                tint = if (showSpectrum) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                            )
+                        }
+                        IconButton(onClick = { showThumbnailPicker = true }) {
+                            Icon(
+                                imageVector = Icons.Default.Palette,
+                                contentDescription = "Switch Thumbnail",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                         IconButton(onClick = { showEffectsSheet = true }) {
                             Icon(Icons.Default.Tune, contentDescription = "Sound & Effects", tint = MaterialTheme.colorScheme.primary)
                         }
@@ -180,6 +211,13 @@ fun NowPlayingScreen(
                                 imageVector = if (isLyricsViewActive) Icons.Filled.Lyrics else Icons.Outlined.Lyrics,
                                 contentDescription = "Toggle Lyrics",
                                 tint = if (isLyricsViewActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        IconButton(onClick = { showTrackOptionsSheet = true }) {
+                            Icon(
+                                imageVector = Icons.Default.MoreVert,
+                                contentDescription = "More Options",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     },
@@ -389,6 +427,7 @@ fun NowPlayingScreen(
                                     ) {
                                         SongImagePlaceholder(
                                             title = song.title,
+                                            thumbnailIndex = songThumbMap[song.id] ?: globalThumbIndex,
                                             modifier = Modifier
                                                 .fillMaxSize()
                                                 .graphicsLayer {
@@ -447,8 +486,8 @@ fun NowPlayingScreen(
 
                         IconButton(onClick = { viewModel.toggleFavorite(song) }) {
                             Icon(
-                                imageVector = if (song.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                                contentDescription = if (song.isFavorite) "Liked" else "Add to favorites",
+                                imageVector = if (song.isFavorite) Icons.Default.ThumbUp else Icons.Outlined.ThumbUp,
+                                contentDescription = if (song.isFavorite) "Liked" else "Like song",
                                 tint = if (song.isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(28.dp)
                             )
@@ -534,7 +573,7 @@ fun NowPlayingScreen(
                     }
 
                     // Realtime Frequency Visualizer
-                    if (showVisualizer) {
+                    if (showVisualizer && showSpectrum) {
                         RealtimeAudioVisualizer(
                             audioSessionId = audioSessionId,
                             isPlaying = isPlaying,
@@ -677,13 +716,13 @@ fun NowPlayingScreen(
                             modifier = Modifier.weight(1f)
                         ) {
                             Icon(
-                                imageVector = if (song.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                imageVector = if (song.isFavorite) Icons.Default.ThumbUp else Icons.Outlined.ThumbUp,
                                 contentDescription = null,
                                 tint = if (song.isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text(if (song.isFavorite) "Liked" else "Favorite")
+                            Text(if (song.isFavorite) "Liked" else "Like")
                         }
 
                         FilledTonalButton(
@@ -815,65 +854,19 @@ fun NowPlayingScreen(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // Equalizer Switch Card
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column {
-                                Text("Equalizer", style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold))
-                                Text(
-                                    if (eqEnabled) "Equalizer is active" else "Equalizer is off",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Switch(
-                                checked = eqEnabled,
-                                onCheckedChange = { viewModel.toggleEqualizer() }
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Bass Boost
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("Bass Boost", style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold))
-                        Text(
-                            if (bassStrength > 0) "${bassStrength / 10}%" else "Off",
-                            style = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-                        )
-                    }
-                    Slider(
-                        value = bassStrength.toFloat(),
-                        valueRange = 0f..1000f,
-                        onValueChange = { viewModel.setBassBoost(it.toInt()) },
-                        colors = SliderDefaults.colors(thumbColor = MaterialTheme.colorScheme.primary)
+                    // Studio Equalizer Panel
+                    EqualizerPanel(
+                        enabled = eqEnabled,
+                        preset = eqPreset,
+                        bands = eqBands,
+                        bassBoost = bassStrength,
+                        virtualizer = virtStrength,
+                        onToggleEnabled = { viewModel.toggleEqualizer() },
+                        onPresetSelected = { viewModel.setEqualizerPreset(it) },
+                        onBandLevelChanged = { index, level -> viewModel.setEqualizerBandLevel(index, level) },
+                        onBassBoostChanged = { viewModel.setBassBoost(it) },
+                        onVirtualizerChanged = { viewModel.setVirtualizer(it) }
                     )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    OutlinedButton(
-                        onClick = {
-                            viewModel.setPlaybackRate(1.0f, 1.0f)
-                            viewModel.setBassBoost(0)
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Reset to Default")
-                    }
                 }
             }
         }
@@ -987,6 +980,55 @@ fun NowPlayingScreen(
                         Text("Cancel")
                     }
                 }
+            )
+        }
+
+        // Song Options Bottom Sheet
+        if (showTrackOptionsSheet) {
+            SongOptionsBottomSheet(
+                song = song,
+                onDismiss = { showTrackOptionsSheet = false },
+                onPlayNext = { viewModel.playNext(song) },
+                onAddToQueue = { viewModel.addToQueue(song) },
+                onToggleFavorite = { viewModel.toggleFavorite(song) },
+                onAddToPlaylist = { /* Playlist integration */ },
+                onDownloadThumbnail = {
+                    coroutineScope.launch {
+                        ThumbnailExporter.exportSongThumbnail(context, song)
+                    }
+                },
+                onDeleteSong = {
+                    showDeleteConfirmDialog = true
+                },
+                onChangeThumbnail = {
+                    showThumbnailPicker = true
+                }
+            )
+        }
+
+        // Thumbnail Picker Sheet
+        if (showThumbnailPicker) {
+            ThumbnailPickerSheet(
+                currentSelection = songThumbMap[song.id] ?: globalThumbIndex,
+                onThumbnailSelected = { selectedIndex ->
+                    viewModel.setSongThumbnailIndex(song.id, selectedIndex)
+                },
+                onDismissRequest = { showThumbnailPicker = false },
+                title = "Thumbnail for \"${song.title}\""
+            )
+        }
+
+        // Delete Confirmation Dialog
+        if (showDeleteConfirmDialog) {
+            SongDeleteDialog(
+                song = song,
+                onConfirm = {
+                    viewModel.deleteSong(song)
+                    showDeleteConfirmDialog = false
+                    Toast.makeText(context, "Song deleted", Toast.LENGTH_SHORT).show()
+                    onBackClick()
+                },
+                onDismiss = { showDeleteConfirmDialog = false }
             )
         }
     }

@@ -1,6 +1,7 @@
 package com.example.ui.components
 
 import androidx.compose.animation.*
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -15,39 +16,64 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.R
 import com.example.data.model.Song
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
+
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.material.icons.outlined.ThumbUp
+
+data class AppThumbnail(val id: Int, val name: String, val resId: Int)
+
+val APP_THUMBNAILS = listOf(
+    AppThumbnail(0, "Vinyl Record", R.drawable.music_thumb_vinyl_1787984574642),
+    AppThumbnail(1, "Synth Waves", R.drawable.music_thumb_waves_1787984590655),
+    AppThumbnail(2, "Acoustic Vibes", R.drawable.music_thumb_acoustic_1787984612814),
+    AppThumbnail(3, "Grand Piano", R.drawable.music_thumb_piano_1787984626537),
+    AppThumbnail(4, "Studio Headphones", R.drawable.music_thumb_headphones_1787984641678)
+)
+
+fun getDefaultThumbnailResId(key: String, explicitIndex: Int = -1): Int {
+    if (explicitIndex in APP_THUMBNAILS.indices) {
+        return APP_THUMBNAILS[explicitIndex].resId
+    }
+    val index = kotlin.math.abs(key.hashCode()) % APP_THUMBNAILS.size
+    return APP_THUMBNAILS[index].resId
+}
 
 @Composable
 fun SongImagePlaceholder(
     title: String,
     modifier: Modifier = Modifier,
-    size: Float = 48f
+    size: Float = 48f,
+    thumbnailIndex: Int = -1
 ) {
     val shape = RoundedCornerShape((size * 0.22f).dp)
+    val thumbRes = remember(title, thumbnailIndex) { getDefaultThumbnailResId(title, thumbnailIndex) }
+
     Surface(
         modifier = modifier
             .size(size.dp)
             .clip(shape),
-        color = MaterialTheme.colorScheme.primaryContainer,
-        shape = shape
+        shape = shape,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh
     ) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.MusicNote,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                modifier = Modifier.size((size * 0.5f).dp)
-            )
-        }
+        Image(
+            painter = painterResource(id = thumbRes),
+            contentDescription = "Music artwork for $title",
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
+        )
     }
 }
 
@@ -57,7 +83,8 @@ fun ArtworkThumbnail(
     title: String,
     modifier: Modifier = Modifier,
     size: Float = 48f,
-    isCircle: Boolean = false
+    isCircle: Boolean = false,
+    thumbnailIndex: Int = -1
 ) {
     val artworkUri = remember(songId) {
         if (!songId.isNullOrEmpty()) {
@@ -83,14 +110,14 @@ fun ArtworkThumbnail(
                 modifier = Modifier.fillMaxSize(),
                 contentScale = androidx.compose.ui.layout.ContentScale.Crop,
                 loading = {
-                    SongImagePlaceholder(title = title, modifier = Modifier.fillMaxSize(), size = size)
+                    SongImagePlaceholder(title = title, modifier = Modifier.fillMaxSize(), size = size, thumbnailIndex = thumbnailIndex)
                 },
                 error = {
-                    SongImagePlaceholder(title = title, modifier = Modifier.fillMaxSize(), size = size)
+                    SongImagePlaceholder(title = title, modifier = Modifier.fillMaxSize(), size = size, thumbnailIndex = thumbnailIndex)
                 }
             )
         } else {
-            SongImagePlaceholder(title = title, modifier = Modifier.fillMaxSize(), size = size)
+            SongImagePlaceholder(title = title, modifier = Modifier.fillMaxSize(), size = size, thumbnailIndex = thumbnailIndex)
         }
     }
 }
@@ -164,8 +191,8 @@ fun TrackRow(
 
             IconButton(onClick = onFavoriteToggle) {
                 Icon(
-                    imageVector = if (song.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                    contentDescription = if (song.isFavorite) "Remove from favorites" else "Add to favorites",
+                    imageVector = if (song.isFavorite) Icons.Default.ThumbUp else Icons.Outlined.ThumbUp,
+                    contentDescription = if (song.isFavorite) "Liked" else "Like song",
                     tint = if (song.isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                     modifier = Modifier.size(20.dp)
                 )
@@ -346,4 +373,370 @@ fun EmptyPlaceholder(
         }
     }
 }
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SongOptionsBottomSheet(
+    song: Song,
+    onDismiss: () -> Unit,
+    onPlayNext: () -> Unit,
+    onAddToQueue: () -> Unit,
+    onToggleFavorite: () -> Unit,
+    onAddToPlaylist: () -> Unit,
+    onDownloadThumbnail: () -> Unit,
+    onDeleteSong: () -> Unit,
+    onEditSong: (() -> Unit)? = null,
+    onSongDetails: (() -> Unit)? = null,
+    onChangeThumbnail: (() -> Unit)? = null
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 28.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                ArtworkThumbnail(
+                    songId = song.id,
+                    title = song.title,
+                    size = 48f
+                )
+                Spacer(modifier = Modifier.width(16.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = song.title,
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = "${song.artist} • ${song.album}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
+
+            if (onSongDetails != null) {
+                ListItem(
+                    headlineContent = { Text("Song Info") },
+                    leadingContent = { Icon(Icons.Default.Info, contentDescription = null) },
+                    modifier = Modifier.clickable {
+                        onDismiss()
+                        onSongDetails()
+                    }
+                )
+            }
+
+            ListItem(
+                headlineContent = { Text(if (song.isFavorite) "Unlike Song" else "Like Song") },
+                leadingContent = {
+                    Icon(
+                        imageVector = if (song.isFavorite) Icons.Default.ThumbUp else Icons.Outlined.ThumbUp,
+                        contentDescription = null,
+                        tint = if (song.isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                },
+                modifier = Modifier.clickable {
+                    onDismiss()
+                    onToggleFavorite()
+                }
+            )
+
+            if (onChangeThumbnail != null) {
+                ListItem(
+                    headlineContent = { Text("Change Thumbnail / Artwork") },
+                    leadingContent = {
+                        Icon(
+                            imageVector = Icons.Default.Palette,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    },
+                    modifier = Modifier.clickable {
+                        onDismiss()
+                        onChangeThumbnail()
+                    }
+                )
+            }
+
+            ListItem(
+                headlineContent = { Text("Play Next") },
+                leadingContent = { Icon(Icons.Default.MusicNote, contentDescription = null) },
+                modifier = Modifier.clickable {
+                    onDismiss()
+                    onPlayNext()
+                }
+            )
+
+            ListItem(
+                headlineContent = { Text("Add to Queue") },
+                leadingContent = { Icon(Icons.Default.PlaylistAdd, contentDescription = null) },
+                modifier = Modifier.clickable {
+                    onDismiss()
+                    onAddToQueue()
+                }
+            )
+
+            ListItem(
+                headlineContent = { Text("Add to Playlist") },
+                leadingContent = { Icon(Icons.Default.List, contentDescription = null) },
+                modifier = Modifier.clickable {
+                    onDismiss()
+                    onAddToPlaylist()
+                }
+            )
+
+            if (onEditSong != null) {
+                ListItem(
+                    headlineContent = { Text("Edit Song Info") },
+                    leadingContent = { Icon(Icons.Default.Edit, contentDescription = null) },
+                    modifier = Modifier.clickable {
+                        onDismiss()
+                        onEditSong()
+                    }
+                )
+            }
+
+            ListItem(
+                headlineContent = { Text("Download Thumbnail") },
+                supportingContent = { Text("Save album artwork to device Pictures") },
+                leadingContent = {
+                    Icon(
+                        imageVector = Icons.Default.Download,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                },
+                modifier = Modifier.clickable {
+                    onDismiss()
+                    onDownloadThumbnail()
+                }
+            )
+
+            ListItem(
+                headlineContent = {
+                    Text(
+                        text = "Delete Song",
+                        color = MaterialTheme.colorScheme.error,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                },
+                supportingContent = {
+                    Text(
+                        text = "Permanently remove from device storage",
+                        color = MaterialTheme.colorScheme.error.copy(alpha = 0.8f)
+                    )
+                },
+                leadingContent = {
+                    Icon(
+                        imageVector = Icons.Default.DeleteOutline,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                },
+                modifier = Modifier.clickable {
+                    onDismiss()
+                    onDeleteSong()
+                }
+            )
+        }
+    }
+}
+
+@Composable
+fun SongDeleteDialog(
+    song: Song,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            Icon(
+                imageVector = Icons.Default.DeleteForever,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.error,
+                modifier = Modifier.size(32.dp)
+            )
+        },
+        title = { Text("Delete Song?") },
+        text = {
+            Text("Are you sure you want to delete \"${song.title}\"? This will permanently remove the audio file from your device and library.")
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error,
+                    contentColor = MaterialTheme.colorScheme.onError
+                )
+            ) {
+                Text("Delete")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ThumbnailPickerSheet(
+    currentSelection: Int,
+    onThumbnailSelected: (Int) -> Unit,
+    onDismissRequest: () -> Unit,
+    title: String = "Choose Artwork Thumbnail"
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismissRequest,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Select a built-in artwork thumbnail created for the app",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Option: Auto-Dynamic (Default)
+            Surface(
+                onClick = {
+                    onThumbnailSelected(-1)
+                    onDismissRequest()
+                },
+                shape = RoundedCornerShape(16.dp),
+                color = if (currentSelection == -1) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.AutoAwesome,
+                        contentDescription = null,
+                        tint = if (currentSelection == -1) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "Auto-Dynamic (Default)",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = if (currentSelection == -1) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            "Hashes title to pick dynamic artwork",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    if (currentSelection == -1) {
+                        Icon(Icons.Default.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    }
+                }
+            }
+
+            // Grid of 5 App Thumbnails
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(260.dp)
+            ) {
+                items(APP_THUMBNAILS) { item ->
+                    val isSelected = currentSelection == item.id
+                    Card(
+                        onClick = {
+                            onThumbnailSelected(item.id)
+                            onDismissRequest()
+                        },
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
+                        ),
+                        border = BorderStroke(
+                            width = if (isSelected) 2.dp else 1.dp,
+                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(76.dp)
+                                    .clip(RoundedCornerShape(12.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Image(
+                                    painter = painterResource(id = item.resId),
+                                    contentDescription = item.name,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                                if (isSelected) {
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Check,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onPrimary,
+                                            modifier = Modifier.padding(4.dp)
+                                        )
+                                    }
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = item.name,
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+}
+
 

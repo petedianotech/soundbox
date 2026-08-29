@@ -31,7 +31,15 @@ fun SettingsScreen(
     val currentTheme by viewModel.settingsManager.themeFlow.collectAsState()
     val visibleTabs by viewModel.settingsManager.visibleTabsFlow.collectAsState()
 
+    val crossfadeSeconds by viewModel.crossfadeSeconds.collectAsState()
+    val eqEnabled by viewModel.equalizerEnabled.collectAsState()
+    val eqPreset by viewModel.equalizerPreset.collectAsState()
+    val eqBands by viewModel.equalizerBands.collectAsState()
+    val bassBoost by viewModel.bassBoostStrength.collectAsState()
+    val virtStrength by viewModel.virtualizerStrength.collectAsState()
+
     var showTimerDialog by remember { mutableStateOf(false) }
+    var showEqualizerSheet by remember { mutableStateOf(false) }
     var showThemeDialog by remember { mutableStateOf(false) }
     var showTabsDialog by remember { mutableStateOf(false) }
 
@@ -69,6 +77,60 @@ fun SettingsScreen(
                     subtitle = "Current Velocity: ${String.format("%.2fx", speed)}",
                     icon = Icons.Default.Speed,
                     onClick = { viewModel.setPlaybackRate(1.0f, 1.0f) }
+                )
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                
+                // Crossfade Row
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.CompareArrows,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column {
+                                Text("Crossfade Between Tracks", style = MaterialTheme.typography.bodyLarge)
+                                Text(
+                                    if (crossfadeSeconds > 0) "$crossfadeSeconds seconds overlap" else "Disabled (Gapless)",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                    com.example.ui.components.SleekCompactSlider(
+                        value = crossfadeSeconds.toFloat(),
+                        valueRange = 0f..12f,
+                        onValueChange = { viewModel.setCrossfadeSeconds(it.toInt()) }
+                    )
+                }
+            }
+
+            // AUDIO PROCESSING & EQUALIZER
+            SettingsSection(title = "Audio Processing") {
+                com.example.ui.components.EqualizerPanel(
+                    enabled = eqEnabled,
+                    preset = eqPreset,
+                    bands = eqBands,
+                    bassBoost = bassBoost,
+                    virtualizer = virtStrength,
+                    onToggleEnabled = { viewModel.toggleEqualizer() },
+                    onPresetSelected = { viewModel.setEqualizerPreset(it) },
+                    onBandLevelChanged = { index, level -> viewModel.setEqualizerBandLevel(index, level) },
+                    onBassBoostChanged = { viewModel.setBassBoost(it) },
+                    onVirtualizerChanged = { viewModel.setVirtualizer(it) }
                 )
             }
 

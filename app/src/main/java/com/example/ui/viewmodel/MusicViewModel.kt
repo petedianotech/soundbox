@@ -50,8 +50,16 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     val queue: StateFlow<List<Song>> = playbackManager.queue
     val sleepTimerMillis: StateFlow<Long> = playbackManager.sleepTimerMillis
     val equalizerEnabled: StateFlow<Boolean> = playbackManager.equalizerEnabled
+    val equalizerPreset: StateFlow<String> = playbackManager.equalizerPreset
+    val equalizerBands: StateFlow<List<Int>> = playbackManager.equalizerBands
     val bassBoostStrength: StateFlow<Int> = playbackManager.bassBoostStrength
+    val virtualizerStrength: StateFlow<Int> = playbackManager.virtualizerStrength
+    val crossfadeSeconds: StateFlow<Int> = playbackManager.crossfadeSeconds
     val audioSessionId: StateFlow<Int> = playbackManager.audioSessionId
+
+    val globalThumbnailIndex: StateFlow<Int> = settingsManager.globalThumbnailIndexFlow
+    val showSpectrum: StateFlow<Boolean> = settingsManager.showSpectrumFlow
+    val songThumbnailMap: StateFlow<Map<String, Int>> = settingsManager.songThumbnailMapFlow
 
     // Scanning states
     private val _isScanning = MutableStateFlow(false)
@@ -120,20 +128,18 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     ) { all, favs, mostPlayed, recentRuns, recentAdded ->
         val list = mutableListOf<SmartPlaylist>()
 
-        // 1. Favorites
-        if (favs.isNotEmpty()) {
-            list.add(
-                SmartPlaylist(
-                    id = "smart_favorites",
-                    type = SmartPlaylistType.FAVORITES,
-                    title = "Favorites",
-                    description = "Songs you marked with a heart",
-                    icon = Icons.Default.Favorite,
-                    tintColor = Color(0xFFE53935),
-                    songs = favs
-                )
+        // 1. Liked Songs (Favorites) - Always present in playlists
+        list.add(
+            SmartPlaylist(
+                id = "smart_favorites",
+                type = SmartPlaylistType.FAVORITES,
+                title = "Liked Songs",
+                description = if (favs.isNotEmpty()) "${favs.size} tracks you liked" else "No liked tracks yet",
+                icon = Icons.Default.ThumbUp,
+                tintColor = Color(0xFF1E88E5),
+                songs = favs
             )
-        }
+        )
 
         // 2. Most Played
         val playedOnly = mostPlayed.filter { it.playCount > 0 }
@@ -297,7 +303,14 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     fun setPlaybackRate(speed: Float, pitch: Float) = playbackManager.setPlaybackRate(speed, pitch)
     
     fun toggleEqualizer() = playbackManager.toggleEqualizer()
+    fun setEqualizerBandLevel(bandIndex: Int, levelMb: Int) = playbackManager.setEqualizerBandLevel(bandIndex, levelMb)
+    fun setEqualizerPreset(presetName: String) = playbackManager.setEqualizerPreset(presetName)
     fun setBassBoost(strength: Int) = playbackManager.setBassBoost(strength)
+    fun setVirtualizer(strength: Int) = playbackManager.setVirtualizer(strength)
+    fun setCrossfadeSeconds(seconds: Int) = playbackManager.setCrossfadeSeconds(seconds)
+    fun setGlobalThumbnailIndex(index: Int) = settingsManager.setGlobalThumbnailIndex(index)
+    fun setShowSpectrum(show: Boolean) = settingsManager.setShowSpectrum(show)
+    fun setSongThumbnailIndex(songId: String, index: Int) = settingsManager.setSongThumbnailIndex(songId, index)
     fun startSleepTimer(minutes: Int) = playbackManager.startSleepTimer(minutes)
     fun stopSleepTimer() = playbackManager.stopSleepTimer()
 
@@ -360,6 +373,13 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     fun removeSongFromPlaylist(playlistId: Long, songId: String) {
         viewModelScope.launch {
             repository.removeSongFromPlaylist(playlistId, songId)
+        }
+    }
+
+    fun deleteSong(song: Song) {
+        viewModelScope.launch {
+            repository.deleteSong(song)
+            playbackManager.onSongDeleted(song.id)
         }
     }
 }

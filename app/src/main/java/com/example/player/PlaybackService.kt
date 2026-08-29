@@ -141,6 +141,7 @@ class PlaybackService : MediaSessionService() {
                 description = descriptionText
                 setShowBadge(false)
                 setSound(null, null)
+                lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
             }
             val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.createNotificationChannel(channel)
