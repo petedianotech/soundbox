@@ -702,7 +702,7 @@ fun NowPlayingScreen(
                     ) {
                         FilledTonalButton(
                             onClick = { isLyricsViewActive = !isLyricsViewActive },
-                            shape = RoundedCornerShape(12.dp),
+                            shape = CircleShape,
                             modifier = Modifier.weight(1f)
                         ) {
                             Icon(Icons.Default.Lyrics, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -712,7 +712,7 @@ fun NowPlayingScreen(
 
                         FilledTonalButton(
                             onClick = { viewModel.toggleFavorite(song) },
-                            shape = RoundedCornerShape(12.dp),
+                            shape = CircleShape,
                             modifier = Modifier.weight(1f)
                         ) {
                             Icon(
@@ -727,7 +727,7 @@ fun NowPlayingScreen(
 
                         FilledTonalButton(
                             onClick = { showTimerDialog = true },
-                            shape = RoundedCornerShape(12.dp),
+                            shape = CircleShape,
                             modifier = Modifier.weight(1f)
                         ) {
                             Icon(Icons.Default.Timer, contentDescription = null, modifier = Modifier.size(18.dp))

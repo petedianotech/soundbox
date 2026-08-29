@@ -143,7 +143,7 @@ fun EqualizerPanel(
                                     selected = isSelected,
                                     onClick = { onPresetSelected(item) },
                                     label = { Text(item, style = MaterialTheme.typography.bodyMedium) },
-                                    shape = RoundedCornerShape(12.dp),
+                                    shape = CircleShape,
                                     colors = FilterChipDefaults.filterChipColors(
                                         selectedContainerColor = MaterialTheme.colorScheme.primary,
                                         selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
@@ -343,7 +343,7 @@ fun EqualizerPanel(
                     OutlinedButton(
                         onClick = { onPresetSelected("Flat") },
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = CircleShape
                     ) {
                         Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
