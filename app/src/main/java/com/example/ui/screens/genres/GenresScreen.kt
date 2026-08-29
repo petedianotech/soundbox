@@ -43,7 +43,10 @@ fun GenresScreen(
                 )
             }
         } else {
-            LazyColumn(modifier = Modifier.fillMaxSize()) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 88.dp)
+            ) {
                 genreMap.forEach { (genreTitle, songs) ->
                     item {
                         val isExpanded = expandedGenre == genreTitle
