@@ -813,9 +813,29 @@ fun NowPlayingScreen(
         // Volume Control Dialog
         if (showVolumeDialog) {
             val context = androidx.compose.ui.platform.LocalContext.current
-            val audioManager = remember { context.getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager }
-            var currentVolume by remember { mutableStateOf(audioManager.getStreamVolume(android.media.AudioManager.STREAM_MUSIC)) }
-            val maxVolume = remember { audioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC).coerceAtLeast(1) }
+            val audioManager = remember {
+                try {
+                    context.getSystemService(android.content.Context.AUDIO_SERVICE) as? android.media.AudioManager
+                } catch (e: Exception) {
+                    null
+                }
+            }
+            var currentVolume by remember {
+                mutableStateOf(
+                    try {
+                        audioManager?.getStreamVolume(android.media.AudioManager.STREAM_MUSIC) ?: 0
+                    } catch (e: Exception) {
+                        0
+                    }
+                )
+            }
+            val maxVolume = remember {
+                try {
+                    audioManager?.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC)?.coerceAtLeast(1) ?: 15
+                } catch (e: Exception) {
+                    15
+                }
+            }
 
             AlertDialog(
                 onDismissRequest = { showVolumeDialog = false },
@@ -850,7 +870,7 @@ fun NowPlayingScreen(
                             value = currentVolume.toFloat(),
                             onValueChange = {
                                 val targetVol = it.toInt()
-                                audioManager.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, targetVol, 0)
+                                audioManager?.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, targetVol, 0)
                                 currentVolume = targetVol
                             },
                             valueRange = 0f..maxVolume.toFloat(),

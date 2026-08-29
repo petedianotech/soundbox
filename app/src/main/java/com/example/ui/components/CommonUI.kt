@@ -795,6 +795,7 @@ fun ThumbnailPickerSheet(
     }
 }
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun SleekRoundSlider(
     value: Float,
@@ -805,74 +806,47 @@ fun SleekRoundSlider(
     activeTrackColor: Color = MaterialTheme.colorScheme.primary,
     inactiveTrackColor: Color = MaterialTheme.colorScheme.surfaceVariant
 ) {
-    var widthPx by remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
-
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(24.dp)
-            .onGloballyPositioned { widthPx = it.size.width.toFloat() }
-            .pointerInput(valueRange) {
-                detectTapGestures { offset ->
-                    if (widthPx > 0) {
-                        val fraction = (offset.x / widthPx).coerceIn(0f, 1f)
-                        val newValue = valueRange.start + fraction * (valueRange.endInclusive - valueRange.start)
-                        onValueChange(newValue)
-                    }
-                }
-            }
-            .pointerInput(valueRange) {
-                detectDragGestures { change, _ ->
-                    change.consume()
-                    if (widthPx > 0) {
-                        val fraction = (change.position.x / widthPx).coerceIn(0f, 1f)
-                        val newValue = valueRange.start + fraction * (valueRange.endInclusive - valueRange.start)
-                        onValueChange(newValue)
-                    }
-                }
-            },
-        contentAlignment = Alignment.Center
-    ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val h = size.height
-            val w = size.width
-            val centerY = h / 2f
-            val trackHeight = 4.dp.toPx()
-
-            val norm = ((value - valueRange.start) / (valueRange.endInclusive - valueRange.start)).coerceIn(0f, 1f)
-            val thumbX = w * norm
-
-            // Background Track
-            drawRoundRect(
-                color = inactiveTrackColor,
-                topLeft = Offset(0f, centerY - trackHeight / 2f),
-                size = Size(w, trackHeight),
-                cornerRadius = CornerRadius(trackHeight / 2f, trackHeight / 2f)
-            )
-
-            // Active Track
-            if (thumbX > 0) {
-                drawRoundRect(
-                    color = activeTrackColor,
-                    topLeft = Offset(0f, centerY - trackHeight / 2f),
-                    size = Size(thumbX, trackHeight),
-                    cornerRadius = CornerRadius(trackHeight / 2f, trackHeight / 2f)
+    androidx.compose.material3.Slider(
+        value = value,
+        onValueChange = onValueChange,
+        valueRange = valueRange,
+        modifier = modifier.height(24.dp),
+        colors = androidx.compose.material3.SliderDefaults.colors(
+            thumbColor = thumbColor,
+            activeTrackColor = activeTrackColor,
+            inactiveTrackColor = inactiveTrackColor
+        ),
+        thumb = {
+            Box(
+                modifier = Modifier
+                    .size(14.dp)
+                    .background(thumbColor, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(5.dp)
+                        .background(Color.White, CircleShape)
                 )
             }
-
-            // Beautiful compact round thumb
-            drawCircle(
-                color = thumbColor,
-                radius = 7.dp.toPx(),
-                center = Offset(thumbX, centerY)
-            )
-            drawCircle(
-                color = Color.White,
-                radius = 2.5.dp.toPx(),
-                center = Offset(thumbX, centerY)
-            )
+        },
+        track = { sliderState ->
+            val fraction = (sliderState.value - sliderState.valueRange.start) / (sliderState.valueRange.endInclusive - sliderState.valueRange.start)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(4.dp)
+                    .background(inactiveTrackColor, CircleShape)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(fraction.coerceIn(0f, 1f))
+                        .height(4.dp)
+                        .background(activeTrackColor, CircleShape)
+                )
+            }
         }
-    }
+    )
 }
 
 
