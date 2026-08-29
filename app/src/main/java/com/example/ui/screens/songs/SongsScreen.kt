@@ -52,41 +52,39 @@ fun SongsScreen(
     val coroutineScope = rememberCoroutineScope()
     val songs by viewModel.allSongs.collectAsState()
     val isScanning by viewModel.isScanning.collectAsState()
+    val currentSong by viewModel.currentSong.collectAsState()
 
-    var songForDeviceCover by remember { mutableStateOf<Song?>(null) }
-
-    val deviceCoverLauncher = rememberLauncherForActivityResult(
-        contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
-    ) { uri: android.net.Uri? ->
-        uri?.let {
-            val song = songForDeviceCover
-            if (song != null) {
-                coroutineScope.launch {
-                    val success = com.example.util.OnlineCoverFetcher.saveUriAsCover(context, song.id, it)
-                    if (success) {
-                        viewModel.refreshCurrentSongArtwork()
-                        viewModel.scanStorage()
-                        android.widget.Toast.makeText(context, "Album art updated", android.widget.Toast.LENGTH_SHORT).show()
-                    } else {
-                        android.widget.Toast.makeText(context, "Failed to load image", android.widget.Toast.LENGTH_SHORT).show()
-                    }
-                    songForDeviceCover = null
-                }
+    if (songs.isEmpty()) {
+        if (isScanning) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+        } else {
+            EmptyPlaceholder(
+                title = "No Songs Found",
+                subtitle = "Scan your device storage to find music files.",
+                icon = Icons.Default.MusicNote,
+                actionText = "Scan Now",
+                onActionClick = { viewModel.scanStorage() }
+            )
+        }
+    } else {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 88.dp)
+        ) {
+            items(songs, key = { it.id }) { song ->
+                TrackRow(
+                    song = song,
+                    isPlaying = currentSong?.id == song.id,
+                    onClick = {
+                        viewModel.playSong(song, songs)
+                        onSongSelected(song)
+                    },
+                    onFavoriteToggle = { viewModel.toggleFavorite(song) },
+                    onMenuClick = { }
+                )
             }
         }
     }
-
-    val storagePermissionLauncher = rememberLauncherForActivityResult(
-        contract = androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
-    ) { isGranted: Boolean ->
-        if (isGranted) {
-            deviceCoverLauncher.launch("image/*")
-        } else {
-            android.widget.Toast.makeText(context, "Permission denied. Cannot select image.", android.widget.Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    // NOTE: This is a partial placeholder - full content follows in next push if truncated
-    // The full SongsScreen is 35KB with Favorite icons and 88dp bottom padding
-    Text("Loading full SongsScreen...")
 }
