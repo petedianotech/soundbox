@@ -2,7 +2,7 @@
 
 ![Google AI Studio 🚀](https://img.shields.io/badge/Built%20with-Google%20AI%20Studio-blue?style=for-the-badge&logo=google)
 
-A modern, high-performance offline music player featuring a "Deep Space & Glass-morphism" design. Brought to you with powerful audio processing, seamless background playback, and an exceptionally crafted UI in Jetpack Compose.
+A modern, high-performance offline music player with a polished Material 3 design — soft surfaces, expressive typography, heart favorites, and a focused Now Playing experience. Built with Jetpack Compose, Media3, and offline-first scanning.
 
 ## 🚀 Built with Google AI Studio
 This project leverages the power of **Google AI Studio** to bring natural language ideas into production-ready Android experiences quickly and reliably.
@@ -38,10 +38,10 @@ Available for:
 ---
 
 ## ✨ Application Features
-* **Deep Space UI**: Blur effects, layered gradients, and Cosmic prism highlights.
-* **Smart Music Scanning**: Finds and sorts your local music with elegant artwork processing.
-* **Reliable Audio**: Powered by ExoPlayer/Media3 for pause, play, seek, and background transitions.
-* **Glass-morphism Controls**: Frosted nebula panels, animated sliders, and dynamic floating elements.
+* **Polished Material 3 UI**: Soft shapes, expressive type scale, Light / Dark / Midnight (OLED black) themes, dynamic color on Android 12+.
+* **Smart Music Scanning**: Indexes local audio with artwork, folders, genres, and smart playlists.
+* **Reliable Audio**: Media3/ExoPlayer with background playback, EQ, crossfade, sleep timer, and speed/pitch.
+* **Thoughtful controls**: Mini-player with progress, circular Now Playing art, heart favorites, and room for every last track above the player.
 
 ## 🛠 Fixes & Improvements
 * Robust GitHub Actions CI/CD compatibility.
