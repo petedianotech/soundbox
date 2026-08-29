@@ -67,10 +67,17 @@ fun HomeScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        text = "Soundbox",
-                        style = MaterialTheme.typography.titleLarge
-                    )
+                    Column {
+                        Text(
+                            text = "Soundbox",
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                        Text(
+                            text = "Offline music",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 },
                 actions = {
                     IconButton(onClick = onNavigateToSearch) {
@@ -88,7 +95,7 @@ fun HomeScreen(
         bottomBar = {
             NavigationBar(
                 containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                tonalElevation = 3.dp
+                tonalElevation = 2.dp
             ) {
                 visibleTabs.forEach { tab ->
                     val selected = selectedTab == tab
@@ -166,4 +173,3 @@ fun HomeScreen(
         }
     }
 }
-
