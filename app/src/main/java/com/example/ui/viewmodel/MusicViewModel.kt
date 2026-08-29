@@ -23,7 +23,6 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     
     val settingsManager = SettingsManager(application)
 
-    // Search history delegation
     val searchHistory: StateFlow<List<String>> = settingsManager.searchHistoryFlow
 
     fun addSearchQuery(query: String) {
@@ -38,7 +37,6 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         settingsManager.clearSearchHistory()
     }
 
-    // Player state mapping
     val currentSong: StateFlow<Song?> = playbackManager.currentSong
     val isPlaying: StateFlow<Boolean> = playbackManager.isPlaying
     val currentPosition: StateFlow<Long> = playbackManager.currentPosition
@@ -61,7 +59,6 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     val showSpectrum: StateFlow<Boolean> = settingsManager.showSpectrumFlow
     val songThumbnailMap: StateFlow<Map<String, Int>> = settingsManager.songThumbnailMapFlow
 
-    // Scanning states
     private val _isScanning = MutableStateFlow(false)
     val isScanning: StateFlow<Boolean> = _isScanning.asStateFlow()
 
@@ -76,7 +73,6 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         _sortOrder.value = order
     }
 
-    // Core dataset flows
     val allSongs: StateFlow<List<Song>> = combine(repository.allSongs, _sortOrder) { songs, order ->
         when (order) {
             SortOrder.A_TO_Z -> songs.sortedBy { it.title.lowercase() }
@@ -101,7 +97,6 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     val allPlaylists: StateFlow<List<Playlist>> = repository.allPlaylists
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // UI grouping states (Folder-based navigation, album grouping, and artist metadata projection)
     val folderList: StateFlow<Map<String, List<Song>>> = repository.allSongs
         .map { songs -> songs.groupBy { it.folderPath } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
@@ -118,7 +113,6 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         .map { songs -> songs.groupBy { it.genre } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
-    // Dynamic Smart Playlists combining metadata, play history, and genres
     val smartPlaylists: StateFlow<List<SmartPlaylist>> = combine(
         repository.allSongs,
         repository.favoriteSongs,
@@ -128,20 +122,18 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     ) { all, favs, mostPlayed, recentRuns, recentAdded ->
         val list = mutableListOf<SmartPlaylist>()
 
-        // 1. Liked Songs (Favorites) - Always present in playlists
         list.add(
             SmartPlaylist(
                 id = "smart_favorites",
                 type = SmartPlaylistType.FAVORITES,
                 title = "Liked Songs",
                 description = if (favs.isNotEmpty()) "${favs.size} tracks you liked" else "No liked tracks yet",
-                icon = Icons.Default.ThumbUp,
-                tintColor = Color(0xFF1E88E5),
+                icon = Icons.Default.Favorite,
+                tintColor = Color(0xFFE91E63),
                 songs = favs
             )
         )
 
-        // 2. Most Played
         val playedOnly = mostPlayed.filter { it.playCount > 0 }
         if (playedOnly.isNotEmpty()) {
             list.add(
@@ -157,7 +149,6 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             )
         }
 
-        // 3. Recently Added
         if (recentAdded.isNotEmpty()) {
             list.add(
                 SmartPlaylist(
@@ -172,7 +163,6 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             )
         }
 
-        // 4. Recently Played
         val recentPlayedOnly = recentRuns.filter { it.lastPlayedTime > 0 }
         if (recentPlayedOnly.isNotEmpty()) {
             list.add(
@@ -188,7 +178,6 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             )
         }
 
-        // 5. Long Tracks (> 5 minutes)
         val longTracks = all.filter { it.duration >= 300_000 }
         if (longTracks.isNotEmpty()) {
             list.add(
@@ -204,7 +193,6 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             )
         }
 
-        // 6. Quick Tracks (< 3 minutes)
         val quickTracks = all.filter { it.duration in 10_000..180_000 }
         if (quickTracks.isNotEmpty()) {
             list.add(
@@ -220,7 +208,6 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             )
         }
 
-        // 7. Forgotten Gems (Never Played)
         val unplayed = all.filter { it.playCount == 0 }
         if (unplayed.isNotEmpty() && unplayed.size != all.size) {
             list.add(
@@ -236,7 +223,6 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             )
         }
 
-        // 8. Auto-created Genre Smart Playlists for all detected genres
         val genreGroups = all.groupBy { it.genre }.filter { it.key.isNotBlank() && !it.key.equals("Unknown", ignoreCase = true) && !it.key.equals("Music", ignoreCase = true) }
         val genrePalette = listOf(
             Color(0xFFE91E63), Color(0xFF9C27B0), Color(0xFF673AB7),
@@ -267,7 +253,6 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     init {
-        // Run first local scan to populate music database
         scanStorage()
     }
 
@@ -277,14 +262,12 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 repository.scanStorage()
             } catch (e: Exception) {
-                // Squelch and handle scan anomalies
             } finally {
                 _isScanning.value = false
             }
         }
     }
 
-    // Playback Commands
     fun playSong(song: Song, customQueue: List<Song> = emptyList()) {
         playbackManager.playSong(song, customQueue)
     }
@@ -328,7 +311,6 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // Playlist Commands
     fun createPlaylist(name: String) {
         viewModelScope.launch {
             repository.createPlaylist(name)
