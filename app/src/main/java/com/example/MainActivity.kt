@@ -15,48 +15,52 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 
 class MainActivity : ComponentActivity() {
-  override fun onCreate(savedInstanceState: Bundle?) {
-    super.onCreate(savedInstanceState)
-    enableEdgeToEdge()
 
-    requestPlaybackAndStoragePermissions()
-
-    setContent {
-      val viewModel: MusicViewModel = viewModel()
-      val themeFlow by viewModel.settingsManager.themeFlow.collectAsState()
-      
-      MyApplicationTheme(themeConfig = themeFlow) {
-        SoundboxNavGraph(viewModel)
-      }
-    }
-  }
-
-  private fun requestPlaybackAndStoragePermissions() {
-    val permissionsToRequest = mutableListOf<String>()
-
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-      permissionsToRequest.add(Manifest.permission.POST_NOTIFICATIONS)
-      permissionsToRequest.add(Manifest.permission.READ_MEDIA_AUDIO)
-    } else {
-      permissionsToRequest.add(Manifest.permission.READ_EXTERNAL_STORAGE)
-    }
-
-    try {
-      val requestPermissionLauncher = registerForActivityResult(
+    private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
-      ) { results ->
-        // If the needed permissions were granted, run a storage scan so the user sees music immediately
+    ) { results ->
         val readStorageGranted = results[Manifest.permission.READ_EXTERNAL_STORAGE] == true
         val readAudioGranted = results[Manifest.permission.READ_MEDIA_AUDIO] == true
         if (readStorageGranted || readAudioGranted) {
-           val vm = androidx.lifecycle.ViewModelProvider(this@MainActivity)[MusicViewModel::class.java]
-           vm.scanStorage()
+            try {
+                val vm = androidx.lifecycle.ViewModelProvider(this)[MusicViewModel::class.java]
+                vm.scanStorage()
+            } catch (e: Exception) {
+                // Safe ignore
+            }
         }
-      }
-
-      requestPermissionLauncher.launch(permissionsToRequest.toTypedArray())
-    } catch (e: Exception) {
-      // Safe fallback failsafe
     }
-  }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+
+        checkAndRequestPermissions()
+
+        setContent {
+            val viewModel: MusicViewModel = viewModel()
+            val themeFlow by viewModel.settingsManager.themeFlow.collectAsState()
+            
+            MyApplicationTheme(themeConfig = themeFlow) {
+                SoundboxNavGraph(viewModel)
+            }
+        }
+    }
+
+    private fun checkAndRequestPermissions() {
+        val permissionsToRequest = mutableListOf<String>()
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            permissionsToRequest.add(Manifest.permission.POST_NOTIFICATIONS)
+            permissionsToRequest.add(Manifest.permission.READ_MEDIA_AUDIO)
+        } else {
+            permissionsToRequest.add(Manifest.permission.READ_EXTERNAL_STORAGE)
+        }
+
+        try {
+            permissionLauncher.launch(permissionsToRequest.toTypedArray())
+        } catch (e: Exception) {
+            // Safe fallback failsafe
+        }
+    }
 }

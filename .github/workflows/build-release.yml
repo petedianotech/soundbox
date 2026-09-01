@@ -1,4 +1,4 @@
-name: Build Release APK
+name: Build Android APKs
 
 on:
   push:
@@ -9,7 +9,7 @@ on:
 
 jobs:
   build:
-    name: Build Release APK
+    name: Build Android APKs
     runs-on: ubuntu-latest
 
     steps:
@@ -28,17 +28,24 @@ jobs:
           ENCODED_KEYSTORE: ${{ secrets.KEYSTORE_BASE64 }}
         run: |
           if [ -n "$ENCODED_KEYSTORE" ]; then
-            echo $ENCODED_KEYSTORE | base64 --decode > my-upload-key.jks
+            echo "$ENCODED_KEYSTORE" | base64 --decode > my-upload-key.jks
           fi
 
-      - name: Build Release APK
+      - name: Build APKs
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEYSTORE_PATH: my-upload-key.jks
-        run: gradle assembleRelease --no-daemon
+        run: gradle assembleDebug assembleRelease --no-daemon
+
+      - name: Upload Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Soundbox-Debug-APK
+          path: app/build/outputs/apk/debug/*.apk
+          retention-days: 7
 
       - name: Upload Release APK
         uses: actions/upload-artifact@v4

@@ -127,8 +127,8 @@ class PlaybackService : MediaSessionService() {
             .setChannelId(CHANNEL_ID)
             .setChannelName(R.string.notification_channel_name)
             .build()
-        // Set app icon as notification icon
-        notificationProvider.setSmallIcon(R.mipmap.ic_launcher)
+        // Set vector drawable as notification icon (never adaptive icon mipmap)
+        notificationProvider.setSmallIcon(R.drawable.ic_music_note)
         setMediaNotificationProvider(notificationProvider)
     }
 

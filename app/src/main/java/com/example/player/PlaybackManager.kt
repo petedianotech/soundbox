@@ -144,19 +144,23 @@ class PlaybackManager private constructor(private val context: Context) {
     }
 
     private fun initializeMediaController() {
-        val sessionToken = SessionToken(context, ComponentName(context, PlaybackService::class.java))
-        controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
-        controllerFuture?.addListener(
-            {
-                try {
-                    mediaController = controllerFuture?.get()
-                    Log.d("PlaybackManager", "MediaController connected successfully")
-                } catch (e: Exception) {
-                    Log.e("PlaybackManager", "Failed to connect MediaController", e)
-                }
-            },
-            MoreExecutors.directExecutor()
-        )
+        try {
+            val sessionToken = SessionToken(context, ComponentName(context, PlaybackService::class.java))
+            controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
+            controllerFuture?.addListener(
+                {
+                    try {
+                        mediaController = controllerFuture?.get()
+                        Log.d("PlaybackManager", "MediaController connected successfully")
+                    } catch (e: Throwable) {
+                        Log.w("PlaybackManager", "MediaController connection non-fatal warning: ${e.message}")
+                    }
+                },
+                MoreExecutors.directExecutor()
+            )
+        } catch (e: Throwable) {
+            Log.w("PlaybackManager", "SessionToken initialization non-fatal warning: ${e.message}")
+        }
     }
 
     private fun setupPlayerListeners() {
@@ -230,51 +234,62 @@ class PlaybackManager private constructor(private val context: Context) {
     }
 
     fun ensureAudioEffectsInitialized(requestedSessionId: Int = -1) {
-        var sid = if (requestedSessionId > 0) requestedSessionId else player.audioSessionId
-        if (sid <= 0) sid = _audioSessionId.value
-        val targetSession = if (sid > 0) sid else 0
-
-        if (equalizer != null && activeAudioEffectsSessionId == targetSession) {
-            return
-        }
-
         try {
-            equalizer?.release()
-            bassBoost?.release()
-            virtualizer?.release()
+            var sid = if (requestedSessionId > 0) requestedSessionId else player.audioSessionId
+            if (sid <= 0) sid = _audioSessionId.value
+            val targetSession = if (sid > 0) sid else 0
 
-            equalizer = Equalizer(0, targetSession).apply {
-                enabled = _equalizerEnabled.value
-                applyStoredBandLevelsToHardware(this)
+            if (equalizer != null && activeAudioEffectsSessionId == targetSession) {
+                return
             }
-            bassBoost = BassBoost(0, targetSession).apply {
-                enabled = _bassBoostStrength.value > 0
-                if (_bassBoostStrength.value > 0) {
-                    setStrength(_bassBoostStrength.value.coerceIn(0, 1000).toShort())
+
+            try {
+                equalizer?.release()
+                bassBoost?.release()
+                virtualizer?.release()
+            } catch (e: Throwable) {
+                Log.w("PlaybackManager", "Releasing previous effects failed: ${e.message}")
+            }
+            equalizer = null
+            bassBoost = null
+            virtualizer = null
+
+            try {
+                equalizer = Equalizer(0, targetSession).apply {
+                    enabled = _equalizerEnabled.value
+                    applyStoredBandLevelsToHardware(this)
                 }
-            }
-            virtualizer = android.media.audiofx.Virtualizer(0, targetSession).apply {
-                enabled = _virtualizerStrength.value > 0
-                if (_virtualizerStrength.value > 0) {
-                    setStrength(_virtualizerStrength.value.coerceIn(0, 1000).toShort())
-                }
-            }
-            activeAudioEffectsSessionId = targetSession
-            Log.d("PlaybackManager", "Audio effects successfully initialized on session $targetSession")
-        } catch (e: Exception) {
-            Log.e("PlaybackManager", "Equalizer/BassBoost activation error on session $targetSession: ${e.message}")
-            if (targetSession != 0) {
-                try {
-                    equalizer = Equalizer(0, 0).apply {
-                        enabled = _equalizerEnabled.value
-                        applyStoredBandLevelsToHardware(this)
+                bassBoost = BassBoost(0, targetSession).apply {
+                    enabled = _bassBoostStrength.value > 0
+                    if (_bassBoostStrength.value > 0) {
+                        setStrength(_bassBoostStrength.value.coerceIn(0, 1000).toShort())
                     }
-                    activeAudioEffectsSessionId = 0
-                    Log.d("PlaybackManager", "Audio effects fallback initialized on session 0")
-                } catch (ex: Exception) {
-                    Log.e("PlaybackManager", "Fallback EQ failed: ${ex.message}")
+                }
+                virtualizer = android.media.audiofx.Virtualizer(0, targetSession).apply {
+                    enabled = _virtualizerStrength.value > 0
+                    if (_virtualizerStrength.value > 0) {
+                        setStrength(_virtualizerStrength.value.coerceIn(0, 1000).toShort())
+                    }
+                }
+                activeAudioEffectsSessionId = targetSession
+                Log.d("PlaybackManager", "Audio effects successfully initialized on session $targetSession")
+            } catch (e: Throwable) {
+                Log.w("PlaybackManager", "Equalizer/BassBoost activation on session $targetSession: ${e.message}")
+                if (targetSession != 0) {
+                    try {
+                        equalizer = Equalizer(0, 0).apply {
+                            enabled = _equalizerEnabled.value
+                            applyStoredBandLevelsToHardware(this)
+                        }
+                        activeAudioEffectsSessionId = 0
+                        Log.d("PlaybackManager", "Audio effects fallback initialized on session 0")
+                    } catch (ex: Throwable) {
+                        Log.w("PlaybackManager", "Fallback EQ failed: ${ex.message}")
+                    }
                 }
             }
+        } catch (e: Throwable) {
+            Log.w("PlaybackManager", "Audio effects setup error suppressed: ${e.message}")
         }
     }
 
@@ -429,13 +444,9 @@ class PlaybackManager private constructor(private val context: Context) {
     fun startPlaybackService() {
         try {
             val intent = android.content.Intent(context, PlaybackService::class.java)
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                context.startForegroundService(intent)
-            } else {
-                context.startService(intent)
-            }
-        } catch (e: Exception) {
-            Log.e("PlaybackManager", "Error starting PlaybackService: ${e.message}")
+            context.startService(intent)
+        } catch (e: Throwable) {
+            Log.w("PlaybackManager", "Service start call non-fatal warning: ${e.message}")
         }
     }
 
