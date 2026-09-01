@@ -276,6 +276,10 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     fun playNext(song: Song) = playbackManager.playNext(song)
     fun addToQueue(song: Song) = playbackManager.addToQueue(song)
     fun removeFromQueue(index: Int) = playbackManager.removeFromQueue(index)
+    fun removeFromQueue(song: Song) {
+        val idx = queue.value.indexOfFirst { it.id == song.id }
+        if (idx >= 0) playbackManager.removeFromQueue(idx)
+    }
     fun clearQueue() = playbackManager.clearQueue()
     
     fun playPause() = playbackManager.playPause()
@@ -283,7 +287,16 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     fun skipPrevious() = playbackManager.skipPrevious()
     fun seekTo(position: Long) = playbackManager.seekTo(position)
     fun setShuffleMode(enabled: Boolean) = playbackManager.setShuffleMode(enabled)
+    fun toggleShuffle() = playbackManager.setShuffleMode(!shuffleMode.value)
     fun setRepeatMode(mode: Int) = playbackManager.setRepeatMode(mode)
+    fun toggleRepeatMode() {
+        val next = when (repeatMode.value) {
+            androidx.media3.common.Player.REPEAT_MODE_OFF -> androidx.media3.common.Player.REPEAT_MODE_ALL
+            androidx.media3.common.Player.REPEAT_MODE_ALL -> androidx.media3.common.Player.REPEAT_MODE_ONE
+            else -> androidx.media3.common.Player.REPEAT_MODE_OFF
+        }
+        playbackManager.setRepeatMode(next)
+    }
     fun setPlaybackRate(speed: Float, pitch: Float) = playbackManager.setPlaybackRate(speed, pitch)
     
     fun toggleEqualizer() = playbackManager.toggleEqualizer()
@@ -296,6 +309,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     fun setShowSpectrum(show: Boolean) = settingsManager.setShowSpectrum(show)
     fun setDynamicArtworkColors(enabled: Boolean) = settingsManager.setDynamicArtworkColors(enabled)
     fun setSongThumbnailIndex(songId: String, index: Int) = settingsManager.setSongThumbnailIndex(songId, index)
+    fun setSongThumbnail(songId: String, index: Int) = settingsManager.setSongThumbnailIndex(songId, index)
     fun startSleepTimer(minutes: Int) = playbackManager.startSleepTimer(minutes)
     fun stopSleepTimer() = playbackManager.stopSleepTimer()
     fun refreshCurrentSongArtwork() = playbackManager.refreshCurrentSongArtwork()

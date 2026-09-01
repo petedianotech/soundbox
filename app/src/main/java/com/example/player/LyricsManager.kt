@@ -56,6 +56,24 @@ object LyricsManager {
         }
     }
 
+    fun deleteLyrics(context: Context, song: Song) {
+        try {
+            val privateFile = getLyricsFile(context, song)
+            if (privateFile.exists()) {
+                privateFile.delete()
+            }
+            val dir = File(context.filesDir, "lyrics")
+            val cleanArtist = cleanStringForFileName(song.artist)
+            val cleanTitle = cleanStringForFileName(song.title)
+            if (cleanArtist.isNotBlank() && cleanTitle.isNotBlank()) {
+                val backupFile = File(dir, "${cleanArtist}_${cleanTitle}.lrc")
+                if (backupFile.exists()) backupFile.delete()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to delete lyrics", e)
+        }
+    }
+
     /**
      * Loads lyrics with robust auto-detection rules:
      * 1. Check beside audio file (SongName.lrc, SongName.txt, SongTitle.lrc)
