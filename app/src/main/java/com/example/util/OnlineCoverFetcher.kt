@@ -38,21 +38,6 @@ object OnlineCoverFetcher {
         return if (file.exists()) file.delete() else true
     }
 
-    suspend fun saveUriAsCover(context: Context, songId: String, uri: android.net.Uri): Boolean = withContext(Dispatchers.IO) {
-        try {
-            val targetFile = getSavedCoverFile(context, songId)
-            context.contentResolver.openInputStream(uri)?.use { input ->
-                targetFile.outputStream().use { output ->
-                    input.copyTo(output)
-                }
-            }
-            true
-        } catch (e: Exception) {
-            Log.e("OnlineCoverFetcher", "Error saving uri as cover: ${e.message}")
-            false
-        }
-    }
-
     suspend fun searchCoverArt(artist: String, title: String): List<OnlineCoverResult> = withContext(Dispatchers.IO) {
         val results = mutableListOf<OnlineCoverResult>()
         val cleanArtist = artist.replace("(?i)\\b(feat|ft|featuring|x|,|&)\\b.*".toRegex(), "").trim()

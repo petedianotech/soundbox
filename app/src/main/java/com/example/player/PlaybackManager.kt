@@ -116,6 +116,9 @@ class PlaybackManager private constructor(private val context: Context) {
                 val pos = player.currentPosition
                 val dur = player.duration
                 _currentPosition.value = pos
+                if (dur > 0 && dur != _duration.value) {
+                    _duration.value = dur
+                }
 
                 val crossfadeMs = settingsManager.crossfadeSecondsFlow.value * 1000L
                 if (crossfadeMs > 0 && dur > crossfadeMs * 2 && !isCrossfadingManual) {
@@ -128,7 +131,7 @@ class PlaybackManager private constructor(private val context: Context) {
                     }
                 }
             }
-            handler.postDelayed(this, 200)
+            handler.postDelayed(this, 120)
         }
     }
 

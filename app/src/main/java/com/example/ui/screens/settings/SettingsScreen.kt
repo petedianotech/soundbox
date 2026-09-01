@@ -29,6 +29,7 @@ fun SettingsScreen(
     val sleepTimerLeft by viewModel.sleepTimerMillis.collectAsState()
     val speed by viewModel.playbackSpeed.collectAsState()
     val currentTheme by viewModel.settingsManager.themeFlow.collectAsState()
+    val dynamicArtworkColors by viewModel.dynamicArtworkColors.collectAsState()
     val visibleTabs by viewModel.settingsManager.visibleTabsFlow.collectAsState()
 
     val crossfadeSeconds by viewModel.crossfadeSeconds.collectAsState()
@@ -163,6 +164,14 @@ fun SettingsScreen(
                     },
                     icon = Icons.Default.Palette,
                     onClick = { showThemeDialog = true }
+                )
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                SettingsSwitchRow(
+                    title = "Dynamic Artwork Background",
+                    subtitle = "Extract ambient colors from album artwork for player UI",
+                    icon = Icons.Default.AutoAwesome,
+                    checked = dynamicArtworkColors,
+                    onCheckedChange = { viewModel.setDynamicArtworkColors(it) }
                 )
             }
             
@@ -370,5 +379,47 @@ fun SettingsCardRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+    }
+}
+
+@Composable
+fun SettingsSwitchRow(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCheckedChange(!checked) }
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(24.dp)
+        )
+        Spacer(modifier = Modifier.width(16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Spacer(modifier = Modifier.width(8.dp))
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange
+        )
     }
 }

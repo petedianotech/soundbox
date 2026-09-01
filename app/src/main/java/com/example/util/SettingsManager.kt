@@ -26,12 +26,20 @@ class SettingsManager(context: Context) {
     private val _showSpectrumFlow = MutableStateFlow(prefs.getBoolean("show_spectrum", true))
     val showSpectrumFlow: StateFlow<Boolean> = _showSpectrumFlow
 
+    private val _dynamicArtworkColorsFlow = MutableStateFlow(prefs.getBoolean("dynamic_artwork_colors", true))
+    val dynamicArtworkColorsFlow: StateFlow<Boolean> = _dynamicArtworkColorsFlow
+
     private val _songThumbnailMapFlow = MutableStateFlow(loadSongThumbnailMap())
     val songThumbnailMapFlow: StateFlow<Map<String, Int>> = _songThumbnailMapFlow
 
     fun setCrossfadeSeconds(seconds: Int) {
         prefs.edit().putInt("crossfade_seconds", seconds).apply()
         _crossfadeSecondsFlow.value = seconds
+    }
+
+    fun setDynamicArtworkColors(enabled: Boolean) {
+        prefs.edit().putBoolean("dynamic_artwork_colors", enabled).apply()
+        _dynamicArtworkColorsFlow.value = enabled
     }
 
     fun setGlobalThumbnailIndex(index: Int) {

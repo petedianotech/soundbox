@@ -1,13 +1,5 @@
 package com.example.ui.components
 
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.animation.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -39,7 +31,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.outlined.ThumbUp
 
 data class AppThumbnail(val id: Int, val name: String, val resId: Int)
 
@@ -171,7 +163,7 @@ fun TrackRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = 16.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             ArtworkThumbnail(
@@ -209,9 +201,9 @@ fun TrackRow(
 
             IconButton(onClick = onFavoriteToggle) {
                 Icon(
-                    imageVector = if (song.isFavorite) Icons.Default.Favorite else Icons.Outlined.FavoriteBorder,
-                    contentDescription = if (song.isFavorite) "Remove from favorites" else "Add to favorites",
-                    tint = if (song.isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    imageVector = if (song.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                    contentDescription = if (song.isFavorite) "In Favorites" else "Add to favorites",
+                    tint = if (song.isFavorite) Color(0xFFE91E63) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -249,10 +241,10 @@ fun MiniPlayer(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { onOpenNowPlaying() },
-                shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+                shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
                 color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                tonalElevation = 6.dp,
-                shadowElevation = 12.dp
+                tonalElevation = 8.dp,
+                shadowElevation = 8.dp
             ) {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     if (progress in 0f..1f) {
@@ -260,9 +252,9 @@ fun MiniPlayer(
                             progress = { progress },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(2.5.dp),
+                                .height(3.dp),
                             color = MaterialTheme.colorScheme.primary,
-                            trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                            trackColor = MaterialTheme.colorScheme.surfaceVariant
                         )
                     }
 
@@ -355,8 +347,7 @@ fun EmptyPlaceholder(
         Surface(
             shape = CircleShape,
             color = MaterialTheme.colorScheme.primaryContainer,
-            tonalElevation = 2.dp,
-            modifier = Modifier.size(88.dp)
+            modifier = Modifier.size(80.dp)
         ) {
             Box(
                 modifier = Modifier.fillMaxSize(),
@@ -365,15 +356,15 @@ fun EmptyPlaceholder(
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    modifier = Modifier.size(42.dp),
+                    modifier = Modifier.size(40.dp),
                     tint = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             }
         }
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(20.dp))
         Text(
             text = title,
-            style = MaterialTheme.typography.headlineSmall,
+            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
             color = MaterialTheme.colorScheme.onSurface
         )
         Spacer(modifier = Modifier.height(8.dp))
@@ -381,17 +372,13 @@ fun EmptyPlaceholder(
             text = subtitle,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.align(Alignment.CenterHorizontally).padding(horizontal = 12.dp),
+            modifier = Modifier.align(Alignment.CenterHorizontally),
             textAlign = androidx.compose.ui.text.style.TextAlign.Center
         )
         if (actionText != null && onActionClick != null) {
-            Spacer(modifier = Modifier.height(28.dp))
-            Button(
-                onClick = onActionClick,
-                shape = RoundedCornerShape(14.dp),
-                contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp)
-            ) {
-                Text(text = actionText, fontWeight = FontWeight.SemiBold)
+            Spacer(modifier = Modifier.height(24.dp))
+            Button(onClick = onActionClick) {
+                Text(text = actionText, fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -411,8 +398,7 @@ fun SongOptionsBottomSheet(
     onEditSong: (() -> Unit)? = null,
     onSongDetails: (() -> Unit)? = null,
     onChangeThumbnail: (() -> Unit)? = null,
-    onDownloadOnlineCover: (() -> Unit)? = null,
-    onChooseFromDevice: (() -> Unit)? = null
+    onDownloadOnlineCover: (() -> Unit)? = null
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss
@@ -465,12 +451,12 @@ fun SongOptionsBottomSheet(
             }
 
             ListItem(
-                headlineContent = { Text(if (song.isFavorite) "Unlike Song" else "Like Song") },
+                headlineContent = { Text(if (song.isFavorite) "Remove from Favorites" else "Add to Favorites") },
                 leadingContent = {
                     Icon(
-                        imageVector = if (song.isFavorite) Icons.Default.Favorite else Icons.Outlined.FavoriteBorder,
+                        imageVector = if (song.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                         contentDescription = null,
-                        tint = if (song.isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = if (song.isFavorite) Color(0xFFE91E63) else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 },
                 modifier = Modifier.clickable {
@@ -493,24 +479,6 @@ fun SongOptionsBottomSheet(
                     modifier = Modifier.clickable {
                         onDismiss()
                         onDownloadOnlineCover()
-                    }
-                )
-            }
-
-            if (onChooseFromDevice != null) {
-                ListItem(
-                    headlineContent = { Text("Choose Cover from Device") },
-                    supportingContent = { Text("Select an image from local storage") },
-                    leadingContent = {
-                        Icon(
-                            imageVector = Icons.Default.Image,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    },
-                    modifier = Modifier.clickable {
-                        onDismiss()
-                        onChooseFromDevice()
                     }
                 )
             }
@@ -687,6 +655,7 @@ fun ThumbnailPickerSheet(
             )
             Spacer(modifier = Modifier.height(20.dp))
 
+            // Option: Auto-Dynamic (Default)
             Surface(
                 onClick = {
                     onThumbnailSelected(-1)
@@ -726,6 +695,7 @@ fun ThumbnailPickerSheet(
                 }
             }
 
+            // Grid of 5 App Thumbnails
             LazyVerticalGrid(
                 columns = GridCells.Fixed(2),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -798,56 +768,4 @@ fun ThumbnailPickerSheet(
     }
 }
 
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
-@Composable
-fun SleekRoundSlider(
-    value: Float,
-    onValueChange: (Float) -> Unit,
-    valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
-    modifier: Modifier = Modifier,
-    thumbColor: Color = MaterialTheme.colorScheme.primary,
-    activeTrackColor: Color = MaterialTheme.colorScheme.primary,
-    inactiveTrackColor: Color = MaterialTheme.colorScheme.surfaceVariant
-) {
-    androidx.compose.material3.Slider(
-        value = value,
-        onValueChange = onValueChange,
-        valueRange = valueRange,
-        modifier = modifier.height(24.dp),
-        colors = androidx.compose.material3.SliderDefaults.colors(
-            thumbColor = thumbColor,
-            activeTrackColor = activeTrackColor,
-            inactiveTrackColor = inactiveTrackColor
-        ),
-        thumb = {
-            Box(
-                modifier = Modifier
-                    .size(14.dp)
-                    .background(thumbColor, CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(5.dp)
-                        .background(Color.White, CircleShape)
-                )
-            }
-        },
-        track = { sliderState ->
-            val fraction = (sliderState.value - sliderState.valueRange.start) / (sliderState.valueRange.endInclusive - sliderState.valueRange.start)
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(4.dp)
-                    .background(inactiveTrackColor, CircleShape)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth(fraction.coerceIn(0f, 1f))
-                        .height(4.dp)
-                        .background(activeTrackColor, CircleShape)
-                )
-            }
-        }
-    )
-}
+

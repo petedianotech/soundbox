@@ -53,9 +53,9 @@ class PlaybackService : MediaSessionService() {
         val customCommandForward10 = SessionCommand(ACTION_FORWARD_10, Bundle.EMPTY)
 
         val toggleFavoriteButton = CommandButton.Builder()
-            .setDisplayName("Like")
+            .setDisplayName("Favorite")
             .setSessionCommand(customCommandToggleFavorite)
-            .setIconResId(R.drawable.ic_thumb_up) 
+            .setIconResId(R.drawable.ic_heart) 
             .build()
 
         val rewindButton = CommandButton.Builder()

@@ -57,6 +57,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
     val globalThumbnailIndex: StateFlow<Int> = settingsManager.globalThumbnailIndexFlow
     val showSpectrum: StateFlow<Boolean> = settingsManager.showSpectrumFlow
+    val dynamicArtworkColors: StateFlow<Boolean> = settingsManager.dynamicArtworkColorsFlow
     val songThumbnailMap: StateFlow<Map<String, Int>> = settingsManager.songThumbnailMapFlow
 
     private val _isScanning = MutableStateFlow(false)
@@ -293,6 +294,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     fun setCrossfadeSeconds(seconds: Int) = playbackManager.setCrossfadeSeconds(seconds)
     fun setGlobalThumbnailIndex(index: Int) = settingsManager.setGlobalThumbnailIndex(index)
     fun setShowSpectrum(show: Boolean) = settingsManager.setShowSpectrum(show)
+    fun setDynamicArtworkColors(enabled: Boolean) = settingsManager.setDynamicArtworkColors(enabled)
     fun setSongThumbnailIndex(songId: String, index: Int) = settingsManager.setSongThumbnailIndex(songId, index)
     fun startSleepTimer(minutes: Int) = playbackManager.startSleepTimer(minutes)
     fun stopSleepTimer() = playbackManager.stopSleepTimer()
