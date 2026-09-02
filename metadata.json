@@ -1,6 +1,6 @@
 {
   "name": "Soundbox",
-  "description": "A modern, high-performance offline music player with a polished Material 3 design, equalizer, smart playlists, and Media3 background playback.",
+  "description": "Premium-quality offline music player with folder-based navigation, equalization, and Media3 background playback.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

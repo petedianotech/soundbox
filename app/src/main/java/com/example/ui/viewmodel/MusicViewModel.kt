@@ -23,6 +23,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     
     val settingsManager = SettingsManager(application)
 
+    // Search history delegation
     val searchHistory: StateFlow<List<String>> = settingsManager.searchHistoryFlow
 
     fun addSearchQuery(query: String) {
@@ -37,6 +38,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         settingsManager.clearSearchHistory()
     }
 
+    // Player state mapping
     val currentSong: StateFlow<Song?> = playbackManager.currentSong
     val isPlaying: StateFlow<Boolean> = playbackManager.isPlaying
     val currentPosition: StateFlow<Long> = playbackManager.currentPosition
@@ -48,18 +50,10 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     val queue: StateFlow<List<Song>> = playbackManager.queue
     val sleepTimerMillis: StateFlow<Long> = playbackManager.sleepTimerMillis
     val equalizerEnabled: StateFlow<Boolean> = playbackManager.equalizerEnabled
-    val equalizerPreset: StateFlow<String> = playbackManager.equalizerPreset
-    val equalizerBands: StateFlow<List<Int>> = playbackManager.equalizerBands
     val bassBoostStrength: StateFlow<Int> = playbackManager.bassBoostStrength
-    val virtualizerStrength: StateFlow<Int> = playbackManager.virtualizerStrength
-    val crossfadeSeconds: StateFlow<Int> = playbackManager.crossfadeSeconds
     val audioSessionId: StateFlow<Int> = playbackManager.audioSessionId
 
-    val globalThumbnailIndex: StateFlow<Int> = settingsManager.globalThumbnailIndexFlow
-    val showSpectrum: StateFlow<Boolean> = settingsManager.showSpectrumFlow
-    val dynamicArtworkColors: StateFlow<Boolean> = settingsManager.dynamicArtworkColorsFlow
-    val songThumbnailMap: StateFlow<Map<String, Int>> = settingsManager.songThumbnailMapFlow
-
+    // Scanning states
     private val _isScanning = MutableStateFlow(false)
     val isScanning: StateFlow<Boolean> = _isScanning.asStateFlow()
 
@@ -74,6 +68,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         _sortOrder.value = order
     }
 
+    // Core dataset flows
     val allSongs: StateFlow<List<Song>> = combine(repository.allSongs, _sortOrder) { songs, order ->
         when (order) {
             SortOrder.A_TO_Z -> songs.sortedBy { it.title.lowercase() }
@@ -98,6 +93,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     val allPlaylists: StateFlow<List<Playlist>> = repository.allPlaylists
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    // UI grouping states (Folder-based navigation, album grouping, and artist metadata projection)
     val folderList: StateFlow<Map<String, List<Song>>> = repository.allSongs
         .map { songs -> songs.groupBy { it.folderPath } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
@@ -114,6 +110,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         .map { songs -> songs.groupBy { it.genre } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
+    // Dynamic Smart Playlists combining metadata, play history, and genres
     val smartPlaylists: StateFlow<List<SmartPlaylist>> = combine(
         repository.allSongs,
         repository.favoriteSongs,
@@ -123,18 +120,22 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     ) { all, favs, mostPlayed, recentRuns, recentAdded ->
         val list = mutableListOf<SmartPlaylist>()
 
-        list.add(
-            SmartPlaylist(
-                id = "smart_favorites",
-                type = SmartPlaylistType.FAVORITES,
-                title = "Liked Songs",
-                description = if (favs.isNotEmpty()) "${favs.size} tracks you liked" else "No liked tracks yet",
-                icon = Icons.Default.Favorite,
-                tintColor = Color(0xFFE91E63),
-                songs = favs
+        // 1. Favorites
+        if (favs.isNotEmpty()) {
+            list.add(
+                SmartPlaylist(
+                    id = "smart_favorites",
+                    type = SmartPlaylistType.FAVORITES,
+                    title = "Favorites",
+                    description = "Songs you marked with a heart",
+                    icon = Icons.Default.Favorite,
+                    tintColor = Color(0xFFE53935),
+                    songs = favs
+                )
             )
-        )
+        }
 
+        // 2. Most Played
         val playedOnly = mostPlayed.filter { it.playCount > 0 }
         if (playedOnly.isNotEmpty()) {
             list.add(
@@ -150,6 +151,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             )
         }
 
+        // 3. Recently Added
         if (recentAdded.isNotEmpty()) {
             list.add(
                 SmartPlaylist(
@@ -164,6 +166,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             )
         }
 
+        // 4. Recently Played
         val recentPlayedOnly = recentRuns.filter { it.lastPlayedTime > 0 }
         if (recentPlayedOnly.isNotEmpty()) {
             list.add(
@@ -179,6 +182,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             )
         }
 
+        // 5. Long Tracks (> 5 minutes)
         val longTracks = all.filter { it.duration >= 300_000 }
         if (longTracks.isNotEmpty()) {
             list.add(
@@ -194,6 +198,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             )
         }
 
+        // 6. Quick Tracks (< 3 minutes)
         val quickTracks = all.filter { it.duration in 10_000..180_000 }
         if (quickTracks.isNotEmpty()) {
             list.add(
@@ -209,6 +214,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             )
         }
 
+        // 7. Forgotten Gems (Never Played)
         val unplayed = all.filter { it.playCount == 0 }
         if (unplayed.isNotEmpty() && unplayed.size != all.size) {
             list.add(
@@ -224,6 +230,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             )
         }
 
+        // 8. Auto-created Genre Smart Playlists for all detected genres
         val genreGroups = all.groupBy { it.genre }.filter { it.key.isNotBlank() && !it.key.equals("Unknown", ignoreCase = true) && !it.key.equals("Music", ignoreCase = true) }
         val genrePalette = listOf(
             Color(0xFFE91E63), Color(0xFF9C27B0), Color(0xFF673AB7),
@@ -254,6 +261,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     init {
+        // Run first local scan to populate music database
         scanStorage()
     }
 
@@ -263,12 +271,14 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 repository.scanStorage()
             } catch (e: Exception) {
+                // Squelch and handle scan anomalies
             } finally {
                 _isScanning.value = false
             }
         }
     }
 
+    // Playback Commands
     fun playSong(song: Song, customQueue: List<Song> = emptyList()) {
         playbackManager.playSong(song, customQueue)
     }
@@ -276,10 +286,6 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     fun playNext(song: Song) = playbackManager.playNext(song)
     fun addToQueue(song: Song) = playbackManager.addToQueue(song)
     fun removeFromQueue(index: Int) = playbackManager.removeFromQueue(index)
-    fun removeFromQueue(song: Song) {
-        val idx = queue.value.indexOfFirst { it.id == song.id }
-        if (idx >= 0) playbackManager.removeFromQueue(idx)
-    }
     fun clearQueue() = playbackManager.clearQueue()
     
     fun playPause() = playbackManager.playPause()
@@ -287,32 +293,13 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     fun skipPrevious() = playbackManager.skipPrevious()
     fun seekTo(position: Long) = playbackManager.seekTo(position)
     fun setShuffleMode(enabled: Boolean) = playbackManager.setShuffleMode(enabled)
-    fun toggleShuffle() = playbackManager.setShuffleMode(!shuffleMode.value)
     fun setRepeatMode(mode: Int) = playbackManager.setRepeatMode(mode)
-    fun toggleRepeatMode() {
-        val next = when (repeatMode.value) {
-            androidx.media3.common.Player.REPEAT_MODE_OFF -> androidx.media3.common.Player.REPEAT_MODE_ALL
-            androidx.media3.common.Player.REPEAT_MODE_ALL -> androidx.media3.common.Player.REPEAT_MODE_ONE
-            else -> androidx.media3.common.Player.REPEAT_MODE_OFF
-        }
-        playbackManager.setRepeatMode(next)
-    }
     fun setPlaybackRate(speed: Float, pitch: Float) = playbackManager.setPlaybackRate(speed, pitch)
     
     fun toggleEqualizer() = playbackManager.toggleEqualizer()
-    fun setEqualizerBandLevel(bandIndex: Int, levelMb: Int) = playbackManager.setEqualizerBandLevel(bandIndex, levelMb)
-    fun setEqualizerPreset(presetName: String) = playbackManager.setEqualizerPreset(presetName)
     fun setBassBoost(strength: Int) = playbackManager.setBassBoost(strength)
-    fun setVirtualizer(strength: Int) = playbackManager.setVirtualizer(strength)
-    fun setCrossfadeSeconds(seconds: Int) = playbackManager.setCrossfadeSeconds(seconds)
-    fun setGlobalThumbnailIndex(index: Int) = settingsManager.setGlobalThumbnailIndex(index)
-    fun setShowSpectrum(show: Boolean) = settingsManager.setShowSpectrum(show)
-    fun setDynamicArtworkColors(enabled: Boolean) = settingsManager.setDynamicArtworkColors(enabled)
-    fun setSongThumbnailIndex(songId: String, index: Int) = settingsManager.setSongThumbnailIndex(songId, index)
-    fun setSongThumbnail(songId: String, index: Int) = settingsManager.setSongThumbnailIndex(songId, index)
     fun startSleepTimer(minutes: Int) = playbackManager.startSleepTimer(minutes)
     fun stopSleepTimer() = playbackManager.stopSleepTimer()
-    fun refreshCurrentSongArtwork() = playbackManager.refreshCurrentSongArtwork()
 
     fun toggleFavorite(song: Song) {
         viewModelScope.launch {
@@ -327,6 +314,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    // Playlist Commands
     fun createPlaylist(name: String) {
         viewModelScope.launch {
             repository.createPlaylist(name)
@@ -372,13 +360,6 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     fun removeSongFromPlaylist(playlistId: Long, songId: String) {
         viewModelScope.launch {
             repository.removeSongFromPlaylist(playlistId, songId)
-        }
-    }
-
-    fun deleteSong(song: Song) {
-        viewModelScope.launch {
-            repository.deleteSong(song)
-            playbackManager.onSongDeleted(song.id)
         }
     }
 }

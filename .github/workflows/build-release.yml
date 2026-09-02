@@ -1,4 +1,4 @@
-name: Build Android Release APK
+name: Build Release APK
 
 on:
   push:
@@ -9,7 +9,7 @@ on:
 
 jobs:
   build:
-    name: Build Android Release APK
+    name: Build Release APK
     runs-on: ubuntu-latest
 
     steps:
@@ -28,7 +28,7 @@ jobs:
           ENCODED_KEYSTORE: ${{ secrets.KEYSTORE_BASE64 }}
         run: |
           if [ -n "$ENCODED_KEYSTORE" ]; then
-            echo "$ENCODED_KEYSTORE" | base64 --decode > my-upload-key.jks
+            echo $ENCODED_KEYSTORE | base64 --decode > my-upload-key.jks
           fi
 
       - name: Build Release APK

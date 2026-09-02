@@ -99,10 +99,10 @@ fun SplashScreen(onNavigateToHome: () -> Unit) {
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "Your music. Offline. Beautiful.",
+                text = "Premium Acoustic Storage",
                 style = MaterialTheme.typography.bodyMedium.copy(
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
-                    letterSpacing = 0.8.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    letterSpacing = 1.2.sp,
                     fontWeight = FontWeight.Medium
                 ),
                 modifier = Modifier.alpha(textAlpha)

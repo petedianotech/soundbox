@@ -92,11 +92,11 @@ private val MidnightColors = darkColorScheme(
     errorContainer = md_theme_dark_errorContainer,
     onError = md_theme_dark_onError,
     onErrorContainer = md_theme_dark_onErrorContainer,
-    background = Color(0xFF000000),
+    background = Color.Black,
     onBackground = md_theme_dark_onBackground,
-    surface = Color(0xFF000000),
+    surface = Color.Black,
     onSurface = md_theme_dark_onSurface,
-    surfaceVariant = Color(0xFF161616),
+    surfaceVariant = Color(0xFF1E1E1E),
     onSurfaceVariant = md_theme_dark_onSurfaceVariant,
     outline = md_theme_dark_outline,
     inverseOnSurface = md_theme_dark_inverseOnSurface,
@@ -128,5 +128,5 @@ fun MyApplicationTheme(
       }
   }
 
-  MaterialTheme(colorScheme = colorScheme, typography = Typography, shapes = Shapes, content = content)
+  MaterialTheme(colorScheme = colorScheme, typography = Typography, content = content)
 }

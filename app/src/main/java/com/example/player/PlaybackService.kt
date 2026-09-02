@@ -127,8 +127,8 @@ class PlaybackService : MediaSessionService() {
             .setChannelId(CHANNEL_ID)
             .setChannelName(R.string.notification_channel_name)
             .build()
-        // Set vector drawable as notification icon (never adaptive icon mipmap)
-        notificationProvider.setSmallIcon(R.drawable.ic_music_note)
+        // Improve small icon visibility by using a simple recognizable shape
+        notificationProvider.setSmallIcon(R.drawable.ic_notification_large)
         setMediaNotificationProvider(notificationProvider)
     }
 
@@ -141,7 +141,6 @@ class PlaybackService : MediaSessionService() {
                 description = descriptionText
                 setShowBadge(false)
                 setSound(null, null)
-                lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
             }
             val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.createNotificationChannel(channel)

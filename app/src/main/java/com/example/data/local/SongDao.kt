@@ -49,9 +49,6 @@ interface SongDao {
     @Query("DELETE FROM songs")
     suspend fun clearAllSongs()
 
-    @Query("DELETE FROM songs WHERE id = :id")
-    suspend fun deleteSongById(id: String)
-
     @Query("DELETE FROM songs WHERE id LIKE 'syn_%'")
     suspend fun deleteSyntheticSongs()
 

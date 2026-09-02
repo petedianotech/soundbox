@@ -1,6 +1,13 @@
 package com.example.player
 
 import android.content.Context
+import android.content.ComponentName
+import androidx.media3.session.MediaController
+import androidx.media3.session.SessionToken
+import com.google.common.util.concurrent.ListenableFuture
+import com.google.common.util.concurrent.MoreExecutors
+import android.media.audiofx.BassBoost
+import android.media.audiofx.Equalizer
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -10,7 +17,6 @@ import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import com.example.data.model.Song
 import com.example.data.repository.MusicRepository
-import com.example.util.SettingsManager
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,10 +27,9 @@ import java.util.TimerTask
 class PlaybackManager private constructor(private val context: Context) {
 
     private val repository = MusicRepository.getInstance(context)
-    private val settingsManager = SettingsManager(context.applicationContext)
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
-    // ExoPlayer reference with audio focus and local wake mode
+    // ExoPlayer reference
     val player: ExoPlayer = ExoPlayer.Builder(context)
         .setAudioAttributes(
             androidx.media3.common.AudioAttributes.Builder()
@@ -36,6 +41,10 @@ class PlaybackManager private constructor(private val context: Context) {
         .setHandleAudioBecomingNoisy(true)
         .setWakeMode(androidx.media3.common.C.WAKE_MODE_LOCAL)
         .build()
+
+    // Sound FX
+    private var equalizer: Equalizer? = null
+    private var bassBoost: BassBoost? = null
 
     // Exposed Flows
     private val _currentSong = MutableStateFlow<Song?>(null)
@@ -71,19 +80,8 @@ class PlaybackManager private constructor(private val context: Context) {
     private val _equalizerEnabled = MutableStateFlow(false)
     val equalizerEnabled: StateFlow<Boolean> = _equalizerEnabled.asStateFlow()
 
-    private val _equalizerPreset = MutableStateFlow("Flat")
-    val equalizerPreset: StateFlow<String> = _equalizerPreset.asStateFlow()
-
-    private val _equalizerBands = MutableStateFlow<List<Int>>(listOf(0, 0, 0, 0, 0))
-    val equalizerBands: StateFlow<List<Int>> = _equalizerBands.asStateFlow()
-
-    private val _bassBoostStrength = MutableStateFlow(0)
+    private val _bassBoostStrength = MutableStateFlow(0) // 0 to 1000 millibels
     val bassBoostStrength: StateFlow<Int> = _bassBoostStrength.asStateFlow()
-
-    private val _virtualizerStrength = MutableStateFlow(0)
-    val virtualizerStrength: StateFlow<Int> = _virtualizerStrength.asStateFlow()
-
-    val crossfadeSeconds: StateFlow<Int> = settingsManager.crossfadeSecondsFlow
 
     private val _audioSessionId = MutableStateFlow(player.audioSessionId)
     val audioSessionId: StateFlow<Int> = _audioSessionId.asStateFlow()
@@ -91,39 +89,40 @@ class PlaybackManager private constructor(private val context: Context) {
     private var sleepTimer: Timer? = null
     private val handler = Handler(Looper.getMainLooper())
 
-    private var fadeInJob: Job? = null
-    private var isCrossfadingManual = false
+    private var controllerFuture: ListenableFuture<MediaController>? = null
+    var mediaController: MediaController? = null
+        private set
 
     private val positionTrackerRunnable = object : Runnable {
         override fun run() {
             if (player.isPlaying) {
-                val pos = player.currentPosition
-                val dur = player.duration
-                _currentPosition.value = pos
-                if (dur > 0 && dur != _duration.value) {
-                    _duration.value = dur
-                }
-
-                val crossfadeMs = settingsManager.crossfadeSecondsFlow.value * 1000L
-                if (crossfadeMs > 0 && dur > crossfadeMs * 2 && !isCrossfadingManual) {
-                    val remainingMs = dur - pos
-                    if (remainingMs in 1L..crossfadeMs) {
-                        if (fadeInJob?.isActive != true) {
-                            val factor = (remainingMs.toFloat() / crossfadeMs.toFloat()).coerceIn(0f, 1f)
-                            player.volume = factor
-                        }
-                    }
-                }
+                _currentPosition.value = player.currentPosition
             }
-            handler.postDelayed(this, 120)
+            handler.postDelayed(this, 500) // Default delay for position tracking
         }
     }
 
     init {
-        restoreEqualizerState()
         setupPlayerListeners()
         handler.post(positionTrackerRunnable)
         restorePlaybackState()
+        initializeMediaController()
+    }
+
+    private fun initializeMediaController() {
+        val sessionToken = SessionToken(context, ComponentName(context, PlaybackService::class.java))
+        controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
+        controllerFuture?.addListener(
+            {
+                try {
+                    mediaController = controllerFuture?.get()
+                    Log.d("PlaybackManager", "MediaController connected successfully")
+                } catch (e: Exception) {
+                    Log.e("PlaybackManager", "Failed to connect MediaController", e)
+                }
+            },
+            MoreExecutors.directExecutor()
+        )
     }
 
     private fun setupPlayerListeners() {
@@ -145,7 +144,6 @@ class PlaybackManager private constructor(private val context: Context) {
                         }
                     }
                 }
-                triggerCrossfadeFadeIn()
             }
 
             override fun onPlaybackParametersChanged(playbackParameters: PlaybackParameters) {
@@ -164,74 +162,26 @@ class PlaybackManager private constructor(private val context: Context) {
             override fun onAudioSessionIdChanged(audioSessionId: Int) {
                 super.onAudioSessionIdChanged(audioSessionId)
                 _audioSessionId.value = audioSessionId
+                initAudioEffects(audioSessionId)
             }
         })
     }
 
-    private fun restoreEqualizerState() {
-        val prefs = context.getSharedPreferences("soundbox_equalizer", Context.MODE_PRIVATE)
-        _equalizerEnabled.value = prefs.getBoolean("eq_enabled", false)
-        _equalizerPreset.value = prefs.getString("eq_preset", "Flat") ?: "Flat"
-        val bandsStr = prefs.getString("eq_bands", "0,0,0,0,0") ?: "0,0,0,0,0"
-        _equalizerBands.value = bandsStr.split(",").mapNotNull { it.toIntOrNull() }.ifEmpty { listOf(0,0,0,0,0) }
-        _bassBoostStrength.value = prefs.getInt("bass_strength", 0)
-        _virtualizerStrength.value = prefs.getInt("virt_strength", 0)
-    }
-
-    private fun saveEqualizerState() {
-        val prefs = context.getSharedPreferences("soundbox_equalizer", Context.MODE_PRIVATE)
-        prefs.edit()
-            .putBoolean("eq_enabled", _equalizerEnabled.value)
-            .putString("eq_preset", _equalizerPreset.value)
-            .putString("eq_bands", _equalizerBands.value.joinToString(","))
-            .putInt("bass_strength", _bassBoostStrength.value)
-            .putInt("virt_strength", _virtualizerStrength.value)
-            .apply()
-    }
-
-    fun triggerCrossfadeFadeIn() {
-        val durationSec = settingsManager.crossfadeSecondsFlow.value
-        if (durationSec <= 0) {
-            player.volume = 1.0f
-            return
-        }
-        fadeInJob?.cancel()
-        fadeInJob = scope.launch {
-            val totalMs = (durationSec * 1000L).coerceAtMost(4000L)
-            val steps = 25
-            val stepMs = totalMs / steps
-            for (i in 0..steps) {
-                if (!isActive) break
-                val vol = i.toFloat() / steps
-                player.volume = vol
-                delay(stepMs)
+    private fun initAudioEffects(audioSessionId: Int) {
+        if (audioSessionId == 0) return
+        try {
+            equalizer = Equalizer(0, audioSessionId).apply {
+                enabled = _equalizerEnabled.value
             }
-            player.volume = 1.0f
-        }
-    }
-
-    private fun playWithCrossfade(action: () -> Unit) {
-        val durationSec = settingsManager.crossfadeSecondsFlow.value
-        if (durationSec > 0 && _isPlaying.value) {
-            isCrossfadingManual = true
-            scope.launch {
-                fadeInJob?.cancel()
-                val steps = 12
-                val fadeOutTime = (durationSec * 500L).coerceIn(300L, 800L)
-                val stepMs = fadeOutTime / steps
-                val initialVol = player.volume
-                for (i in steps downTo 0) {
-                    if (!isActive) break
-                    player.volume = initialVol * (i.toFloat() / steps)
-                    delay(stepMs)
+            bassBoost = BassBoost(0, audioSessionId).apply {
+                enabled = _bassBoostStrength.value > 0
+                if (enabled) {
+                    setStrength(_bassBoostStrength.value.toShort())
                 }
-                action()
-                isCrossfadingManual = false
-                triggerCrossfadeFadeIn()
             }
-        } else {
-            action()
-            player.volume = 1.0f
+            Log.d("PlaybackManager", "Audio effects successfully initialized on session $audioSessionId")
+        } catch (e: Exception) {
+            Log.e("PlaybackManager", "Equalizer/BassBoost activation skipped: ${e.message}")
         }
     }
 
@@ -244,7 +194,7 @@ class PlaybackManager private constructor(private val context: Context) {
                 retriever.setDataSource(path)
             }
             val art = retriever.embeddedPicture
-            try { retriever.release() } catch (ignored: Exception) {}
+            retriever.release()
             art
         } catch (e: Exception) {
             null
@@ -263,40 +213,9 @@ class PlaybackManager private constructor(private val context: Context) {
             .setArtist(songItem.artist)
             .setAlbumTitle(songItem.album)
             .setDisplayTitle(songItem.title)
+            .setArtworkUri(fileUri)
 
-        var artworkBytes: ByteArray? = null
-
-        // 1. Check custom online downloaded cover file first
-        val customCoverFile = com.example.util.OnlineCoverFetcher.getSavedCoverFile(context, songItem.id)
-        if (customCoverFile.exists()) {
-            try {
-                artworkBytes = customCoverFile.readBytes()
-                metadataBuilder.setArtworkUri(android.net.Uri.fromFile(customCoverFile))
-            } catch (e: Exception) { }
-        }
-
-        // 2. Check embedded ID3 artwork
-        if (artworkBytes == null) {
-            artworkBytes = extractArtworkBytes(songItem.path)
-            if (artworkBytes != null) {
-                metadataBuilder.setArtworkUri(fileUri)
-            }
-        }
-
-        // 3. Fallback to app generated thumbnail resource bitmap
-        if (artworkBytes == null) {
-            try {
-                val thumbIndex = settingsManager.songThumbnailMapFlow.value[songItem.id] ?: -1
-                val thumbRes = com.example.ui.components.getDefaultThumbnailResId(songItem.title, thumbIndex)
-                val bitmap = android.graphics.BitmapFactory.decodeResource(context.resources, thumbRes)
-                if (bitmap != null) {
-                    val stream = java.io.ByteArrayOutputStream()
-                    bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, stream)
-                    artworkBytes = stream.toByteArray()
-                }
-            } catch (e: Exception) { }
-        }
-
+        val artworkBytes = extractArtworkBytes(songItem.path)
         if (artworkBytes != null) {
             metadataBuilder.setArtworkData(artworkBytes, androidx.media3.common.MediaMetadata.PICTURE_TYPE_FRONT_COVER)
         }
@@ -308,47 +227,36 @@ class PlaybackManager private constructor(private val context: Context) {
             .build()
     }
 
-    fun refreshCurrentSongArtwork() {
-        val song = _currentSong.value ?: return
-        try {
-            val updatedMediaItem = buildMediaItem(song)
-            val currentIdx = player.currentMediaItemIndex
-            if (currentIdx >= 0 && currentIdx < player.mediaItemCount) {
-                player.replaceMediaItem(currentIdx, updatedMediaItem)
-            }
-        } catch (e: Exception) {
-            Log.w("PlaybackManager", "Error refreshing song artwork: ${e.message}")
-        }
-    }
-
     fun startPlaybackService() {
         try {
             val intent = android.content.Intent(context, PlaybackService::class.java)
-            context.startService(intent)
-        } catch (e: Throwable) {
-            Log.w("PlaybackManager", "Service start call non-fatal: ${e.message}")
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                context.startForegroundService(intent)
+            } else {
+                context.startService(intent)
+            }
+        } catch (e: Exception) {
+            Log.e("PlaybackManager", "Error starting PlaybackService: ${e.message}")
         }
     }
 
     fun playSong(song: Song, customQueue: List<Song> = emptyList()) {
-        playWithCrossfade {
-            val currentList = if (customQueue.isNotEmpty()) customQueue else listOf(song)
-            _queue.value = currentList
+        val currentList = if (customQueue.isNotEmpty()) customQueue else listOf(song)
+        _queue.value = currentList
 
-            val mediaItems = currentList.map { songItem -> buildMediaItem(songItem) }
+        val mediaItems = currentList.map { songItem -> buildMediaItem(songItem) }
 
-            player.setMediaItems(mediaItems)
-            val index = currentList.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
-            player.seekTo(index, 0L)
-            player.prepare()
-            player.play()
+        player.setMediaItems(mediaItems)
+        val index = currentList.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
+        player.seekTo(index, 0L)
+        player.prepare()
+        player.play()
 
-            _currentSong.value = song
-            _duration.value = song.duration
+        _currentSong.value = song
+        _duration.value = song.duration
 
-            saveCurrentState(song.id, 0L)
-            startPlaybackService()
-        }
+        saveCurrentState(song.id, 0L)
+        startPlaybackService()
     }
 
     fun playNext(song: Song) {
@@ -397,32 +305,6 @@ class PlaybackManager private constructor(private val context: Context) {
         }
     }
 
-    fun onSongDeleted(songId: String) {
-        val current = _currentSong.value
-        val currentQueue = _queue.value.toMutableList()
-        val index = currentQueue.indexOfFirst { it.id == songId }
-        if (index != -1) {
-            if (current?.id == songId) {
-                if (currentQueue.size > 1) {
-                    skipNext()
-                    currentQueue.removeAt(index)
-                    if (index < player.mediaItemCount) {
-                        player.removeMediaItem(index)
-                    }
-                    _queue.value = currentQueue
-                } else {
-                    clearQueue()
-                }
-            } else {
-                currentQueue.removeAt(index)
-                if (index < player.mediaItemCount) {
-                    player.removeMediaItem(index)
-                }
-                _queue.value = currentQueue
-            }
-        }
-    }
-
     fun playPause() {
         if (player.isPlaying) {
             player.pause()
@@ -436,20 +318,16 @@ class PlaybackManager private constructor(private val context: Context) {
     }
 
     fun skipNext() {
-        playWithCrossfade {
-            if (player.hasNextMediaItem()) {
-                player.seekToNext()
-            }
+        if (player.hasNextMediaItem()) {
+            player.seekToNext()
         }
     }
 
     fun skipPrevious() {
-        playWithCrossfade {
-            if (player.hasPreviousMediaItem()) {
-                player.seekToPrevious()
-            } else {
-                player.seekTo(0L)
-            }
+        if (player.hasPreviousMediaItem()) {
+            player.seekToPrevious()
+        } else {
+            player.seekTo(0L)
         }
     }
 
@@ -478,51 +356,25 @@ class PlaybackManager private constructor(private val context: Context) {
     fun toggleEqualizer() {
         val nextState = !_equalizerEnabled.value
         _equalizerEnabled.value = nextState
-        saveEqualizerState()
-    }
-
-    fun setEqualizerBandLevel(bandIndex: Int, levelMb: Int) {
-        val current = _equalizerBands.value.toMutableList()
-        while (current.size <= bandIndex) {
-            current.add(0)
+        try {
+            equalizer?.enabled = nextState
+        } catch (e: Exception) {
+            Log.w("PlaybackManager", "Error toggling equalizer: ${e.message}")
         }
-        current[bandIndex] = levelMb
-        _equalizerBands.value = current
-        _equalizerPreset.value = "Custom"
-        saveEqualizerState()
     }
 
-    fun setEqualizerPreset(presetName: String) {
-        _equalizerPreset.value = presetName
-        val presetBands = when (presetName) {
-            "Bass Booster" -> listOf(600, 400, 0, 0, 0)
-            "Bass Reducer" -> listOf(-600, -400, 0, 0, 0)
-            "Treble Booster" -> listOf(0, 0, 0, 400, 600)
-            "Vocal Booster" -> listOf(-200, 300, 500, 300, -200)
-            "Rock" -> listOf(400, 200, -100, 300, 500)
-            "Pop" -> listOf(-100, 200, 500, 300, -100)
-            "Jazz" -> listOf(300, 200, -200, 200, 400)
-            "Classical" -> listOf(500, 300, -200, 300, 400)
-            "Heavy Metal" -> listOf(400, 100, 900, 300, -100)
-            "Acoustic" -> listOf(300, 100, 200, 300, 200)
-            else -> listOf(0, 0, 0, 0, 0)
-        }
-        _equalizerBands.value = presetBands
-        saveEqualizerState()
-    }
-
-    fun setBassBoost(strength: Int) {
+    fun setBassBoost(strength: Int) { // 0 to 1000
         _bassBoostStrength.value = strength
-        saveEqualizerState()
-    }
-
-    fun setVirtualizer(strength: Int) {
-        _virtualizerStrength.value = strength
-        saveEqualizerState()
-    }
-
-    fun setCrossfadeSeconds(seconds: Int) {
-        settingsManager.setCrossfadeSeconds(seconds)
+        try {
+            bassBoost?.let { boost ->
+                boost.enabled = strength > 0
+                if (strength > 0) {
+                    boost.setStrength(strength.toShort())
+                }
+            }
+        } catch (e: Exception) {
+            Log.w("PlaybackManager", "Error setting bass boost strength: ${e.message}")
+        }
     }
 
     fun startSleepTimer(minutes: Int) {

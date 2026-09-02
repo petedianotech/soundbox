@@ -67,17 +67,10 @@ fun HomeScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
-                        Text(
-                            text = "Soundbox",
-                            style = MaterialTheme.typography.titleLarge
-                        )
-                        Text(
-                            text = "Your offline library",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                    Text(
+                        text = "Soundbox",
+                        style = MaterialTheme.typography.titleLarge
+                    )
                 },
                 actions = {
                     IconButton(onClick = onNavigateToSearch) {
@@ -95,7 +88,7 @@ fun HomeScreen(
         bottomBar = {
             NavigationBar(
                 containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                tonalElevation = 2.dp
+                tonalElevation = 3.dp
             ) {
                 visibleTabs.forEach { tab ->
                     val selected = selectedTab == tab
@@ -173,3 +166,4 @@ fun HomeScreen(
         }
     }
 }
+

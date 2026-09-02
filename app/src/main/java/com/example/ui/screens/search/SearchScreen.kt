@@ -1,6 +1,5 @@
 package com.example.ui.screens.search
 
-import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -19,19 +18,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.example.data.model.Song
 import com.example.ui.components.EmptyPlaceholder
 import com.example.ui.components.MiniPlayer
-import com.example.ui.components.SongDeleteDialog
-import com.example.ui.components.SongOptionsBottomSheet
 import com.example.ui.components.TrackRow
 import com.example.ui.viewmodel.MusicViewModel
-import com.example.util.ThumbnailExporter
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,16 +34,11 @@ fun SearchScreen(
     onNavigateToNowPlaying: () -> Unit,
     onBackClick: (() -> Unit)? = null
 ) {
-    val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
     val songs by viewModel.allSongs.collectAsState()
     val currentSong by viewModel.currentSong.collectAsState()
     val searchHistory by viewModel.searchHistory.collectAsState()
 
     var searchQuery by remember { mutableStateOf("") }
-    var selectedSongForMenu by remember { mutableStateOf<Song?>(null) }
-    var songToDelete by remember { mutableStateOf<Song?>(null) }
-
     val isPlaying by viewModel.isPlaying.collectAsState()
     val currentPosition by viewModel.currentPosition.collectAsState()
     val duration by viewModel.duration.collectAsState()
@@ -268,7 +257,7 @@ fun SearchScreen(
                                     viewModel.playSong(song, filteredSongs)
                                 },
                                 onFavoriteToggle = { viewModel.toggleFavorite(song) },
-                                onMenuClick = { selectedSongForMenu = song }
+                                onMenuClick = {}
                             )
                         }
                     }
@@ -292,41 +281,6 @@ fun SearchScreen(
                     modifier = Modifier.fillMaxWidth()
                 )
             }
-        }
-
-        // Song Options Bottom Sheet
-        if (selectedSongForMenu != null) {
-            val song = selectedSongForMenu!!
-            SongOptionsBottomSheet(
-                song = song,
-                onDismiss = { selectedSongForMenu = null },
-                onPlayNext = { viewModel.playNext(song) },
-                onAddToQueue = { viewModel.addToQueue(song) },
-                onToggleFavorite = { viewModel.toggleFavorite(song) },
-                onAddToPlaylist = { /* Playlists */ },
-                onDownloadThumbnail = {
-                    coroutineScope.launch {
-                        ThumbnailExporter.exportSongThumbnail(context, song)
-                    }
-                },
-                onDeleteSong = {
-                    songToDelete = song
-                }
-            )
-        }
-
-        // Delete confirmation dialog
-        if (songToDelete != null) {
-            val song = songToDelete!!
-            SongDeleteDialog(
-                song = song,
-                onConfirm = {
-                    viewModel.deleteSong(song)
-                    songToDelete = null
-                    Toast.makeText(context, "Song deleted", Toast.LENGTH_SHORT).show()
-                },
-                onDismiss = { songToDelete = null }
-            )
         }
     }
 }

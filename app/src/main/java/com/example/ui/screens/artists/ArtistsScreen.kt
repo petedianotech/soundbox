@@ -7,17 +7,20 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.data.model.Song
 import com.example.ui.components.EmptyPlaceholder
+import com.example.ui.components.SongImagePlaceholder
 import com.example.ui.components.TrackRow
 import com.example.ui.viewmodel.MusicViewModel
 
@@ -42,8 +45,8 @@ fun ArtistsScreen(
                 }
             } else {
                 EmptyPlaceholder(
-                    title = "No Artists Found",
-                    subtitle = "Artists will appear after your library is scanned.",
+                    title = "No Artists Discovered",
+                    subtitle = "Soundbox scanned your local files but did not locate meta IDs.",
                     icon = Icons.Default.Person,
                     actionText = "Refresh Scan",
                     onActionClick = { viewModel.scanStorage() }
@@ -52,7 +55,7 @@ fun ArtistsScreen(
         } else {
             LazyVerticalGrid(
                 columns = GridCells.Fixed(3),
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 88.dp),
+                contentPadding = PaddingValues(16.dp),
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalArrangement = Arrangement.spacedBy(24.dp),
                 modifier = Modifier.fillMaxSize()
@@ -84,14 +87,16 @@ fun ArtistsScreen(
                         )
                         Text(
                             text = if (tracksCount == 1) "1 track" else "$tracksCount tracks",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
             }
         }
 
+        // Expanded artist detail dialog sheet view
         if (selectedArtist != null) {
             ModalBottomSheet(
                 onDismissRequest = { selectedArtist = null },
@@ -102,14 +107,39 @@ fun ArtistsScreen(
                         .fillMaxWidth()
                         .padding(bottom = 24.dp)
                 ) {
-                    Text(
-                        text = selectedArtist ?: "",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(16.dp)
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val firstSongId = artistSongs.firstOrNull()?.id
+                        com.example.ui.components.ArtworkThumbnail(
+                            songId = firstSongId,
+                            title = selectedArtist!!,
+                            modifier = Modifier.clip(CircleShape),
+                            size = 64f,
+                            isCircle = true
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column {
+                            Text(
+                                text = selectedArtist!!,
+                                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
+                            )
+                            Text(
+                                text = "${artistSongs.size} Tracks",
+                                style = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.secondary)
+                            )
+                        }
+                    }
+
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+
                     LazyColumn(
-                        modifier = Modifier.fillMaxWidth().heightIn(max = 400.dp)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f, fill = false)
                     ) {
                         items(artistSongs) { song ->
                             TrackRow(
@@ -121,7 +151,7 @@ fun ArtistsScreen(
                                     selectedArtist = null
                                 },
                                 onFavoriteToggle = { viewModel.toggleFavorite(song) },
-                                onMenuClick = { }
+                                onMenuClick = {}
                             )
                         }
                     }
