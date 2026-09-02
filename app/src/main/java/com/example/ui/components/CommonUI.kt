@@ -19,7 +19,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.Image
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import com.example.data.model.Song
+import com.example.util.AlbumArtHelper
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 
@@ -27,27 +31,28 @@ import androidx.compose.foundation.combinedClickable
 fun SongImagePlaceholder(
     title: String,
     modifier: Modifier = Modifier,
-    size: Float = 48f
+    size: Float = 48f,
+    artist: String = "",
+    genre: String = ""
 ) {
     val shape = RoundedCornerShape((size * 0.22f).dp)
+    val fallbackArtResId = remember(title, artist, genre) {
+        AlbumArtHelper.getAlbumArtResId(title, artist, genre)
+    }
+
     Surface(
         modifier = modifier
             .size(size.dp)
             .clip(shape),
-        color = MaterialTheme.colorScheme.primaryContainer,
+        color = MaterialTheme.colorScheme.surfaceVariant,
         shape = shape
     ) {
-        Box(
+        Image(
+            painter = painterResource(id = fallbackArtResId),
+            contentDescription = "Album art for $title",
             modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.MusicNote,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                modifier = Modifier.size((size * 0.5f).dp)
-            )
-        }
+            contentScale = ContentScale.Crop
+        )
     }
 }
 
@@ -57,7 +62,9 @@ fun ArtworkThumbnail(
     title: String,
     modifier: Modifier = Modifier,
     size: Float = 48f,
-    isCircle: Boolean = false
+    isCircle: Boolean = false,
+    artist: String = "",
+    genre: String = ""
 ) {
     val artworkUri = remember(songId) {
         if (!songId.isNullOrEmpty()) {
@@ -81,16 +88,16 @@ fun ArtworkThumbnail(
                 model = artworkUri,
                 contentDescription = "Song artwork",
                 modifier = Modifier.fillMaxSize(),
-                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                contentScale = ContentScale.Crop,
                 loading = {
-                    SongImagePlaceholder(title = title, modifier = Modifier.fillMaxSize(), size = size)
+                    SongImagePlaceholder(title = title, artist = artist, genre = genre, modifier = Modifier.fillMaxSize(), size = size)
                 },
                 error = {
-                    SongImagePlaceholder(title = title, modifier = Modifier.fillMaxSize(), size = size)
+                    SongImagePlaceholder(title = title, artist = artist, genre = genre, modifier = Modifier.fillMaxSize(), size = size)
                 }
             )
         } else {
-            SongImagePlaceholder(title = title, modifier = Modifier.fillMaxSize(), size = size)
+            SongImagePlaceholder(title = title, artist = artist, genre = genre, modifier = Modifier.fillMaxSize(), size = size)
         }
     }
 }
@@ -132,6 +139,8 @@ fun TrackRow(
             ArtworkThumbnail(
                 songId = song.id,
                 title = song.title,
+                artist = song.artist,
+                genre = song.genre,
                 size = 48f
             )
 
@@ -230,6 +239,8 @@ fun MiniPlayer(
                         ArtworkThumbnail(
                             songId = song.id,
                             title = song.title,
+                            artist = song.artist,
+                            genre = song.genre,
                             size = 44f,
                             isCircle = false
                         )

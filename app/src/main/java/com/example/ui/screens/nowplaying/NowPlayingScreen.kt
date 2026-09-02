@@ -49,6 +49,7 @@ import androidx.media3.common.Player
 import com.example.data.model.Song
 import com.example.player.LyricLine
 import com.example.player.LyricsManager
+import com.example.ui.components.ArtworkThumbnail
 import com.example.ui.components.EmptyPlaceholder
 import com.example.ui.components.RealtimeAudioVisualizer
 import com.example.ui.components.SongImagePlaceholder
@@ -168,20 +169,9 @@ fun NowPlayingScreen(
         }
     }
 
-    // Dynamic Atmosphere Palette
-    val dynamicSongColor = remember(song.title, song.artist) {
-        val hash = (song.title + song.artist).hashCode()
-        val hues = listOf(
-            Color(0xFF6C5CE7), Color(0xFF00CEC9), Color(0xFFFF7675), Color(0xFFFD79A8),
-            Color(0xFF0984E3), Color(0xFF00B894), Color(0xFFE17055), Color(0xFFF39C12),
-            Color(0xFF8E44AD), Color(0xFF2980B9), Color(0xFF27AE60), Color(0xFFD35400)
-        )
-        hues[kotlin.math.abs(hash) % hues.size]
-    }
-
-    val dynamicSecondaryColor = remember(dynamicSongColor) {
-        dynamicSongColor.copy(alpha = 0.7f)
-    }
+    // Cohesive, Stable Theme Palette
+    val accentColor = MaterialTheme.colorScheme.primary
+    val secondaryColor = MaterialTheme.colorScheme.secondary
 
     Scaffold(
         topBar = {
@@ -194,7 +184,7 @@ fun NowPlayingScreen(
                                 fontWeight = FontWeight.Bold,
                                 letterSpacing = 2.sp
                             ),
-                            color = MaterialTheme.colorScheme.primary
+                            color = accentColor
                         )
                         Text(
                             text = song.album.ifEmpty { "Audio Library" },
@@ -241,7 +231,7 @@ fun NowPlayingScreen(
                             Icon(
                                 imageVector = Icons.Default.Tune,
                                 contentDescription = "Sound & Effects",
-                                tint = if (eqEnabled || bassStrength > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                tint = if (eqEnabled || bassStrength > 0) accentColor else MaterialTheme.colorScheme.onSurface
                             )
                         }
                     }
@@ -251,7 +241,7 @@ fun NowPlayingScreen(
                         Icon(
                             imageVector = if (isLyricsViewActive) Icons.Filled.Lyrics else Icons.Outlined.Lyrics,
                             contentDescription = "Toggle Lyrics View",
-                            tint = if (isLyricsViewActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = if (isLyricsViewActive) accentColor else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
 
@@ -277,8 +267,8 @@ fun NowPlayingScreen(
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            dynamicSongColor.copy(alpha = 0.18f),
-                            MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
+                            MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
+                            MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.8f),
                             MaterialTheme.colorScheme.surface
                         )
                     )
@@ -329,7 +319,7 @@ fun NowPlayingScreen(
                                 },
                                 onPickFileClick = { fileLauncher.launch("*/*") },
                                 onCreateLyricsClick = onNavigateToLyricsCreator,
-                                accentColor = dynamicSongColor
+                                accentColor = accentColor
                             )
                         } else {
                             // HERO ARTWORK & SONG DETAILS VIEW
@@ -341,7 +331,7 @@ fun NowPlayingScreen(
                                 activeVerseIndex = activeVerseIndex,
                                 onToggleLyrics = { isLyricsViewActive = true },
                                 onToggleFavorite = { viewModel.toggleFavorite(song) },
-                                accentColor = dynamicSongColor
+                                accentColor = accentColor
                             )
                         }
                     }
@@ -388,8 +378,8 @@ fun NowPlayingScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(bottom = 4.dp),
-                            accentColor = dynamicSongColor,
-                            secondaryColor = dynamicSecondaryColor
+                            accentColor = accentColor,
+                            secondaryColor = secondaryColor
                         )
                     }
 
@@ -406,8 +396,8 @@ fun NowPlayingScreen(
                                 viewModel.seekTo(targetMs)
                             },
                             colors = SliderDefaults.colors(
-                                thumbColor = dynamicSongColor,
-                                activeTrackColor = dynamicSongColor,
+                                thumbColor = accentColor,
+                                activeTrackColor = accentColor,
                                 inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
                             ),
                             modifier = Modifier.fillMaxWidth()
@@ -432,7 +422,7 @@ fun NowPlayingScreen(
                                     "-${formatDuration((duration - position).coerceAtLeast(0L))}"
                                 } else {
                                     formatDuration(duration)
-                                },
+                                } ,
                                 style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.clickable { showRemainingTime = !showRemainingTime }
@@ -454,7 +444,7 @@ fun NowPlayingScreen(
                                 Icon(
                                     imageVector = Icons.Default.Shuffle,
                                     contentDescription = "Shuffle",
-                                    tint = if (shuffleMode) dynamicSongColor else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    tint = if (shuffleMode) accentColor else MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.size(24.dp)
                                 )
                                 if (shuffleMode) {
@@ -463,7 +453,7 @@ fun NowPlayingScreen(
                                             .size(4.dp)
                                             .align(Alignment.BottomCenter)
                                             .offset(y = 12.dp)
-                                            .background(dynamicSongColor, CircleShape)
+                                            .background(accentColor, CircleShape)
                                     )
                                 }
                             }
@@ -486,7 +476,7 @@ fun NowPlayingScreen(
                         Surface(
                             onClick = { viewModel.playPause() },
                             shape = CircleShape,
-                            color = dynamicSongColor,
+                            color = accentColor,
                             shadowElevation = 8.dp,
                             modifier = Modifier.size(72.dp)
                         ) {
@@ -502,7 +492,7 @@ fun NowPlayingScreen(
                                 Icon(
                                     imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                                     contentDescription = if (isPlaying) "Pause" else "Play",
-                                    tint = Color.White,
+                                    tint = MaterialTheme.colorScheme.onPrimary,
                                     modifier = Modifier
                                         .size(38.dp)
                                         .graphicsLayer {
@@ -545,7 +535,7 @@ fun NowPlayingScreen(
                                 Icon(
                                     imageVector = icon,
                                     contentDescription = "Repeat Mode",
-                                    tint = if (repeatMode != Player.REPEAT_MODE_OFF) dynamicSongColor else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    tint = if (repeatMode != Player.REPEAT_MODE_OFF) accentColor else MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.size(24.dp)
                                 )
                                 if (repeatMode != Player.REPEAT_MODE_OFF) {
@@ -554,7 +544,7 @@ fun NowPlayingScreen(
                                             .size(4.dp)
                                             .align(Alignment.BottomCenter)
                                             .offset(y = 12.dp)
-                                            .background(dynamicSongColor, CircleShape)
+                                            .background(accentColor, CircleShape)
                                     )
                                 }
                             }
@@ -572,7 +562,7 @@ fun NowPlayingScreen(
                             onClick = { isLyricsViewActive = !isLyricsViewActive },
                             shape = RoundedCornerShape(14.dp),
                             colors = ButtonDefaults.filledTonalButtonColors(
-                                containerColor = if (isLyricsViewActive) dynamicSongColor.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surfaceContainerHigh
+                                containerColor = if (isLyricsViewActive) accentColor.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceContainerHigh
                             ),
                             modifier = Modifier.weight(1f)
                         ) {
@@ -580,12 +570,12 @@ fun NowPlayingScreen(
                                 imageVector = if (isLyricsViewActive) Icons.Filled.Lyrics else Icons.Outlined.Lyrics,
                                 contentDescription = null,
                                 modifier = Modifier.size(18.dp),
-                                tint = if (isLyricsViewActive) dynamicSongColor else MaterialTheme.colorScheme.onSurface
+                                tint = if (isLyricsViewActive) accentColor else MaterialTheme.colorScheme.onSurface
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 "Lyrics",
-                                color = if (isLyricsViewActive) dynamicSongColor else MaterialTheme.colorScheme.onSurface,
+                                color = if (isLyricsViewActive) accentColor else MaterialTheme.colorScheme.onSurface,
                                 fontWeight = if (isLyricsViewActive) FontWeight.Bold else FontWeight.Normal
                             )
                         }
@@ -604,7 +594,7 @@ fun NowPlayingScreen(
                             onClick = { showTimerDialog = true },
                             shape = RoundedCornerShape(14.dp),
                             colors = ButtonDefaults.filledTonalButtonColors(
-                                containerColor = if (sleepTimerLeft > 0) dynamicSongColor.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surfaceContainerHigh
+                                containerColor = if (sleepTimerLeft > 0) accentColor.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceContainerHigh
                             ),
                             modifier = Modifier.weight(1f)
                         ) {
@@ -612,7 +602,7 @@ fun NowPlayingScreen(
                                 Icons.Default.Timer,
                                 contentDescription = null,
                                 modifier = Modifier.size(18.dp),
-                                tint = if (sleepTimerLeft > 0) dynamicSongColor else MaterialTheme.colorScheme.onSurface
+                                tint = if (sleepTimerLeft > 0) accentColor else MaterialTheme.colorScheme.onSurface
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text("Timer")
@@ -685,7 +675,7 @@ fun NowPlayingScreen(
                             val isCurrent = queueSong.id == song.id
                             Surface(
                                 shape = RoundedCornerShape(12.dp),
-                                color = if (isCurrent) dynamicSongColor.copy(alpha = 0.15f) else Color.Transparent,
+                                color = if (isCurrent) accentColor.copy(alpha = 0.15f) else Color.Transparent,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable {
@@ -702,7 +692,7 @@ fun NowPlayingScreen(
                                     Text(
                                         text = "${index + 1}",
                                         style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
-                                        color = if (isCurrent) dynamicSongColor else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        color = if (isCurrent) accentColor else MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier.width(28.dp)
                                     )
 
@@ -712,7 +702,7 @@ fun NowPlayingScreen(
                                             style = MaterialTheme.typography.bodyMedium.copy(
                                                 fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal
                                             ),
-                                            color = if (isCurrent) dynamicSongColor else MaterialTheme.colorScheme.onSurface,
+                                            color = if (isCurrent) accentColor else MaterialTheme.colorScheme.onSurface,
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis
                                         )
@@ -729,7 +719,7 @@ fun NowPlayingScreen(
                                         Icon(
                                             imageVector = Icons.Default.GraphicEq,
                                             contentDescription = "Playing",
-                                            tint = dynamicSongColor,
+                                            tint = accentColor,
                                             modifier = Modifier.size(20.dp)
                                         )
                                     } else {
@@ -1080,13 +1070,13 @@ fun NowPlayingScreen(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text("Playback Speed", style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold))
-                    Text("${String.format(Locale.US, "%.2f", speed)}x", style = MaterialTheme.typography.bodyMedium.copy(color = dynamicSongColor, fontWeight = FontWeight.Bold))
+                    Text("${String.format(Locale.US, "%.2f", speed)}x", style = MaterialTheme.typography.bodyMedium.copy(color = accentColor, fontWeight = FontWeight.Bold))
                 }
                 Slider(
                     value = speed,
                     valueRange = 0.5f..2.0f,
                     onValueChange = { viewModel.setPlaybackRate(it, pitch) },
-                    colors = SliderDefaults.colors(thumbColor = dynamicSongColor, activeTrackColor = dynamicSongColor)
+                    colors = SliderDefaults.colors(thumbColor = accentColor, activeTrackColor = accentColor)
                 )
 
                 // Quick speed presets
@@ -1112,13 +1102,13 @@ fun NowPlayingScreen(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text("Audio Pitch", style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold))
-                    Text("${String.format(Locale.US, "%.2f", pitch)}x", style = MaterialTheme.typography.bodyMedium.copy(color = dynamicSongColor, fontWeight = FontWeight.Bold))
+                    Text("${String.format(Locale.US, "%.2f", pitch)}x", style = MaterialTheme.typography.bodyMedium.copy(color = accentColor, fontWeight = FontWeight.Bold))
                 }
                 Slider(
                     value = pitch,
                     valueRange = 0.5f..1.5f,
                     onValueChange = { viewModel.setPlaybackRate(speed, it) },
-                    colors = SliderDefaults.colors(thumbColor = dynamicSongColor, activeTrackColor = dynamicSongColor)
+                    colors = SliderDefaults.colors(thumbColor = accentColor, activeTrackColor = accentColor)
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -1161,14 +1151,14 @@ fun NowPlayingScreen(
                     Text("Bass Boost", style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold))
                     Text(
                         if (bassStrength > 0) "${bassStrength / 10}%" else "Off",
-                        style = MaterialTheme.typography.bodyMedium.copy(color = dynamicSongColor, fontWeight = FontWeight.Bold)
+                        style = MaterialTheme.typography.bodyMedium.copy(color = accentColor, fontWeight = FontWeight.Bold)
                     )
                 }
                 Slider(
                     value = bassStrength.toFloat(),
                     valueRange = 0f..1000f,
                     onValueChange = { viewModel.setBassBoost(it.toInt()) },
-                    colors = SliderDefaults.colors(thumbColor = dynamicSongColor, activeTrackColor = dynamicSongColor)
+                    colors = SliderDefaults.colors(thumbColor = accentColor, activeTrackColor = accentColor)
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -1276,8 +1266,11 @@ private fun ArtworkMainStage(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
-                SongImagePlaceholder(
+                ArtworkThumbnail(
+                    songId = song.id,
                     title = song.title,
+                    artist = song.artist,
+                    genre = song.genre,
                     modifier = Modifier.fillMaxSize(),
                     size = 280f
                 )
