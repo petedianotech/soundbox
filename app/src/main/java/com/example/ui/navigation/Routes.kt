@@ -12,6 +12,7 @@ object Routes {
     const val PLAYLISTS = "playlists"
     const val SETTINGS = "settings"
     const val SEARCH = "search"
+    const val EQUALIZER = "equalizer"
     const val ABOUT = "about"
     const val LYRICS_CREATOR = "lyrics_creator"
 }

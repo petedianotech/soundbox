@@ -5,6 +5,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.ui.screens.about.AboutScreen
+import com.example.ui.screens.equalizer.PowerampEqualizerScreen
 import com.example.ui.screens.home.HomeScreen
 import com.example.ui.screens.nowplaying.NowPlayingScreen
 import com.example.ui.screens.search.SearchScreen
@@ -32,14 +34,22 @@ fun SoundboxNavGraph(viewModel: MusicViewModel) {
                 viewModel = viewModel,
                 onNavigateToSearch = { navController.navigate(Routes.SEARCH) },
                 onNavigateToSettings = { navController.navigate(Routes.SETTINGS) },
-                onNavigateToNowPlaying = { navController.navigate(Routes.NOW_PLAYING) }
+                onNavigateToNowPlaying = { navController.navigate(Routes.NOW_PLAYING) },
+                onNavigateToEqualizer = { navController.navigate(Routes.EQUALIZER) }
             )
         }
         composable(Routes.NOW_PLAYING) {
             NowPlayingScreen(
                 viewModel = viewModel,
                 onBackClick = { navController.popBackStack() },
-                onNavigateToLyricsCreator = { navController.navigate(Routes.LYRICS_CREATOR) }
+                onNavigateToLyricsCreator = { navController.navigate(Routes.LYRICS_CREATOR) },
+                onNavigateToEqualizer = { navController.navigate(Routes.EQUALIZER) }
+            )
+        }
+        composable(Routes.EQUALIZER) {
+            PowerampEqualizerScreen(
+                viewModel = viewModel,
+                onNavigateBack = { navController.popBackStack() }
             )
         }
         composable(Routes.LYRICS_CREATOR) {
@@ -63,7 +73,7 @@ fun SoundboxNavGraph(viewModel: MusicViewModel) {
             )
         }
         composable(Routes.ABOUT) {
-            com.example.ui.screens.about.AboutScreen(
+            AboutScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }

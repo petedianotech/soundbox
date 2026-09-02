@@ -8,6 +8,8 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
 import android.media.audiofx.BassBoost
 import android.media.audiofx.Equalizer
+import android.media.audiofx.PresetReverb
+import android.media.audiofx.Virtualizer
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -45,6 +47,8 @@ class PlaybackManager private constructor(private val context: Context) {
     // Sound FX
     private var equalizer: Equalizer? = null
     private var bassBoost: BassBoost? = null
+    private var virtualizer: Virtualizer? = null
+    private var presetReverb: PresetReverb? = null
 
     // Exposed Flows
     private val _currentSong = MutableStateFlow<Song?>(null)
@@ -77,11 +81,34 @@ class PlaybackManager private constructor(private val context: Context) {
     private val _sleepTimerMillis = MutableStateFlow(0L)
     val sleepTimerMillis: StateFlow<Long> = _sleepTimerMillis.asStateFlow()
 
-    private val _equalizerEnabled = MutableStateFlow(false)
+    private val _equalizerEnabled = MutableStateFlow(true)
     val equalizerEnabled: StateFlow<Boolean> = _equalizerEnabled.asStateFlow()
 
-    private val _bassBoostStrength = MutableStateFlow(0) // 0 to 1000 millibels
+    // Poweramp 10-Band EQ Gains in dB (-15dB to +15dB)
+    // Bands: 31Hz, 62Hz, 125Hz, 250Hz, 500Hz, 1kHz, 2kHz, 4kHz, 8kHz, 16kHz
+    private val _eqBandLevels = MutableStateFlow(listOf(0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f))
+    val eqBandLevels: StateFlow<List<Float>> = _eqBandLevels.asStateFlow()
+
+    private val _preampGain = MutableStateFlow(0f) // -15dB to +15dB
+    val preampGain: StateFlow<Float> = _preampGain.asStateFlow()
+
+    private val _bassBoostStrength = MutableStateFlow(300) // 0 to 1000 millibels (30%)
     val bassBoostStrength: StateFlow<Int> = _bassBoostStrength.asStateFlow()
+
+    private val _trebleGain = MutableStateFlow(0f) // -15dB to +15dB
+    val trebleGain: StateFlow<Float> = _trebleGain.asStateFlow()
+
+    private val _virtualizerStrength = MutableStateFlow(0) // 0 to 1000 millibels (Stereo Expansion)
+    val virtualizerStrength: StateFlow<Int> = _virtualizerStrength.asStateFlow()
+
+    private val _audioBalance = MutableStateFlow(0f) // -1f (Left) to +1f (Right)
+    val audioBalance: StateFlow<Float> = _audioBalance.asStateFlow()
+
+    private val _reverbPreset = MutableStateFlow(PresetReverb.PRESET_NONE.toInt())
+    val reverbPreset: StateFlow<Int> = _reverbPreset.asStateFlow()
+
+    private val _currentPresetName = MutableStateFlow("Flat")
+    val currentPresetName: StateFlow<String> = _currentPresetName.asStateFlow()
 
     private val _audioSessionId = MutableStateFlow(player.audioSessionId)
     val audioSessionId: StateFlow<Int> = _audioSessionId.asStateFlow()
@@ -179,9 +206,51 @@ class PlaybackManager private constructor(private val context: Context) {
                     setStrength(_bassBoostStrength.value.toShort())
                 }
             }
-            Log.d("PlaybackManager", "Audio effects successfully initialized on session $audioSessionId")
+            virtualizer = Virtualizer(0, audioSessionId).apply {
+                enabled = _virtualizerStrength.value > 0
+                if (enabled) {
+                    setStrength(_virtualizerStrength.value.toShort())
+                }
+            }
+            presetReverb = PresetReverb(0, audioSessionId).apply {
+                enabled = _reverbPreset.value != PresetReverb.PRESET_NONE.toInt()
+                if (enabled) {
+                    preset = _reverbPreset.value.toShort()
+                }
+            }
+            applyHardwareEqualizerBands()
+            Log.d("PlaybackManager", "Poweramp Audio DSP Engine initialized on session $audioSessionId")
         } catch (e: Exception) {
-            Log.e("PlaybackManager", "Equalizer/BassBoost activation skipped: ${e.message}")
+            Log.e("PlaybackManager", "Audio effects activation skipped: ${e.message}")
+        }
+    }
+
+    private fun applyHardwareEqualizerBands() {
+        val eq = equalizer ?: return
+        try {
+            val numBands = eq.numberOfBands.toInt()
+            val currentGains = _eqBandLevels.value
+            val preamp = _preampGain.value
+            val treble = _trebleGain.value
+
+            val minLevel = eq.bandLevelRange?.get(0)?.toInt() ?: -1500
+            val maxLevel = eq.bandLevelRange?.get(1)?.toInt() ?: 1500
+
+            for (i in 0 until numBands) {
+                // Map 10-band profile into hardware bands
+                val profileIdx = ((i.toFloat() / (numBands - 1).coerceAtLeast(1)) * (currentGains.size - 1)).toInt()
+                var gainDb = currentGains.getOrElse(profileIdx) { 0f } + preamp
+
+                // Apply treble boost to top 30% of bands
+                if (i >= numBands * 0.7f) {
+                    gainDb += treble
+                }
+
+                val millibels = (gainDb * 100f).toInt().coerceIn(minLevel, maxLevel)
+                eq.setBandLevel(i.toShort(), millibels.toShort())
+            }
+        } catch (e: Exception) {
+            Log.w("PlaybackManager", "Error applying EQ band gains: ${e.message}")
         }
     }
 
@@ -358,23 +427,114 @@ class PlaybackManager private constructor(private val context: Context) {
         _equalizerEnabled.value = nextState
         try {
             equalizer?.enabled = nextState
+            if (nextState) {
+                applyHardwareEqualizerBands()
+            }
         } catch (e: Exception) {
             Log.w("PlaybackManager", "Error toggling equalizer: ${e.message}")
         }
     }
 
+    fun setEqBandLevel(bandIndex: Int, levelDb: Float) {
+        val current = _eqBandLevels.value.toMutableList()
+        if (bandIndex in current.indices) {
+            current[bandIndex] = levelDb.coerceIn(-15f, 15f)
+            _eqBandLevels.value = current
+            _currentPresetName.value = "Custom"
+            applyHardwareEqualizerBands()
+        }
+    }
+
+    fun setPreampGain(gainDb: Float) {
+        _preampGain.value = gainDb.coerceIn(-15f, 15f)
+        applyHardwareEqualizerBands()
+    }
+
+    fun setTrebleGain(gainDb: Float) {
+        _trebleGain.value = gainDb.coerceIn(-15f, 15f)
+        applyHardwareEqualizerBands()
+    }
+
     fun setBassBoost(strength: Int) { // 0 to 1000
-        _bassBoostStrength.value = strength
+        val clamped = strength.coerceIn(0, 1000)
+        _bassBoostStrength.value = clamped
         try {
             bassBoost?.let { boost ->
-                boost.enabled = strength > 0
-                if (strength > 0) {
-                    boost.setStrength(strength.toShort())
+                boost.enabled = clamped > 0
+                if (clamped > 0) {
+                    boost.setStrength(clamped.toShort())
                 }
             }
         } catch (e: Exception) {
             Log.w("PlaybackManager", "Error setting bass boost strength: ${e.message}")
         }
+    }
+
+    fun setVirtualizerStrength(strength: Int) { // 0 to 1000
+        val clamped = strength.coerceIn(0, 1000)
+        _virtualizerStrength.value = clamped
+        try {
+            virtualizer?.let { virt ->
+                virt.enabled = clamped > 0
+                if (clamped > 0) {
+                    virt.setStrength(clamped.toShort())
+                }
+            }
+        } catch (e: Exception) {
+            Log.w("PlaybackManager", "Error setting virtualizer strength: ${e.message}")
+        }
+    }
+
+    fun setAudioBalance(balance: Float) { // -1.0f (Full Left) to +1.0f (Full Right)
+        val clamped = balance.coerceIn(-1f, 1f)
+        _audioBalance.value = clamped
+        // ExoPlayer stereo balance volume emulation
+        val leftVol = if (clamped > 0f) 1f - clamped else 1f
+        val rightVol = if (clamped < 0f) 1f + clamped else 1f
+        val avgVol = (leftVol + rightVol) / 2f
+        player.volume = avgVol
+    }
+
+    fun setReverbPreset(presetId: Int) {
+        _reverbPreset.value = presetId
+        try {
+            presetReverb?.let { reverb ->
+                reverb.enabled = presetId != PresetReverb.PRESET_NONE.toInt()
+                if (reverb.enabled) {
+                    reverb.preset = presetId.toShort()
+                }
+            }
+        } catch (e: Exception) {
+            Log.w("PlaybackManager", "Error setting reverb preset: ${e.message}")
+        }
+    }
+
+    fun applyPowerampPreset(
+        presetName: String,
+        bandGains: List<Float>,
+        bassBoost: Int = 300,
+        treble: Float = 0f,
+        virtualizer: Int = 0,
+        reverb: Int = PresetReverb.PRESET_NONE.toInt()
+    ) {
+        _currentPresetName.value = presetName
+        _eqBandLevels.value = bandGains
+        setBassBoost(bassBoost)
+        setTrebleGain(treble)
+        setVirtualizerStrength(virtualizer)
+        setReverbPreset(reverb)
+        applyHardwareEqualizerBands()
+    }
+
+    fun resetEqualizerToFlat() {
+        applyPowerampPreset(
+            presetName = "Flat",
+            bandGains = listOf(0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f),
+            bassBoost = 0,
+            treble = 0f,
+            virtualizer = 0,
+            reverb = PresetReverb.PRESET_NONE.toInt()
+        )
     }
 
     fun startSleepTimer(minutes: Int) {

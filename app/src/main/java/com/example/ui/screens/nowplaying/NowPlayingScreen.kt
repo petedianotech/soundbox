@@ -54,6 +54,12 @@ import com.example.ui.components.EmptyPlaceholder
 import com.example.ui.components.RealtimeAudioVisualizer
 import com.example.ui.components.SongImagePlaceholder
 import com.example.ui.components.TrackRow
+import com.example.ui.components.poweramp.PowerampHiResBanner
+import com.example.ui.components.poweramp.PowerampRotaryKnob
+import com.example.ui.components.poweramp.PowerampWaveformBar
+import com.example.ui.theme.Poweramp_Amber
+import com.example.ui.theme.Poweramp_Cyan
+import com.example.ui.theme.Poweramp_Lime
 import com.example.ui.viewmodel.MusicViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -65,7 +71,8 @@ import java.util.Locale
 fun NowPlayingScreen(
     viewModel: MusicViewModel,
     onBackClick: () -> Unit,
-    onNavigateToLyricsCreator: () -> Unit
+    onNavigateToLyricsCreator: () -> Unit,
+    onNavigateToEqualizer: () -> Unit = {}
 ) {
     val currentSong by viewModel.currentSong.collectAsState()
     val isPlaying by viewModel.isPlaying.collectAsState()
@@ -222,16 +229,16 @@ fun NowPlayingScreen(
                     }
 
                     // Equalizer & Audio Effects
-                    IconButton(onClick = { showEffectsSheet = true }) {
+                    IconButton(onClick = onNavigateToEqualizer) {
                         BadgedBox(badge = {
                             if (eqEnabled || bassStrength > 0 || speed != 1.0f) {
-                                Badge { Text("FX") }
+                                Badge(containerColor = Poweramp_Lime) { Text("DSP", color = Color.Black) }
                             }
                         }) {
                             Icon(
-                                imageVector = Icons.Default.Tune,
-                                contentDescription = "Sound & Effects",
-                                tint = if (eqEnabled || bassStrength > 0) accentColor else MaterialTheme.colorScheme.onSurface
+                                imageVector = Icons.Default.Equalizer,
+                                contentDescription = "Equalizer & DSP",
+                                tint = if (eqEnabled || bassStrength > 0) Poweramp_Cyan else MaterialTheme.colorScheme.onSurface
                             )
                         }
                     }
@@ -267,15 +274,24 @@ fun NowPlayingScreen(
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
-                            MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.8f),
-                            MaterialTheme.colorScheme.surface
+                            Color(0xFF0F1722),
+                            Color(0xFF090D14),
+                            Color(0xFF040608)
                         )
                     )
                 )
                 .padding(innerPadding)
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
+                // Poweramp Hi-Res Spec Banner
+                PowerampHiResBanner(
+                    song = song,
+                    equalizerEnabled = eqEnabled,
+                    bassBoostActive = bassStrength > 0,
+                    onOpenDsp = onNavigateToEqualizer,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp)
+                )
+
                 // Main Upper Stage (Center Content: Artwork vs Lyrics View)
                 Box(
                     modifier = Modifier
@@ -383,25 +399,25 @@ fun NowPlayingScreen(
                         )
                     }
 
-                    // Progress Slider
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        val sliderRatio = if (duration > 0) {
-                            (position.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
-                        } else 0f
-
-                        Slider(
-                            value = sliderRatio,
-                            onValueChange = { targetRatio ->
-                                val targetMs = (targetRatio * duration).toLong()
-                                viewModel.seekTo(targetMs)
-                            },
-                            colors = SliderDefaults.colors(
-                                thumbColor = accentColor,
-                                activeTrackColor = accentColor,
-                                inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
-                            ),
-                            modifier = Modifier.fillMaxWidth()
+                    // Poweramp Pro-Audio Interactive Waveform Seekbar
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp)
+                    ) {
+                        PowerampWaveformBar(
+                            currentPosition = position,
+                            duration = duration,
+                            isPlaying = isPlaying,
+                            onSeek = { targetMs -> viewModel.seekTo(targetMs) },
+                            accentColor = Color(0xFF00E5FF),
+                            seedKey = song.id.toString(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(46.dp)
                         )
+
+                        Spacer(modifier = Modifier.height(4.dp))
 
                         Row(
                             modifier = Modifier
@@ -412,8 +428,12 @@ fun NowPlayingScreen(
                         ) {
                             Text(
                                 text = formatDuration(position),
-                                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Monospace,
+                                    letterSpacing = 0.5.sp
+                                ),
+                                color = Color(0xFF00E5FF)
                             )
 
                             // Tap to switch between total duration and remaining duration
@@ -422,12 +442,92 @@ fun NowPlayingScreen(
                                     "-${formatDuration((duration - position).coerceAtLeast(0L))}"
                                 } else {
                                     formatDuration(duration)
-                                } ,
-                                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                },
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Monospace,
+                                    letterSpacing = 0.5.sp
+                                ),
+                                color = Color(0xFF8A99AD),
                                 modifier = Modifier.clickable { showRemainingTime = !showRemainingTime }
                             )
                         }
+                    }
+
+                    // Poweramp Quick Tone Rotaries (Bass Boost, Speed, Equalizer quick launch)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        PowerampRotaryKnob(
+                            value = bassStrength.toFloat(),
+                            valueRange = 0f..1000f,
+                            label = "BASS",
+                            displayValue = "${(bassStrength / 10)}%",
+                            knobSize = 48.dp,
+                            accentColor = Poweramp_Cyan,
+                            onValueChange = { viewModel.setBassBoostStrength(it.toInt()) }
+                        )
+
+                        // Equalizer Quick Button with LED indicator
+                        Surface(
+                            onClick = onNavigateToEqualizer,
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color(0xFF111722),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                if (eqEnabled) Color(0xFF00E5FF).copy(alpha = 0.6f) else Color(0xFF222F42)
+                            ),
+                            modifier = Modifier.padding(horizontal = 4.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(7.dp)
+                                            .clip(CircleShape)
+                                            .background(if (eqEnabled) Poweramp_Lime else Color(0xFF424242))
+                                    )
+                                    Text(
+                                        text = "EQUALIZER",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontWeight = FontWeight.Black,
+                                            letterSpacing = 1.sp,
+                                            fontSize = 9.sp
+                                        ),
+                                        color = if (eqEnabled) Color.White else Color(0xFF8A99AD)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = if (eqEnabled) "10-BAND ACTIVE" else "BYPASSED",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontSize = 8.sp,
+                                        fontFamily = FontFamily.Monospace
+                                    ),
+                                    color = if (eqEnabled) Poweramp_Cyan else Color(0xFF5A697D)
+                                )
+                            }
+                        }
+
+                        PowerampRotaryKnob(
+                            value = speed,
+                            valueRange = 0.5f..2.0f,
+                            label = "TEMPO",
+                            displayValue = String.format(Locale.getDefault(), "%.2fx", speed),
+                            knobSize = 48.dp,
+                            accentColor = Poweramp_Amber,
+                            onValueChange = { viewModel.setPlaybackSpeed(it) }
+                        )
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))

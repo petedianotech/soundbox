@@ -117,9 +117,9 @@ fun TrackRow(
 ) {
     Surface(
         color = if (isSelected) {
-            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+            Color(0xFF00E5FF).copy(alpha = 0.18f)
         } else if (isPlaying) {
-            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f)
+            Color(0xFF142436)
         } else {
             Color.Transparent
         },
@@ -133,7 +133,7 @@ fun TrackRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 10.dp),
+                .padding(horizontal = 16.dp, vertical = 9.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             ArtworkThumbnail(
@@ -144,38 +144,62 @@ fun TrackRow(
                 size = 48f
             )
 
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(14.dp))
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = song.title,
                     style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = if (isPlaying) FontWeight.Bold else FontWeight.SemiBold
+                        fontWeight = if (isPlaying) FontWeight.Black else FontWeight.Bold,
+                        letterSpacing = 0.3.sp
                     ),
-                    color = if (isPlaying) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                    color = if (isPlaying) Color(0xFF00E5FF) else MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
                 Spacer(modifier = Modifier.height(2.dp))
-                val subtitleText = if (!extraInfo.isNullOrEmpty()) {
-                    "${song.artist} • $extraInfo"
-                } else {
-                    "${song.artist} • ${song.album}"
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    if (isPlaying) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(3.dp))
+                                .background(Color(0xFF00E5FF))
+                                .padding(horizontal = 4.dp, vertical = 1.dp)
+                        ) {
+                            Text(
+                                text = "PLAYING",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 7.sp,
+                                    letterSpacing = 0.5.sp
+                                ),
+                                color = Color.Black
+                            )
+                        }
+                    }
+                    val subtitleText = if (!extraInfo.isNullOrEmpty()) {
+                        "${song.artist} • $extraInfo"
+                    } else {
+                        "${song.artist} • ${song.album}"
+                    }
+                    Text(
+                        text = subtitleText,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF8A99AD),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
-                Text(
-                    text = subtitleText,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
             }
 
             IconButton(onClick = onFavoriteToggle) {
                 Icon(
                     imageVector = if (song.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                     contentDescription = if (song.isFavorite) "Remove from favorites" else "Add to favorites",
-                    tint = if (song.isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    tint = if (song.isFavorite) Color(0xFFFF5252) else Color(0xFF67778D),
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -184,7 +208,7 @@ fun TrackRow(
                 Icon(
                     imageVector = Icons.Default.MoreVert,
                     contentDescription = "Song options",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    tint = Color(0xFF67778D)
                 )
             }
         }
@@ -214,9 +238,10 @@ fun MiniPlayer(
                     .fillMaxWidth()
                     .clickable { onOpenNowPlaying() },
                 shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                color = Color(0xFF0F1521),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1F2B3E)),
                 tonalElevation = 8.dp,
-                shadowElevation = 8.dp
+                shadowElevation = 12.dp
             ) {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     if (progress in 0f..1f) {
@@ -224,16 +249,16 @@ fun MiniPlayer(
                             progress = { progress },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(3.dp),
-                            color = MaterialTheme.colorScheme.primary,
-                            trackColor = MaterialTheme.colorScheme.surfaceVariant
+                                .height(2.5.dp),
+                            color = Color(0xFF00E5FF),
+                            trackColor = Color(0xFF141D2B)
                         )
                     }
 
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                            .padding(horizontal = 14.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         ArtworkThumbnail(
@@ -241,7 +266,7 @@ fun MiniPlayer(
                             title = song.title,
                             artist = song.artist,
                             genre = song.genre,
-                            size = 44f,
+                            size = 46f,
                             isCircle = false
                         )
 
@@ -251,17 +276,21 @@ fun MiniPlayer(
                             Text(
                                 text = song.title,
                                 style = MaterialTheme.typography.bodyMedium.copy(
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.Black,
+                                    letterSpacing = 0.3.sp
                                 ),
-                                color = MaterialTheme.colorScheme.onSurface,
+                                color = Color.White,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = song.artist,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                text = "${song.artist} • ${if (song.path.endsWith(".flac")) "FLAC 24-bit" else "320 kbps"}",
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    fontSize = 11.sp,
+                                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                                ),
+                                color = Color(0xFF00E5FF).copy(alpha = 0.85f),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -272,8 +301,8 @@ fun MiniPlayer(
                         FilledIconButton(
                             onClick = onPlayPause,
                             colors = IconButtonDefaults.filledIconButtonColors(
-                                containerColor = MaterialTheme.colorScheme.primary,
-                                contentColor = MaterialTheme.colorScheme.onPrimary
+                                containerColor = Color(0xFF00E5FF),
+                                contentColor = Color.Black
                             ),
                             modifier = Modifier.size(40.dp)
                         ) {
@@ -293,7 +322,7 @@ fun MiniPlayer(
                             Icon(
                                 imageVector = Icons.Default.SkipNext,
                                 contentDescription = "Next Song",
-                                tint = MaterialTheme.colorScheme.onSurface
+                                tint = Color.White
                             )
                         }
                     }

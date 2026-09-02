@@ -50,7 +50,14 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     val queue: StateFlow<List<Song>> = playbackManager.queue
     val sleepTimerMillis: StateFlow<Long> = playbackManager.sleepTimerMillis
     val equalizerEnabled: StateFlow<Boolean> = playbackManager.equalizerEnabled
+    val eqBandLevels: StateFlow<List<Float>> = playbackManager.eqBandLevels
+    val preampGain: StateFlow<Float> = playbackManager.preampGain
     val bassBoostStrength: StateFlow<Int> = playbackManager.bassBoostStrength
+    val trebleGain: StateFlow<Float> = playbackManager.trebleGain
+    val virtualizerStrength: StateFlow<Int> = playbackManager.virtualizerStrength
+    val audioBalance: StateFlow<Float> = playbackManager.audioBalance
+    val reverbPreset: StateFlow<Int> = playbackManager.reverbPreset
+    val currentPresetName: StateFlow<String> = playbackManager.currentPresetName
     val audioSessionId: StateFlow<Int> = playbackManager.audioSessionId
 
     // Scanning states
@@ -295,9 +302,27 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     fun setShuffleMode(enabled: Boolean) = playbackManager.setShuffleMode(enabled)
     fun setRepeatMode(mode: Int) = playbackManager.setRepeatMode(mode)
     fun setPlaybackRate(speed: Float, pitch: Float) = playbackManager.setPlaybackRate(speed, pitch)
+    fun setPlaybackSpeed(speed: Float) = playbackManager.setPlaybackRate(speed, playbackPitch.value)
     
     fun toggleEqualizer() = playbackManager.toggleEqualizer()
+    fun setEqBandLevel(bandIndex: Int, levelDb: Float) = playbackManager.setEqBandLevel(bandIndex, levelDb)
+    fun setPreampGain(gainDb: Float) = playbackManager.setPreampGain(gainDb)
+    fun setTrebleGain(gainDb: Float) = playbackManager.setTrebleGain(gainDb)
     fun setBassBoost(strength: Int) = playbackManager.setBassBoost(strength)
+    fun setBassBoostStrength(strength: Int) = playbackManager.setBassBoost(strength)
+    fun setVirtualizerStrength(strength: Int) = playbackManager.setVirtualizerStrength(strength)
+    fun setAudioBalance(balance: Float) = playbackManager.setAudioBalance(balance)
+    fun setReverbPreset(presetId: Int) = playbackManager.setReverbPreset(presetId)
+    fun applyPowerampPreset(
+        presetName: String,
+        bandGains: List<Float>,
+        bassBoost: Int = 300,
+        treble: Float = 0f,
+        virtualizer: Int = 0,
+        reverb: Int = 0
+    ) = playbackManager.applyPowerampPreset(presetName, bandGains, bassBoost, treble, virtualizer, reverb)
+    fun resetEqualizerToFlat() = playbackManager.resetEqualizerToFlat()
+
     fun startSleepTimer(minutes: Int) = playbackManager.startSleepTimer(minutes)
     fun stopSleepTimer() = playbackManager.stopSleepTimer()
 

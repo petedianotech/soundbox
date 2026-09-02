@@ -1,21 +1,24 @@
 package com.example.ui.screens.home
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Album
-import androidx.compose.material.icons.filled.Category
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.PlaylistPlay
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.ui.components.MiniPlayer
 import com.example.ui.screens.albums.AlbumsScreen
 import com.example.ui.screens.artists.ArtistsScreen
@@ -23,6 +26,9 @@ import com.example.ui.screens.folders.FoldersScreen
 import com.example.ui.screens.genres.GenresScreen
 import com.example.ui.screens.playlists.PlaylistsScreen
 import com.example.ui.screens.songs.SongsScreen
+import com.example.ui.theme.Poweramp_Amber
+import com.example.ui.theme.Poweramp_Cyan
+import com.example.ui.theme.Poweramp_Lime
 import com.example.ui.viewmodel.MusicViewModel
 
 enum class HomeTab(val title: String, val icon: ImageVector) {
@@ -40,13 +46,16 @@ fun HomeScreen(
     viewModel: MusicViewModel,
     onNavigateToSearch: () -> Unit,
     onNavigateToSettings: () -> Unit,
-    onNavigateToNowPlaying: () -> Unit
+    onNavigateToNowPlaying: () -> Unit,
+    onNavigateToEqualizer: () -> Unit = {}
 ) {
     var selectedTab by remember { mutableStateOf(HomeTab.SONGS) }
     val currentSong by viewModel.currentSong.collectAsState()
     val isPlaying by viewModel.isPlaying.collectAsState()
     val currentPosition by viewModel.currentPosition.collectAsState()
     val duration by viewModel.duration.collectAsState()
+    val equalizerEnabled by viewModel.equalizerEnabled.collectAsState()
+
     val progress = remember(currentPosition, duration) {
         if (duration > 0) (currentPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f) else 0f
     }
@@ -67,28 +76,76 @@ fun HomeScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        text = "Soundbox",
-                        style = MaterialTheme.typography.titleLarge
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "POWERAMP",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Black,
+                                letterSpacing = 2.sp,
+                                fontFamily = FontFamily.Monospace
+                            ),
+                            color = Poweramp_Cyan
+                        )
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(
+                                    Brush.horizontalGradient(
+                                        listOf(Poweramp_Amber, Color(0xFFFF6D00))
+                                    )
+                                )
+                                .padding(horizontal = 4.dp, vertical = 1.5.dp)
+                        ) {
+                            Text(
+                                text = "DSP HD",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 7.5.sp,
+                                    fontFamily = FontFamily.Monospace
+                                ),
+                                color = Color.Black
+                            )
+                        }
+                    }
                 },
                 actions = {
+                    // Poweramp Equalizer quick launch with live LED
+                    IconButton(onClick = onNavigateToEqualizer) {
+                        Box(contentAlignment = Alignment.TopEnd) {
+                            Icon(
+                                Icons.Default.Equalizer,
+                                contentDescription = "Equalizer & DSP",
+                                tint = if (equalizerEnabled) Poweramp_Cyan else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            if (equalizerEnabled) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .clip(CircleShape)
+                                        .background(Poweramp_Lime)
+                                )
+                            }
+                        }
+                    }
                     IconButton(onClick = onNavigateToSearch) {
-                        Icon(Icons.Default.Search, contentDescription = "Search songs")
+                        Icon(Icons.Default.Search, contentDescription = "Search songs", tint = MaterialTheme.colorScheme.onSurface)
                     }
                     IconButton(onClick = onNavigateToSettings) {
-                        Icon(Icons.Default.Settings, contentDescription = "Settings")
+                        Icon(Icons.Default.Settings, contentDescription = "Settings", tint = MaterialTheme.colorScheme.onSurface)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+                    containerColor = Color(0xFF080B10)
                 )
             )
         },
         bottomBar = {
             NavigationBar(
-                containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                tonalElevation = 3.dp
+                containerColor = Color(0xFF0D121B),
+                tonalElevation = 6.dp
             ) {
                 visibleTabs.forEach { tab ->
                     val selected = selectedTab == tab
@@ -103,16 +160,20 @@ fun HomeScreen(
                         },
                         label = {
                             Text(
-                                text = tab.title,
-                                style = MaterialTheme.typography.labelMedium
+                                text = tab.title.uppercase(),
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = if (selected) FontWeight.Black else FontWeight.Medium,
+                                    letterSpacing = 0.5.sp,
+                                    fontFamily = FontFamily.Monospace
+                                )
                             )
                         },
                         colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                            selectedTextColor = MaterialTheme.colorScheme.onSurface,
-                            indicatorColor = MaterialTheme.colorScheme.secondaryContainer,
-                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            selectedIconColor = Color.Black,
+                            selectedTextColor = Poweramp_Cyan,
+                            indicatorColor = Poweramp_Cyan,
+                            unselectedIconColor = Color(0xFF708096),
+                            unselectedTextColor = Color(0xFF708096)
                         )
                     )
                 }
@@ -123,6 +184,7 @@ fun HomeScreen(
             modifier = Modifier
                 .padding(innerPadding)
                 .fillMaxSize()
+                .background(Color(0xFF080B10))
         ) {
             when (selectedTab) {
                 HomeTab.SONGS -> SongsScreen(
@@ -151,7 +213,7 @@ fun HomeScreen(
                 )
             }
             
-            // Persistent MiniPlayer edge-to-edge above bottom bar
+            // Persistent Poweramp MiniPlayer
             MiniPlayer(
                 currentSong = currentSong,
                 isPlaying = isPlaying,
@@ -166,4 +228,5 @@ fun HomeScreen(
         }
     }
 }
+
 
