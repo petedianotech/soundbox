@@ -55,6 +55,9 @@ class MainActivity : ComponentActivity() {
             permissionsToRequest.add(Manifest.permission.READ_MEDIA_AUDIO)
         } else {
             permissionsToRequest.add(Manifest.permission.READ_EXTERNAL_STORAGE)
+            if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
+                permissionsToRequest.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+            }
         }
 
         try {

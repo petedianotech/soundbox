@@ -190,19 +190,6 @@ class MusicRepository(private val context: Context) {
 
                         var genre = if (genreCol >= 0) cursor.getString(genreCol) ?: "" else ""
                         if (genre.isBlank() || genre.equals("Unknown", ignoreCase = true)) {
-                            // Extract genre using lightweight fallback
-                            try {
-                                val retriever = android.media.MediaMetadataRetriever()
-                                retriever.setDataSource(path)
-                                val extracted = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_GENRE)
-                                retriever.release()
-                                if (!extracted.isNullOrBlank()) {
-                                    genre = extracted.trim()
-                                }
-                            } catch (ignored: Exception) {}
-                        }
-
-                        if (genre.isBlank()) {
                             genre = "Music"
                         }
 

@@ -1,13 +1,6 @@
 package com.example.player
 
 import android.content.Context
-import android.content.ComponentName
-import androidx.media3.session.MediaController
-import androidx.media3.session.SessionToken
-import com.google.common.util.concurrent.ListenableFuture
-import com.google.common.util.concurrent.MoreExecutors
-import android.media.audiofx.BassBoost
-import android.media.audiofx.Equalizer
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -31,7 +24,7 @@ class PlaybackManager private constructor(private val context: Context) {
     private val settingsManager = SettingsManager(context.applicationContext)
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
-    // ExoPlayer reference
+    // ExoPlayer reference with audio focus and local wake mode
     val player: ExoPlayer = ExoPlayer.Builder(context)
         .setAudioAttributes(
             androidx.media3.common.AudioAttributes.Builder()
@@ -43,11 +36,6 @@ class PlaybackManager private constructor(private val context: Context) {
         .setHandleAudioBecomingNoisy(true)
         .setWakeMode(androidx.media3.common.C.WAKE_MODE_LOCAL)
         .build()
-
-    // Sound FX
-    private var equalizer: Equalizer? = null
-    private var bassBoost: BassBoost? = null
-    private var virtualizer: android.media.audiofx.Virtualizer? = null
 
     // Exposed Flows
     private val _currentSong = MutableStateFlow<Song?>(null)
@@ -89,10 +77,10 @@ class PlaybackManager private constructor(private val context: Context) {
     private val _equalizerBands = MutableStateFlow<List<Int>>(listOf(0, 0, 0, 0, 0))
     val equalizerBands: StateFlow<List<Int>> = _equalizerBands.asStateFlow()
 
-    private val _bassBoostStrength = MutableStateFlow(0) // 0 to 1000 millibels
+    private val _bassBoostStrength = MutableStateFlow(0)
     val bassBoostStrength: StateFlow<Int> = _bassBoostStrength.asStateFlow()
 
-    private val _virtualizerStrength = MutableStateFlow(0) // 0 to 1000 millibels
+    private val _virtualizerStrength = MutableStateFlow(0)
     val virtualizerStrength: StateFlow<Int> = _virtualizerStrength.asStateFlow()
 
     val crossfadeSeconds: StateFlow<Int> = settingsManager.crossfadeSecondsFlow
@@ -102,10 +90,6 @@ class PlaybackManager private constructor(private val context: Context) {
 
     private var sleepTimer: Timer? = null
     private val handler = Handler(Looper.getMainLooper())
-
-    private var controllerFuture: ListenableFuture<MediaController>? = null
-    var mediaController: MediaController? = null
-        private set
 
     private var fadeInJob: Job? = null
     private var isCrossfadingManual = false
@@ -140,27 +124,6 @@ class PlaybackManager private constructor(private val context: Context) {
         setupPlayerListeners()
         handler.post(positionTrackerRunnable)
         restorePlaybackState()
-        initializeMediaController()
-    }
-
-    private fun initializeMediaController() {
-        try {
-            val sessionToken = SessionToken(context, ComponentName(context, PlaybackService::class.java))
-            controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
-            controllerFuture?.addListener(
-                {
-                    try {
-                        mediaController = controllerFuture?.get()
-                        Log.d("PlaybackManager", "MediaController connected successfully")
-                    } catch (e: Throwable) {
-                        Log.w("PlaybackManager", "MediaController connection non-fatal warning: ${e.message}")
-                    }
-                },
-                MoreExecutors.directExecutor()
-            )
-        } catch (e: Throwable) {
-            Log.w("PlaybackManager", "SessionToken initialization non-fatal warning: ${e.message}")
-        }
     }
 
     private fun setupPlayerListeners() {
@@ -201,7 +164,6 @@ class PlaybackManager private constructor(private val context: Context) {
             override fun onAudioSessionIdChanged(audioSessionId: Int) {
                 super.onAudioSessionIdChanged(audioSessionId)
                 _audioSessionId.value = audioSessionId
-                initAudioEffects(audioSessionId)
             }
         })
     }
@@ -225,88 +187,6 @@ class PlaybackManager private constructor(private val context: Context) {
             .putInt("bass_strength", _bassBoostStrength.value)
             .putInt("virt_strength", _virtualizerStrength.value)
             .apply()
-    }
-
-    private var activeAudioEffectsSessionId: Int = -1
-
-    private fun initAudioEffects(sessionId: Int) {
-        ensureAudioEffectsInitialized(sessionId)
-    }
-
-    fun ensureAudioEffectsInitialized(requestedSessionId: Int = -1) {
-        try {
-            var sid = if (requestedSessionId > 0) requestedSessionId else player.audioSessionId
-            if (sid <= 0) sid = _audioSessionId.value
-            val targetSession = if (sid > 0) sid else 0
-
-            if (equalizer != null && activeAudioEffectsSessionId == targetSession) {
-                return
-            }
-
-            try {
-                equalizer?.release()
-                bassBoost?.release()
-                virtualizer?.release()
-            } catch (e: Throwable) {
-                Log.w("PlaybackManager", "Releasing previous effects failed: ${e.message}")
-            }
-            equalizer = null
-            bassBoost = null
-            virtualizer = null
-
-            try {
-                equalizer = Equalizer(0, targetSession).apply {
-                    enabled = _equalizerEnabled.value
-                    applyStoredBandLevelsToHardware(this)
-                }
-                bassBoost = BassBoost(0, targetSession).apply {
-                    enabled = _bassBoostStrength.value > 0
-                    if (_bassBoostStrength.value > 0) {
-                        setStrength(_bassBoostStrength.value.coerceIn(0, 1000).toShort())
-                    }
-                }
-                virtualizer = android.media.audiofx.Virtualizer(0, targetSession).apply {
-                    enabled = _virtualizerStrength.value > 0
-                    if (_virtualizerStrength.value > 0) {
-                        setStrength(_virtualizerStrength.value.coerceIn(0, 1000).toShort())
-                    }
-                }
-                activeAudioEffectsSessionId = targetSession
-                Log.d("PlaybackManager", "Audio effects successfully initialized on session $targetSession")
-            } catch (e: Throwable) {
-                Log.w("PlaybackManager", "Equalizer/BassBoost activation on session $targetSession: ${e.message}")
-                if (targetSession != 0) {
-                    try {
-                        equalizer = Equalizer(0, 0).apply {
-                            enabled = _equalizerEnabled.value
-                            applyStoredBandLevelsToHardware(this)
-                        }
-                        activeAudioEffectsSessionId = 0
-                        Log.d("PlaybackManager", "Audio effects fallback initialized on session 0")
-                    } catch (ex: Throwable) {
-                        Log.w("PlaybackManager", "Fallback EQ failed: ${ex.message}")
-                    }
-                }
-            }
-        } catch (e: Throwable) {
-            Log.w("PlaybackManager", "Audio effects setup error suppressed: ${e.message}")
-        }
-    }
-
-    private fun applyStoredBandLevelsToHardware(eq: Equalizer) {
-        try {
-            val numBands = eq.numberOfBands.toInt().coerceAtLeast(1)
-            val range = eq.bandLevelRange // Array of 2 shorts: [min, max]
-            val minMb = range?.getOrNull(0) ?: -1500
-            val maxMb = range?.getOrNull(1) ?: 1500
-            val currentLevels = _equalizerBands.value
-            for (i in 0 until numBands) {
-                val levelMb = currentLevels.getOrElse(i) { 0 }.toShort().coerceIn(minMb, maxMb)
-                eq.setBandLevel(i.toShort(), levelMb)
-            }
-        } catch (e: Exception) {
-            Log.e("PlaybackManager", "Failed setting band levels on hardware EQ: ${e.message}")
-        }
     }
 
     fun triggerCrossfadeFadeIn() {
@@ -364,7 +244,7 @@ class PlaybackManager private constructor(private val context: Context) {
                 retriever.setDataSource(path)
             }
             val art = retriever.embeddedPicture
-            retriever.release()
+            try { retriever.release() } catch (ignored: Exception) {}
             art
         } catch (e: Exception) {
             null
@@ -446,7 +326,7 @@ class PlaybackManager private constructor(private val context: Context) {
             val intent = android.content.Intent(context, PlaybackService::class.java)
             context.startService(intent)
         } catch (e: Throwable) {
-            Log.w("PlaybackManager", "Service start call non-fatal warning: ${e.message}")
+            Log.w("PlaybackManager", "Service start call non-fatal: ${e.message}")
         }
     }
 
@@ -599,12 +479,6 @@ class PlaybackManager private constructor(private val context: Context) {
         val nextState = !_equalizerEnabled.value
         _equalizerEnabled.value = nextState
         saveEqualizerState()
-        ensureAudioEffectsInitialized()
-        try {
-            equalizer?.enabled = nextState
-        } catch (e: Exception) {
-            Log.w("PlaybackManager", "Error toggling equalizer: ${e.message}")
-        }
     }
 
     fun setEqualizerBandLevel(bandIndex: Int, levelMb: Int) {
@@ -616,21 +490,6 @@ class PlaybackManager private constructor(private val context: Context) {
         _equalizerBands.value = current
         _equalizerPreset.value = "Custom"
         saveEqualizerState()
-
-        ensureAudioEffectsInitialized()
-        try {
-            equalizer?.let { eq ->
-                val range = eq.bandLevelRange
-                val minMb = range?.getOrNull(0) ?: -1500
-                val maxMb = range?.getOrNull(1) ?: 1500
-                val clampedMb = levelMb.toShort().coerceIn(minMb, maxMb)
-                if (bandIndex < eq.numberOfBands) {
-                    eq.setBandLevel(bandIndex.toShort(), clampedMb)
-                }
-            }
-        } catch (e: Exception) {
-            Log.e("PlaybackManager", "Error updating EQ band level: ${e.message}")
-        }
     }
 
     fun setEqualizerPreset(presetName: String) {
@@ -646,59 +505,20 @@ class PlaybackManager private constructor(private val context: Context) {
             "Classical" -> listOf(500, 300, -200, 300, 400)
             "Heavy Metal" -> listOf(400, 100, 900, 300, -100)
             "Acoustic" -> listOf(300, 100, 200, 300, 200)
-            else -> listOf(0, 0, 0, 0, 0) // "Flat" / Default
+            else -> listOf(0, 0, 0, 0, 0)
         }
         _equalizerBands.value = presetBands
         saveEqualizerState()
-
-        ensureAudioEffectsInitialized()
-        try {
-            equalizer?.let { eq ->
-                val range = eq.bandLevelRange
-                val minMb = range?.getOrNull(0) ?: -1500
-                val maxMb = range?.getOrNull(1) ?: 1500
-                for (i in presetBands.indices) {
-                    if (i < eq.numberOfBands) {
-                        val clampedMb = presetBands[i].toShort().coerceIn(minMb, maxMb)
-                        eq.setBandLevel(i.toShort(), clampedMb)
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            Log.e("PlaybackManager", "Error applying EQ preset: ${e.message}")
-        }
     }
 
-    fun setBassBoost(strength: Int) { // 0 to 1000
+    fun setBassBoost(strength: Int) {
         _bassBoostStrength.value = strength
         saveEqualizerState()
-        ensureAudioEffectsInitialized()
-        try {
-            bassBoost?.let { boost ->
-                boost.enabled = strength > 0
-                if (strength > 0) {
-                    boost.setStrength(strength.coerceIn(0, 1000).toShort())
-                }
-            }
-        } catch (e: Exception) {
-            Log.w("PlaybackManager", "Error setting bass boost strength: ${e.message}")
-        }
     }
 
-    fun setVirtualizer(strength: Int) { // 0 to 1000
+    fun setVirtualizer(strength: Int) {
         _virtualizerStrength.value = strength
         saveEqualizerState()
-        ensureAudioEffectsInitialized()
-        try {
-            virtualizer?.let { virt ->
-                virt.enabled = strength > 0
-                if (strength > 0) {
-                    virt.setStrength(strength.coerceIn(0, 1000).toShort())
-                }
-            }
-        } catch (e: Exception) {
-            Log.e("PlaybackManager", "Error setting virtualizer strength: ${e.message}")
-        }
     }
 
     fun setCrossfadeSeconds(seconds: Int) {
