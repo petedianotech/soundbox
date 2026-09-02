@@ -2,30 +2,32 @@ package com.example.ui.screens.about
 
 import android.content.Intent
 import android.net.Uri
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.Language
-import androidx.compose.material.icons.filled.Policy
-import androidx.compose.material.icons.filled.IntegrationInstructions
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.material.icons.filled.Person
+import androidx.compose.ui.unit.sp
+import com.example.ui.theme.Poweramp_Cyan
+import com.example.ui.theme.Poweramp_Lime
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -36,14 +38,32 @@ fun AboutScreen(
     val scrollState = rememberScrollState()
 
     Scaffold(
+        containerColor = Color(0xFF080C13),
         topBar = {
             TopAppBar(
-                title = { Text("About Developer") },
+                title = {
+                    Text(
+                        "ABOUT SOUNDBOX",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Black,
+                            letterSpacing = 1.5.sp,
+                            fontFamily = FontFamily.Monospace
+                        ),
+                        color = Poweramp_Cyan
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color.White
+                        )
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color(0xFF0A1018)
+                )
             )
         }
     ) { paddingValues ->
@@ -52,147 +72,202 @@ fun AboutScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
                 .verticalScroll(scrollState)
-                .padding(24.dp),
+                .padding(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Icon(
-                imageVector = Icons.Default.Person,
-                contentDescription = "Developer Icon",
+            Box(
                 modifier = Modifier
-                    .size(80.dp)
+                    .size(88.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primaryContainer)
-                    .padding(16.dp),
-                tint = MaterialTheme.colorScheme.onPrimaryContainer
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Name and Nickname
-            Text(
-                text = "Peter Damiano",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-                text = "(Petediano)",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Title
-            Text(
-                text = "Software Developer • Innovator",
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // Bio Card
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                    .background(
+                        Brush.radialGradient(
+                            listOf(Color(0xFF00E5FF).copy(alpha = 0.25f), Color(0xFF0C1622))
+                        )
+                    )
+                    .border(1.5.dp, Poweramp_Cyan, CircleShape),
+                contentAlignment = Alignment.Center
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "ABOUT ME",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
-                    Text(
-                        text = "Peter Damiano (Petediano) is a software developer from Malawi focused on building modern, fast, and user-friendly applications. He specializes in creating clean, performant software with strong attention to design and usability.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        lineHeight = MaterialTheme.typography.bodyLarge.lineHeight
-                    )
-                }
+                Icon(
+                    imageVector = Icons.Default.GraphicEq,
+                    contentDescription = "Soundbox Audio Engine",
+                    modifier = Modifier.size(42.dp),
+                    tint = Poweramp_Cyan
+                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Mission Card
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+            // App Name & Version
+            Text(
+                text = "SOUNDBOX",
+                style = MaterialTheme.typography.headlineMedium.copy(
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 2.sp,
+                    fontFamily = FontFamily.Monospace
                 ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                color = Color.White
+            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(Color(0xFF132233))
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
                     Text(
-                        text = "MISSION",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
-                    Text(
-                        text = "To build useful, reliable, and beautifully designed software that people enjoy using every day.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        lineHeight = MaterialTheme.typography.bodyLarge.lineHeight
+                        text = "V2.4 PRO AUDIO ENGINE",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace
+                        ),
+                        color = Poweramp_Lime
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-            // Action Buttons
-            ActionRow(
-                icon = Icons.Default.Email,
-                title = "Contact via Email",
-                subtitle = "petedianotech@gmail.com",
-                onClick = {
-                    val intent = Intent(Intent.ACTION_SENDTO).apply {
-                        data = Uri.parse("mailto:petedianotech@gmail.com")
+            // Developer Card
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                color = Color(0xFF0E1622),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1D2B3D))
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Person,
+                            contentDescription = null,
+                            tint = Poweramp_Cyan,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Text(
+                            text = "DEVELOPER PROFILE",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Black,
+                                letterSpacing = 1.2.sp,
+                                fontFamily = FontFamily.Monospace
+                            ),
+                            color = Poweramp_Cyan
+                        )
                     }
-                    context.startActivity(intent)
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = "Peter Damiano (Petediano)",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = Color.White
+                    )
+                    Text(
+                        text = "Software Developer & UI/UX Craftsman • Malawi",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF8A9CAF)
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = "Specializing in high-performance native Android applications, low-latency audio processing, and tactile DSP interface design.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color(0xFFB0BEC5)
+                    )
                 }
-            )
+            }
 
-            ActionRow(
-                icon = Icons.Default.Language,
-                title = "View Portfolio",
-                subtitle = "Explore my latest projects and work",
-                onClick = {
-                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://peterdamiano.vercel.app"))
-                    context.startActivity(intent)
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Mission Card
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                color = Color(0xFF0E1622),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1D2B3D))
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.FlashOn,
+                            contentDescription = null,
+                            tint = Poweramp_Lime,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Text(
+                            text = "AUDIO ARCHITECTURE",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Black,
+                                letterSpacing = 1.2.sp,
+                                fontFamily = FontFamily.Monospace
+                            ),
+                            color = Poweramp_Lime
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = "Built with 10-Band Graphic Equalization, 64-bit float internal audio processing pipeline, tactile rotaries, real-time waveform navigation, and live Karaoke LRC syncing.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color(0xFFB0BEC5)
+                    )
                 }
-            )
+            }
 
-            ActionRow(
-                icon = Icons.Default.IntegrationInstructions,
-                title = "Open Source Licenses",
-                subtitle = "Libraries used in this software",
-                onClick = { /* Placeholder for licenses */ }
-            )
+            Spacer(modifier = Modifier.height(20.dp))
 
-            ActionRow(
-                icon = Icons.Default.Policy,
-                title = "Privacy Policy",
-                subtitle = "How your data is handled",
-                onClick = { /* Placeholder for privacy policy */ }
-            )
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // Version Info
-            Text(
-                text = "Soundbox version 1.0 (Build 1)",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                textAlign = TextAlign.Center,
+            // Action Links
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxWidth()
+            ) {
+                AboutActionTile(
+                    icon = Icons.Default.Email,
+                    title = "Contact Developer",
+                    subtitle = "petedianotech@gmail.com",
+                    onClick = {
+                        val intent = Intent(Intent.ACTION_SENDTO).apply {
+                            data = Uri.parse("mailto:petedianotech@gmail.com")
+                        }
+                        context.startActivity(intent)
+                    }
+                )
+
+                AboutActionTile(
+                    icon = Icons.Default.Language,
+                    title = "Portfolio Website",
+                    subtitle = "peterdamiano.vercel.app",
+                    onClick = {
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://peterdamiano.vercel.app"))
+                        context.startActivity(intent)
+                    }
+                )
+
+                AboutActionTile(
+                    icon = Icons.Default.Security,
+                    title = "Privacy & Offline Architecture",
+                    subtitle = "Zero tracking • 100% On-Device Offline Audio",
+                    onClick = { }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(28.dp))
+
+            Text(
+                text = "Soundbox • Crafted with Precision",
+                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                color = Color(0xFF4A5E75),
+                textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(16.dp))
         }
@@ -200,7 +275,7 @@ fun AboutScreen(
 }
 
 @Composable
-fun ActionRow(
+private fun AboutActionTile(
     icon: ImageVector,
     title: String,
     subtitle: String,
@@ -208,35 +283,50 @@ fun ActionRow(
 ) {
     Surface(
         onClick = onClick,
-        color = MaterialTheme.colorScheme.surface,
+        color = Color(0xFF0E1622),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1D2B3D)),
+        shape = RoundedCornerShape(12.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 16.dp),
+                .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = title,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(24.dp)
-            )
-            Spacer(modifier = Modifier.width(16.dp))
-            Column {
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color(0xFF152232)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = title,
+                    tint = Poweramp_Cyan,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                    color = Color.White
                 )
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = Color(0xFF8A9CAF)
                 )
             }
+            Icon(
+                Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = Color(0xFF4A5E75),
+                modifier = Modifier.size(18.dp)
+            )
         }
     }
 }

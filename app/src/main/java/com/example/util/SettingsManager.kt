@@ -17,6 +17,62 @@ class SettingsManager(context: Context) {
     private val _searchHistoryFlow = MutableStateFlow(getSearchHistory())
     val searchHistoryFlow: StateFlow<List<String>> = _searchHistoryFlow
 
+    private val _crossfadeSeconds = MutableStateFlow(prefs.getInt("crossfade_sec", 0))
+    val crossfadeSeconds: StateFlow<Int> = _crossfadeSeconds
+
+    private val _gaplessPlayback = MutableStateFlow(prefs.getBoolean("gapless_playback", true))
+    val gaplessPlayback: StateFlow<Boolean> = _gaplessPlayback
+
+    private val _replayGainMode = MutableStateFlow(prefs.getString("replay_gain", "TRACK") ?: "TRACK")
+    val replayGainMode: StateFlow<String> = _replayGainMode
+
+    private val _hiResAudioEngine = MutableStateFlow(prefs.getBoolean("hi_res_engine", true))
+    val hiResAudioEngine: StateFlow<Boolean> = _hiResAudioEngine
+
+    private val _keepScreenOn = MutableStateFlow(prefs.getBoolean("keep_screen_on", false))
+    val keepScreenOn: StateFlow<Boolean> = _keepScreenOn
+
+    private val _hapticFeedback = MutableStateFlow(prefs.getBoolean("haptic_feedback", true))
+    val hapticFeedback: StateFlow<Boolean> = _hapticFeedback
+
+    private val _visualizerStyle = MutableStateFlow(prefs.getString("visualizer_style", "WAVEFORM") ?: "WAVEFORM")
+    val visualizerStyle: StateFlow<String> = _visualizerStyle
+
+    fun setCrossfadeSeconds(seconds: Int) {
+        prefs.edit().putInt("crossfade_sec", seconds).apply()
+        _crossfadeSeconds.value = seconds
+    }
+
+    fun setGaplessPlayback(enabled: Boolean) {
+        prefs.edit().putBoolean("gapless_playback", enabled).apply()
+        _gaplessPlayback.value = enabled
+    }
+
+    fun setReplayGainMode(mode: String) {
+        prefs.edit().putString("replay_gain", mode).apply()
+        _replayGainMode.value = mode
+    }
+
+    fun setHiResAudioEngine(enabled: Boolean) {
+        prefs.edit().putBoolean("hi_res_engine", enabled).apply()
+        _hiResAudioEngine.value = enabled
+    }
+
+    fun setKeepScreenOn(enabled: Boolean) {
+        prefs.edit().putBoolean("keep_screen_on", enabled).apply()
+        _keepScreenOn.value = enabled
+    }
+
+    fun setHapticFeedback(enabled: Boolean) {
+        prefs.edit().putBoolean("haptic_feedback", enabled).apply()
+        _hapticFeedback.value = enabled
+    }
+
+    fun setVisualizerStyle(style: String) {
+        prefs.edit().putString("visualizer_style", style).apply()
+        _visualizerStyle.value = style
+    }
+
     fun setTheme(theme: String) {
         prefs.edit().putString("theme", theme).apply()
         _themeFlow.value = theme
