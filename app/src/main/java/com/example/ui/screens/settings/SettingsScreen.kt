@@ -75,7 +75,7 @@ fun SettingsScreen(
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                 SettingsCardRow(
                     title = "Audio Qualities & Speed",
-                    subtitle = "Current Velocity: ${String.format("%.2fx", speed)}",
+                    subtitle = "Current Velocity: ${String.format(java.util.Locale.getDefault(), "%.2fx", speed)}",
                     icon = Icons.Default.Speed,
                     onClick = { viewModel.setPlaybackRate(1.0f, 1.0f) }
                 )
