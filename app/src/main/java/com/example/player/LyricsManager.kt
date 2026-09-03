@@ -337,13 +337,144 @@ object LyricsManager {
     }
 
     /**
+     * Data class holding intelligently parsed artist and song title candidates
+     */
+    data class ParsedMetadata(
+        val artist: String,
+        val title: String,
+        val searchCombo: String
+    )
+
+    /**
+     * Advanced heuristic extractor for unverified / web-downloaded music.
+     * Often music downloaded from YouTube converters, blogs, Telegram, or WhatsApp
+     * has missing ID3 artist metadata and messy filenames like:
+     * - "Alan Walker - Faded (Official Video) [HQ 1080p].mp3"
+     * - "12 - Ed Sheeran - Shape of You (Lyrics).mp3"
+     * - "Drake_Gods_Plan_Official_Audio_320kbps.mp3"
+     * - "Post Malone feat 21 Savage - Rockstar (Audio)"
+     *
+     * This combo extractor detects separators, cleans out video tags/bitrates/track numbers,
+     * and splits the Artist and Title accurately.
+     */
+    fun extractArtistAndTitle(song: Song): ParsedMetadata {
+        val rawArtist = song.artist.trim()
+        val rawTitle = song.title.trim()
+
+        val isArtistUnknown = rawArtist.isBlank() ||
+                rawArtist.equals("<unknown>", ignoreCase = true) ||
+                rawArtist.equals("unknown", ignoreCase = true) ||
+                rawArtist.equals("unknown artist", ignoreCase = true)
+
+        // Try using the title or the raw audio filename if title looks like a filename
+        var candidate = rawTitle
+        if (candidate.isBlank() || isArtistUnknown) {
+            val fileCandidate = try {
+                if (song.path.isNotBlank()) {
+                    val f = File(song.path)
+                    f.nameWithoutExtension
+                } else ""
+            } catch (e: Exception) { "" }
+
+            if (fileCandidate.isNotBlank() && fileCandidate.length > candidate.length) {
+                candidate = fileCandidate
+            }
+        }
+
+        // Clean out file extension if still present
+        candidate = candidate.replace("(?i)\\.(mp3|m4a|flac|wav|ogg|aac|opus|webm)$".toRegex(), "")
+
+        // Clean URL encodings like %20, %28, etc.
+        try {
+            if (candidate.contains("%")) {
+                candidate = Uri.decode(candidate)
+            }
+        } catch (e: Exception) { }
+
+        // Strip leading track numbers like "01. ", "01 - ", "12 ", "[01] "
+        candidate = candidate.replace("^\\s*(\\[?\\d{1,3}\\]?[-._ ]+)+".toRegex(), "")
+
+        // Remove web download prefixes/suffixes (e.g. "[SPOTIDL]", "[Y2Mate]", "www.SongsPK.com - ", "ytmp3.mobi - ")
+        candidate = candidate.replace("(?i)^\\[?(y2mate|spotidl|ytmp3|ssyoutube|ringtone|mp3skull|songspk|pagalworld|tubidy|savefrom)[^\\]]*\\]?[-_ ]*".toRegex(), "")
+        candidate = candidate.replace("(?i)[-_ ]*\\[?(y2mate|spotidl|ytmp3|ssyoutube|ringtone|mp3skull|songspk|pagalworld|tubidy|savefrom)[^\\]]*\\]?$".toRegex(), "")
+
+        // If artist was already known and valid, check if title also redundantly duplicates the artist
+        if (!isArtistUnknown && rawArtist.length >= 2) {
+            val prefixArtistRegex = Regex("^(?i)\\Q$rawArtist\\E\\s*[-_:]+\\s*")
+            if (prefixArtistRegex.containsMatchIn(candidate)) {
+                candidate = candidate.replace(prefixArtistRegex, "")
+            }
+            val cleanedT = cleanString(candidate, isArtist = false)
+            val cleanedA = cleanString(rawArtist, isArtist = true)
+            return ParsedMetadata(
+                artist = cleanedA,
+                title = cleanedT,
+                searchCombo = "$cleanedA $cleanedT"
+            )
+        }
+
+        // Otherwise, the artist is missing/unknown or packed into the title/filename:
+        // Try common delimiters: " - ", " _ ", " : ", " ~ ", " – " (en dash), " — " (em dash), " | "
+        val delimiters = listOf(" - ", " – ", " — ", " _ ", " : ", " ~ ", " | ")
+        var foundDelimiter: String? = null
+        for (delim in delimiters) {
+            if (candidate.contains(delim)) {
+                foundDelimiter = delim
+                break
+            }
+        }
+
+        // Fallback delimiter if no spaced hyphen: single hyphen with surrounding chars (e.g. "Artist-Title")
+        if (foundDelimiter == null && candidate.contains("-") && !candidate.startsWith("-")) {
+            foundDelimiter = "-"
+        }
+
+        if (foundDelimiter != null) {
+            val parts = candidate.split(foundDelimiter, limit = 2)
+            if (parts.size == 2 && parts[0].isNotBlank() && parts[1].isNotBlank()) {
+                val candidateArtist = cleanString(parts[0], isArtist = true)
+                val candidateTitle = cleanString(parts[1], isArtist = false)
+
+                if (candidateArtist.isNotBlank() && candidateTitle.isNotBlank()) {
+                    return ParsedMetadata(
+                        artist = candidateArtist,
+                        title = candidateTitle,
+                        searchCombo = "$candidateArtist $candidateTitle"
+                    )
+                }
+            }
+        }
+
+        // Check for "by" pattern (e.g., "Faded by Alan Walker")
+        val byMatch = Regex("(?i)^(.+?)\\s+by\\s+(.+)$").find(candidate)
+        if (byMatch != null) {
+            val t = cleanString(byMatch.groupValues[1], isArtist = false)
+            val a = cleanString(byMatch.groupValues[2], isArtist = true)
+            return ParsedMetadata(artist = a, title = t, searchCombo = "$a $t")
+        }
+
+        // Clean whatever title we have
+        val fallbackTitle = cleanString(candidate, isArtist = false)
+        val fallbackArtist = if (!isArtistUnknown) cleanString(rawArtist, isArtist = true) else ""
+
+        val combo = if (fallbackArtist.isNotBlank()) "$fallbackArtist $fallbackTitle" else fallbackTitle
+        return ParsedMetadata(
+            artist = fallbackArtist,
+            title = fallbackTitle,
+            searchCombo = combo
+        )
+    }
+
+    /**
      * Builds standard search query for Google search or lyrics search APIs
-     * Filters common video conversion tags, features, video years and formats.
+     * Automatically applies the combo extractor to resolve artist + music title
+     * even for raw video downloads or untagged MP3 files!
      */
     fun buildSearchQuery(song: Song): String {
-        val cleanArtist = cleanString(song.artist, isArtist = true)
-        val cleanTitle = cleanString(song.title, isArtist = false)
-        return "$cleanArtist $cleanTitle lyrics".replace("\\s+".toRegex(), " ").trim()
+        val parsed = extractArtistAndTitle(song)
+        val query = "${parsed.searchCombo} lyrics".replace("\\s+".toRegex(), " ").trim()
+        Log.d(TAG, "Constructed smart lyrics query: '$query' (original artist='${song.artist}', title='${song.title}')")
+        return query
     }
 
     private fun cleanString(input: String, isArtist: Boolean): String {
@@ -404,6 +535,107 @@ object LyricsManager {
             sb.append(timestamp).append(text).append("\n")
         }
         return sb.toString()
+    }
+
+    /**
+     * Attempts to fetch lyrics online from LRCLIB (open-source lyrics API).
+     * Uses our smart heuristic combo extractor to query accurately even for untagged tracks.
+     * Returns the raw synced LRC or plain text lyrics if found, or null otherwise.
+     */
+    suspend fun fetchLyricsOnline(song: Song): String? = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        val parsed = extractArtistAndTitle(song)
+        Log.d(TAG, "Fetching lyrics online for parsed artist='${parsed.artist}', title='${parsed.title}', combo='${parsed.searchCombo}'")
+
+        // 1. First attempt: Direct /api/get if we have both artist and title
+        if (parsed.artist.isNotBlank() && parsed.title.isNotBlank()) {
+            val directResult = queryLrclibGet(parsed.artist, parsed.title, song.duration)
+            if (!directResult.isNullOrBlank()) {
+                return@withContext directResult
+            }
+        }
+
+        // 2. Second attempt: Search query with the combo string
+        val query = parsed.searchCombo.ifBlank { song.title }
+        if (query.isNotBlank()) {
+            val searchResult = queryLrclibSearch(query)
+            if (!searchResult.isNullOrBlank()) {
+                return@withContext searchResult
+            }
+        }
+
+        // 3. Third attempt: Search with raw cleaned title
+        val cleanTitleOnly = cleanString(song.title, isArtist = false)
+        if (cleanTitleOnly.isNotBlank() && cleanTitleOnly != query) {
+            val fallbackSearch = queryLrclibSearch(cleanTitleOnly)
+            if (!fallbackSearch.isNullOrBlank()) {
+                return@withContext fallbackSearch
+            }
+        }
+
+        null
+    }
+
+    private fun queryLrclibGet(artist: String, track: String, durationMs: Long): String? {
+        return try {
+            val durationSec = if (durationMs > 0) durationMs / 1000 else 0L
+            val baseUrl = "https://lrclib.net/api/get?artist_name=${Uri.encode(artist)}&track_name=${Uri.encode(track)}" +
+                    (if (durationSec > 0) "&duration=$durationSec" else "")
+            val url = java.net.URL(baseUrl)
+            val connection = url.openConnection() as java.net.HttpURLConnection
+            connection.requestMethod = "GET"
+            connection.setRequestProperty("User-Agent", "SoundboxMusicPlayer/3.0 (Android)")
+            connection.connectTimeout = 7000
+            connection.readTimeout = 7000
+
+            if (connection.responseCode == 200) {
+                val responseText = connection.inputStream.bufferedReader().use { it.readText() }
+                val json = org.json.JSONObject(responseText)
+                val synced = json.optString("syncedLyrics", "")
+                val plain = json.optString("plainLyrics", "")
+                if (synced.isNotBlank()) synced else plain.ifBlank { null }
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "LRCLIB direct get failed: ${e.message}")
+            null
+        }
+    }
+
+    private fun queryLrclibSearch(query: String): String? {
+        return try {
+            val url = java.net.URL("https://lrclib.net/api/search?q=${Uri.encode(query)}")
+            val connection = url.openConnection() as java.net.HttpURLConnection
+            connection.requestMethod = "GET"
+            connection.setRequestProperty("User-Agent", "SoundboxMusicPlayer/3.0 (Android)")
+            connection.connectTimeout = 7000
+            connection.readTimeout = 7000
+
+            if (connection.responseCode == 200) {
+                val responseText = connection.inputStream.bufferedReader().use { it.readText() }
+                val jsonArray = org.json.JSONArray(responseText)
+                if (jsonArray.length() > 0) {
+                    // Try to find the first item with synced lyrics
+                    for (i in 0 until jsonArray.length().coerceAtMost(5)) {
+                        val item = jsonArray.getJSONObject(i)
+                        val synced = item.optString("syncedLyrics", "")
+                        if (synced.isNotBlank()) {
+                            return synced
+                        }
+                    }
+                    // If no synced, fallback to plain
+                    val firstItem = jsonArray.getJSONObject(0)
+                    val plain = firstItem.optString("plainLyrics", "")
+                    if (plain.isNotBlank()) return plain
+                }
+                null
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "LRCLIB search query failed: ${e.message}")
+            null
+        }
     }
 
     /**

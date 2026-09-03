@@ -19,6 +19,7 @@ import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import com.example.data.model.Song
 import com.example.data.repository.MusicRepository
+import com.example.util.SettingsManager
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -121,6 +122,56 @@ class PlaybackManager private constructor(private val context: Context) {
 
     private var sleepTimer: Timer? = null
     private val handler = Handler(Looper.getMainLooper())
+    private val settingsManager = SettingsManager(context)
+
+    // Crossfade volume multiplier state (1.0f = full volume, fading down to 0.0f at track end, fading up from 0.0f at track start)
+    private var fadeVolumeMultiplier = 1.0f
+    private var isCrossfadingNext = false
+
+    private val crossfadeStepRunnable = object : Runnable {
+        override fun run() {
+            val crossfadeSec = settingsManager.crossfadeSeconds.value
+            if (crossfadeSec > 0 && player.isPlaying && player.duration > 0) {
+                val currentPos = player.currentPosition
+                val trackDuration = player.duration
+                val crossfadeMs = crossfadeSec * 1000L
+                val remainingMs = (trackDuration - currentPos).coerceAtLeast(0L)
+
+                // 1. Fade-in near track beginning (< crossfadeMs)
+                if (currentPos < crossfadeMs) {
+                    val fadeInRatio = (currentPos.toFloat() / crossfadeMs.toFloat()).coerceIn(0.05f, 1.0f)
+                    fadeVolumeMultiplier = fadeInRatio
+                    updatePlayerVolume()
+                }
+                // 2. Fade-out near track ending (remainingMs < crossfadeMs)
+                else if (remainingMs < crossfadeMs) {
+                    val fadeOutRatio = (remainingMs.toFloat() / crossfadeMs.toFloat()).coerceIn(0.0f, 1.0f)
+                    fadeVolumeMultiplier = fadeOutRatio
+                    updatePlayerVolume()
+
+                    // If faded out and player has next track, trigger seamless next
+                    if (remainingMs <= 300L && !isCrossfadingNext && player.hasNextMediaItem()) {
+                        isCrossfadingNext = true
+                        player.seekToNext()
+                        fadeVolumeMultiplier = 0.05f
+                        updatePlayerVolume()
+                        handler.postDelayed({ isCrossfadingNext = false }, 1500L)
+                    }
+                } else {
+                    if (fadeVolumeMultiplier != 1.0f) {
+                        fadeVolumeMultiplier = 1.0f
+                        updatePlayerVolume()
+                    }
+                }
+            } else {
+                if (fadeVolumeMultiplier != 1.0f) {
+                    fadeVolumeMultiplier = 1.0f
+                    updatePlayerVolume()
+                }
+            }
+            handler.postDelayed(this, 100) // Smooth 100ms fade steps
+        }
+    }
 
     private var controllerFuture: ListenableFuture<MediaController>? = null
     var mediaController: MediaController? = null
@@ -138,6 +189,7 @@ class PlaybackManager private constructor(private val context: Context) {
     init {
         setupPlayerListeners()
         handler.post(positionTrackerRunnable)
+        handler.post(crossfadeStepRunnable)
         restorePlaybackState()
         initializeMediaController()
     }
@@ -321,7 +373,8 @@ class PlaybackManager private constructor(private val context: Context) {
         val preampFactor = Math.pow(10.0, (preampDb / 20.0).toDouble()).toFloat().coerceIn(0.05f, 1.8f)
         val balance = _audioBalance.value
         val balFactor = if (Math.abs(balance) > 0.05f) 1f - (Math.abs(balance) * 0.15f) else 1f
-        player.volume = (preampFactor * balFactor).coerceIn(0f, 1.8f)
+        val finalVolume = (preampFactor * balFactor * fadeVolumeMultiplier).coerceIn(0f, 1.8f)
+        player.volume = finalVolume
     }
 
     private fun applyHardwareEqualizerBands() {
@@ -500,28 +553,87 @@ class PlaybackManager private constructor(private val context: Context) {
     }
 
     fun playPause() {
+        val crossfadeSec = settingsManager.crossfadeSeconds.value
         if (player.isPlaying) {
-            player.pause()
+            if (crossfadeSec > 0) {
+                // Smooth fade-out before pause
+                fadeVolumeMultiplier = 0.4f
+                updatePlayerVolume()
+                handler.postDelayed({
+                    player.pause()
+                    fadeVolumeMultiplier = 1.0f
+                    updatePlayerVolume()
+                }, 90L)
+            } else {
+                player.pause()
+            }
         } else {
             if (player.playbackState == Player.STATE_IDLE) {
                 player.prepare()
             }
-            player.play()
-            startPlaybackService()
+            if (crossfadeSec > 0) {
+                fadeVolumeMultiplier = 0.2f
+                updatePlayerVolume()
+                player.play()
+                startPlaybackService()
+                handler.postDelayed({
+                    fadeVolumeMultiplier = 0.6f
+                    updatePlayerVolume()
+                    handler.postDelayed({
+                        fadeVolumeMultiplier = 1.0f
+                        updatePlayerVolume()
+                    }, 80L)
+                }, 70L)
+            } else {
+                player.play()
+                startPlaybackService()
+            }
         }
     }
 
     fun skipNext() {
-        if (player.hasNextMediaItem()) {
-            player.seekToNext()
+        val crossfadeSec = settingsManager.crossfadeSeconds.value
+        if (crossfadeSec > 0 && player.isPlaying) {
+            fadeVolumeMultiplier = 0.2f
+            updatePlayerVolume()
+            handler.postDelayed({
+                if (player.hasNextMediaItem()) {
+                    player.seekToNext()
+                }
+                handler.postDelayed({
+                    fadeVolumeMultiplier = 1.0f
+                    updatePlayerVolume()
+                }, 100L)
+            }, 80L)
+        } else {
+            if (player.hasNextMediaItem()) {
+                player.seekToNext()
+            }
         }
     }
 
     fun skipPrevious() {
-        if (player.hasPreviousMediaItem()) {
-            player.seekToPrevious()
+        val crossfadeSec = settingsManager.crossfadeSeconds.value
+        if (crossfadeSec > 0 && player.isPlaying) {
+            fadeVolumeMultiplier = 0.2f
+            updatePlayerVolume()
+            handler.postDelayed({
+                if (player.hasPreviousMediaItem()) {
+                    player.seekToPrevious()
+                } else {
+                    player.seekTo(0L)
+                }
+                handler.postDelayed({
+                    fadeVolumeMultiplier = 1.0f
+                    updatePlayerVolume()
+                }, 100L)
+            }, 80L)
         } else {
-            player.seekTo(0L)
+            if (player.hasPreviousMediaItem()) {
+                player.seekToPrevious()
+            } else {
+                player.seekTo(0L)
+            }
         }
     }
 

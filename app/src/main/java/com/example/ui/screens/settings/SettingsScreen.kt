@@ -59,6 +59,7 @@ fun SettingsScreen(
     var showCrossfadeDialog by remember { mutableStateOf(false) }
     var showReplayGainDialog by remember { mutableStateOf(false) }
     var showVisualizerDialog by remember { mutableStateOf(false) }
+    var showSpeedDialog by remember { mutableStateOf(false) }
 
     val colors = SoundboxTheme.colors
 
@@ -237,7 +238,7 @@ fun SettingsScreen(
                     title = "Playback Speed & Tempo",
                     subtitle = "Current Velocity: ${String.format("%.2fx", speed)}",
                     icon = Icons.Default.Speed,
-                    onClick = { viewModel.setPlaybackRate(1.0f, 1.0f) }
+                    onClick = { showSpeedDialog = true }
                 )
             }
 
@@ -522,6 +523,77 @@ fun SettingsScreen(
                     colors = ButtonDefaults.textButtonColors(contentColor = colors.accentCyan)
                 ) {
                     Text("Close")
+                }
+            }
+        )
+    }
+
+    if (showSpeedDialog) {
+        AlertDialog(
+            containerColor = colors.dialogBackground,
+            titleContentColor = colors.textPrimary,
+            textContentColor = colors.textSecondary,
+            onDismissRequest = { showSpeedDialog = false },
+            title = { Text("Playback Speed & Tempo", fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Text("Select velocity multiplier or reset to standard pitch:")
+                    Column {
+                        listOf(
+                            0.5f to "0.5x (Slow Motion)",
+                            0.75f to "0.75x (Relaxed)",
+                            0.9f to "0.9x (Subtle Slow)",
+                            1.0f to "1.0x (Standard Normal)",
+                            1.1f to "1.1x (Brisk)",
+                            1.25f to "1.25x (Upbeat)",
+                            1.5f to "1.5x (Fast)",
+                            2.0f to "2.0x (Double Speed)"
+                        ).forEach { (rate, label) ->
+                            val isSelected = Math.abs(speed - rate) < 0.04f
+                            Row(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable {
+                                        viewModel.setPlaybackRate(rate, 1.0f)
+                                        showSpeedDialog = false
+                                    }
+                                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                RadioButton(
+                                    selected = isSelected,
+                                    onClick = null,
+                                    colors = RadioButtonDefaults.colors(selectedColor = colors.accentCyan)
+                                )
+                                Spacer(Modifier.width(12.dp))
+                                Text(
+                                    label,
+                                    color = if (isSelected) colors.accentCyan else colors.textPrimary,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.setPlaybackRate(1.0f, 1.0f)
+                        showSpeedDialog = false
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = colors.accentAmber)
+                ) {
+                    Text("Reset 1.0x")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showSpeedDialog = false },
+                    colors = ButtonDefaults.textButtonColors(contentColor = colors.textPrimary)
+                ) {
+                    Text("Cancel")
                 }
             }
         )

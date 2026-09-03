@@ -39,6 +39,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -100,13 +101,50 @@ fun NowPlayingScreen(
     var pastedLyricsContent by remember { mutableStateOf("") }
     var showRemainingTime by remember { mutableStateOf(false) }
     var refreshTrigger by remember { mutableStateOf(0) }
+    var isDownloadingLyricsOnline by remember { mutableStateOf(false) }
 
     // Lyrics configuration states
     var lyricsFontSizeOption by remember { mutableStateOf(1) } // 0: Small, 1: Medium, 2: Large
     var userScrolledAway by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
+    val currentView = LocalView.current
     val coroutineScope = rememberCoroutineScope()
+
+    val settingsManager = remember { com.example.util.SettingsManager(context) }
+    val keepScreenAwake by settingsManager.keepScreenOn.collectAsState()
+
+    fun triggerDownloadLyricsOnline() {
+        val song = currentSong ?: return
+        coroutineScope.launch {
+            isDownloadingLyricsOnline = true
+            try {
+                val fetched = LyricsManager.fetchLyricsOnline(song)
+                if (!fetched.isNullOrBlank()) {
+                    LyricsManager.saveLyrics(context, song, fetched)
+                    refreshTrigger++
+                    Toast.makeText(context, "Lyrics downloaded & synced successfully!", Toast.LENGTH_SHORT).show()
+                    isLyricsViewActive = true
+                } else {
+                    Toast.makeText(context, "No exact online match found. Opening web search...", Toast.LENGTH_SHORT).show()
+                    LyricsManager.searchLyricsWeb(context, song, "google")
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, "Download failed: ${e.message}", Toast.LENGTH_SHORT).show()
+            } finally {
+                isDownloadingLyricsOnline = false
+            }
+        }
+    }
+
+    DisposableEffect(keepScreenAwake) {
+        if (keepScreenAwake) {
+            currentView.keepScreenOn = true
+        }
+        onDispose {
+            currentView.keepScreenOn = false
+        }
+    }
 
     // File Picker for LRC / TXT
     val fileLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
@@ -318,6 +356,8 @@ fun NowPlayingScreen(
                                 lyricsListState = lyricsListState,
                                 userScrolledAway = userScrolledAway,
                                 fontSizeOption = lyricsFontSizeOption,
+                                isDownloadingOnline = isDownloadingLyricsOnline,
+                                onDownloadOnlineClick = { triggerDownloadLyricsOnline() },
                                 onSeekTo = { viewModel.seekTo(it) },
                                 onJumpToCurrent = {
                                     userScrolledAway = false
@@ -335,6 +375,7 @@ fun NowPlayingScreen(
                                 },
                                 onPickFileClick = { fileLauncher.launch("*/*") },
                                 onCreateLyricsClick = onNavigateToLyricsCreator,
+                                onDismissClick = { isLyricsViewActive = false },
                                 accentColor = accentColor
                             )
                         } else {
@@ -345,7 +386,7 @@ fun NowPlayingScreen(
                                 lyrics = lyrics,
                                 hasTimestamps = hasTimestamps,
                                 activeVerseIndex = activeVerseIndex,
-                                onToggleLyrics = { isLyricsViewActive = true },
+                                onToggleLyrics = { isLyricsViewActive = !isLyricsViewActive },
                                 onToggleFavorite = { viewModel.toggleFavorite(song) },
                                 accentColor = accentColor
                             )
@@ -935,8 +976,58 @@ fun NowPlayingScreen(
                     Spacer(modifier = Modifier.height(16.dp))
                 }
 
+                // Smart Metadata Parsing Badge
+                val parsedMeta = remember(song.id) { LyricsManager.extractArtistAndTitle(song) }
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = accentColor.copy(alpha = 0.12f),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = accentColor, modifier = Modifier.size(18.dp))
+                        Column {
+                            Text(
+                                text = "Smart Match Detection",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                color = accentColor
+                            )
+                            Text(
+                                text = "Artist: \"${parsedMeta.artist}\" • Title: \"${parsedMeta.title}\"",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
                 // Action List
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = {
+                            showLyricsOptionsSheet = false
+                            triggerDownloadLyricsOnline()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = accentColor),
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !isDownloadingLyricsOnline
+                    ) {
+                        if (isDownloadingLyricsOnline) {
+                            CircularProgressIndicator(modifier = Modifier.size(18.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Searching LRCLIB...")
+                        } else {
+                            Icon(Icons.Default.CloudDownload, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Download Lyrics Online (Auto-Match)")
+                        }
+                    }
+
                     FilledTonalButton(
                         onClick = {
                             showLyricsOptionsSheet = false
@@ -1553,6 +1644,8 @@ private fun FullLyricsStage(
     lyricsListState: androidx.compose.foundation.lazy.LazyListState,
     userScrolledAway: Boolean,
     fontSizeOption: Int,
+    isDownloadingOnline: Boolean,
+    onDownloadOnlineClick: () -> Unit,
     onSeekTo: (Long) -> Unit,
     onJumpToCurrent: () -> Unit,
     onAddLyricsClick: () -> Unit,
@@ -1560,6 +1653,7 @@ private fun FullLyricsStage(
     onPasteClick: () -> Unit,
     onPickFileClick: () -> Unit,
     onCreateLyricsClick: () -> Unit,
+    onDismissClick: () -> Unit,
     accentColor: Color
 ) {
     Box(
@@ -1569,52 +1663,81 @@ private fun FullLyricsStage(
             .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f))
     ) {
         if (lyrics.isEmpty()) {
-            // Empty Lyrics State with direct actionable buttons
+            // Empty Lyrics State with direct actionable buttons & smart match
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(24.dp),
+                    .padding(20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
                 Surface(
                     shape = CircleShape,
                     color = accentColor.copy(alpha = 0.15f),
-                    modifier = Modifier.size(64.dp)
+                    modifier = Modifier.size(56.dp)
                 ) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = Icons.Default.Lyrics,
                             contentDescription = null,
                             tint = accentColor,
-                            modifier = Modifier.size(32.dp)
+                            modifier = Modifier.size(28.dp)
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
                 Text(
                     text = "No lyrics found",
-                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                     color = MaterialTheme.colorScheme.onSurface,
                     textAlign = TextAlign.Center
                 )
 
+                val parsed = remember(song.id) { LyricsManager.extractArtistAndTitle(song) }
                 Spacer(modifier = Modifier.height(6.dp))
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
+                    modifier = Modifier.padding(horizontal = 8.dp)
+                ) {
+                    Text(
+                        text = "Smart Match: ${parsed.artist.ifBlank { "Unknown" }} — ${parsed.title}",
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                        color = accentColor,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
 
-                Text(
-                    text = "Find, import, or sync lyrics for \"${song.title}\" to sing along in real time.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center
-                )
+                Spacer(modifier = Modifier.height(16.dp))
 
-                Spacer(modifier = Modifier.height(24.dp))
+                // Primary 1-Tap Online Download
+                Button(
+                    onClick = onDownloadOnlineClick,
+                    colors = ButtonDefaults.buttonColors(containerColor = accentColor),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    enabled = !isDownloadingOnline
+                ) {
+                    if (isDownloadingOnline) {
+                        CircularProgressIndicator(modifier = Modifier.size(16.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Searching Online...")
+                    } else {
+                        Icon(Icons.Default.CloudDownload, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Download Lyrics (Auto-Sync)")
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     FilledTonalButton(
                         onClick = onSearchWebClick,
@@ -1622,8 +1745,8 @@ private fun FullLyricsStage(
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Search Web")
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Search Web", maxLines = 1)
                     }
 
                     FilledTonalButton(
@@ -1632,16 +1755,16 @@ private fun FullLyricsStage(
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Icon(Icons.Default.ContentPaste, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Paste")
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Paste", maxLines = 1)
                     }
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     OutlinedButton(
                         onClick = onPickFileClick,
@@ -1649,20 +1772,30 @@ private fun FullLyricsStage(
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Icon(Icons.Default.UploadFile, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Pick File")
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Pick File", maxLines = 1)
                     }
 
-                    Button(
+                    OutlinedButton(
                         onClick = onCreateLyricsClick,
                         modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(containerColor = accentColor),
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Sync Editor")
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Sync Editor", maxLines = 1)
                     }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                TextButton(
+                    onClick = onDismissClick,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Back to Album Art", style = MaterialTheme.typography.bodySmall)
                 }
             }
         } else {
@@ -1765,12 +1898,21 @@ private fun FullLyricsStage(
                     )
                 }
 
-                IconButton(onClick = onAddLyricsClick) {
-                    Icon(
-                        imageVector = Icons.Default.Tune,
-                        contentDescription = "Lyrics Settings",
-                        tint = accentColor
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onAddLyricsClick) {
+                        Icon(
+                            imageVector = Icons.Default.Tune,
+                            contentDescription = "Lyrics Settings",
+                            tint = accentColor
+                        )
+                    }
+                    IconButton(onClick = onDismissClick) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close Lyrics",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
 
