@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.sp
 import com.example.ui.theme.Poweramp_Amber
 import com.example.ui.theme.Poweramp_Cyan
 import com.example.ui.theme.Poweramp_Lime
+import com.example.ui.theme.SoundboxTheme
 import com.example.ui.viewmodel.MusicViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -59,8 +60,10 @@ fun SettingsScreen(
     var showReplayGainDialog by remember { mutableStateOf(false) }
     var showVisualizerDialog by remember { mutableStateOf(false) }
 
+    val colors = SoundboxTheme.colors
+
     Scaffold(
-        containerColor = Color(0xFF070A0F),
+        containerColor = colors.background,
         topBar = {
             TopAppBar(
                 title = {
@@ -75,12 +78,12 @@ fun SettingsScreen(
                                 letterSpacing = 2.sp,
                                 fontFamily = FontFamily.Monospace
                             ),
-                            color = Poweramp_Cyan
+                            color = colors.accentCyan
                         )
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(4.dp))
-                                .background(Color(0xFF14202E))
+                                .background(colors.surfaceVariant)
                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
                             Text(
@@ -90,7 +93,7 @@ fun SettingsScreen(
                                     fontWeight = FontWeight.Bold,
                                     letterSpacing = 0.5.sp
                                 ),
-                                color = Poweramp_Amber
+                                color = colors.accentAmber
                             )
                         }
                     }
@@ -100,12 +103,12 @@ fun SettingsScreen(
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = Color.White
+                            tint = colors.textPrimary
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFF090D14)
+                    containerColor = colors.topBarBackground
                 )
             )
         }
@@ -333,9 +336,9 @@ fun SettingsScreen(
     // MODAL DIALOGS
     if (showTimerDialog) {
         AlertDialog(
-            containerColor = Color(0xFF101622),
-            titleContentColor = Color.White,
-            textContentColor = Color(0xFFB0BEC5),
+            containerColor = colors.dialogBackground,
+            titleContentColor = colors.textPrimary,
+            textContentColor = colors.textSecondary,
             onDismissRequest = { showTimerDialog = false },
             title = { Text("Set Sleep Timer", fontWeight = FontWeight.Bold) },
             text = {
@@ -352,8 +355,8 @@ fun SettingsScreen(
                                     showTimerDialog = false
                                 },
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFF1B283B),
-                                    contentColor = Poweramp_Cyan
+                                    containerColor = colors.surfaceVariant,
+                                    contentColor = colors.accentCyan
                                 ),
                                 shape = RoundedCornerShape(10.dp)
                             ) {
@@ -378,7 +381,7 @@ fun SettingsScreen(
                 } else {
                     TextButton(
                         onClick = { showTimerDialog = false },
-                        colors = ButtonDefaults.textButtonColors(contentColor = Color.White)
+                        colors = ButtonDefaults.textButtonColors(contentColor = colors.textPrimary)
                     ) {
                         Text("Cancel")
                     }
@@ -389,9 +392,9 @@ fun SettingsScreen(
 
     if (showCrossfadeDialog) {
         AlertDialog(
-            containerColor = Color(0xFF101622),
-            titleContentColor = Color.White,
-            textContentColor = Color(0xFFB0BEC5),
+            containerColor = colors.dialogBackground,
+            titleContentColor = colors.textPrimary,
+            textContentColor = colors.textSecondary,
             onDismissRequest = { showCrossfadeDialog = false },
             title = { Text("Crossfade Duration", fontWeight = FontWeight.Bold) },
             text = {
@@ -411,10 +414,10 @@ fun SettingsScreen(
                             RadioButton(
                                 selected = crossfadeSec == sec,
                                 onClick = null,
-                                colors = RadioButtonDefaults.colors(selectedColor = Poweramp_Cyan)
+                                colors = RadioButtonDefaults.colors(selectedColor = colors.accentCyan)
                             )
                             Spacer(Modifier.width(12.dp))
-                            Text(label, color = if (crossfadeSec == sec) Poweramp_Cyan else Color.White)
+                            Text(label, color = if (crossfadeSec == sec) colors.accentCyan else colors.textPrimary)
                         }
                     }
                 }
@@ -422,7 +425,7 @@ fun SettingsScreen(
             confirmButton = {
                 TextButton(
                     onClick = { showCrossfadeDialog = false },
-                    colors = ButtonDefaults.textButtonColors(contentColor = Poweramp_Cyan)
+                    colors = ButtonDefaults.textButtonColors(contentColor = colors.accentCyan)
                 ) {
                     Text("Done")
                 }
@@ -432,9 +435,9 @@ fun SettingsScreen(
 
     if (showReplayGainDialog) {
         AlertDialog(
-            containerColor = Color(0xFF101622),
-            titleContentColor = Color.White,
-            textContentColor = Color(0xFFB0BEC5),
+            containerColor = colors.dialogBackground,
+            titleContentColor = colors.textPrimary,
+            textContentColor = colors.textSecondary,
             onDismissRequest = { showReplayGainDialog = false },
             title = { Text("ReplayGain Mode", fontWeight = FontWeight.Bold) },
             text = {
@@ -458,10 +461,10 @@ fun SettingsScreen(
                             RadioButton(
                                 selected = replayGain == mode,
                                 onClick = null,
-                                colors = RadioButtonDefaults.colors(selectedColor = Poweramp_Cyan)
+                                colors = RadioButtonDefaults.colors(selectedColor = colors.accentCyan)
                             )
                             Spacer(Modifier.width(12.dp))
-                            Text(label, color = if (replayGain == mode) Poweramp_Cyan else Color.White)
+                            Text(label, color = if (replayGain == mode) colors.accentCyan else colors.textPrimary)
                         }
                     }
                 }
@@ -469,7 +472,7 @@ fun SettingsScreen(
             confirmButton = {
                 TextButton(
                     onClick = { showReplayGainDialog = false },
-                    colors = ButtonDefaults.textButtonColors(contentColor = Poweramp_Cyan)
+                    colors = ButtonDefaults.textButtonColors(contentColor = colors.accentCyan)
                 ) {
                     Text("Close")
                 }
@@ -479,9 +482,9 @@ fun SettingsScreen(
 
     if (showVisualizerDialog) {
         AlertDialog(
-            containerColor = Color(0xFF101622),
-            titleContentColor = Color.White,
-            textContentColor = Color(0xFFB0BEC5),
+            containerColor = colors.dialogBackground,
+            titleContentColor = colors.textPrimary,
+            textContentColor = colors.textSecondary,
             onDismissRequest = { showVisualizerDialog = false },
             title = { Text("Visualizer Style", fontWeight = FontWeight.Bold) },
             text = {
@@ -505,10 +508,10 @@ fun SettingsScreen(
                             RadioButton(
                                 selected = visualizerStyle == style,
                                 onClick = null,
-                                colors = RadioButtonDefaults.colors(selectedColor = Poweramp_Cyan)
+                                colors = RadioButtonDefaults.colors(selectedColor = colors.accentCyan)
                             )
                             Spacer(Modifier.width(12.dp))
-                            Text(label, color = if (visualizerStyle == style) Poweramp_Cyan else Color.White)
+                            Text(label, color = if (visualizerStyle == style) colors.accentCyan else colors.textPrimary)
                         }
                     }
                 }
@@ -516,7 +519,7 @@ fun SettingsScreen(
             confirmButton = {
                 TextButton(
                     onClick = { showVisualizerDialog = false },
-                    colors = ButtonDefaults.textButtonColors(contentColor = Poweramp_Cyan)
+                    colors = ButtonDefaults.textButtonColors(contentColor = colors.accentCyan)
                 ) {
                     Text("Close")
                 }
@@ -526,9 +529,9 @@ fun SettingsScreen(
 
     if (showThemeDialog) {
         AlertDialog(
-            containerColor = Color(0xFF101622),
-            titleContentColor = Color.White,
-            textContentColor = Color(0xFFB0BEC5),
+            containerColor = colors.dialogBackground,
+            titleContentColor = colors.textPrimary,
+            textContentColor = colors.textSecondary,
             onDismissRequest = { showThemeDialog = false },
             title = { Text("Select App Skin Theme", fontWeight = FontWeight.Bold) },
             text = {
@@ -553,10 +556,10 @@ fun SettingsScreen(
                             RadioButton(
                                 selected = currentTheme == id,
                                 onClick = null,
-                                colors = RadioButtonDefaults.colors(selectedColor = Poweramp_Cyan)
+                                colors = RadioButtonDefaults.colors(selectedColor = colors.accentCyan)
                             )
                             Spacer(Modifier.width(12.dp))
-                            Text(name, color = if (currentTheme == id) Poweramp_Cyan else Color.White)
+                            Text(name, color = if (currentTheme == id) colors.accentCyan else colors.textPrimary)
                         }
                     }
                 }
@@ -564,7 +567,7 @@ fun SettingsScreen(
             confirmButton = {
                 TextButton(
                     onClick = { showThemeDialog = false },
-                    colors = ButtonDefaults.textButtonColors(contentColor = Poweramp_Cyan)
+                    colors = ButtonDefaults.textButtonColors(contentColor = colors.accentCyan)
                 ) {
                     Text("Close")
                 }
@@ -574,9 +577,9 @@ fun SettingsScreen(
 
     if (showTabsDialog) {
         AlertDialog(
-            containerColor = Color(0xFF101622),
-            titleContentColor = Color.White,
-            textContentColor = Color(0xFFB0BEC5),
+            containerColor = colors.dialogBackground,
+            titleContentColor = colors.textPrimary,
+            textContentColor = colors.textSecondary,
             onDismissRequest = { showTabsDialog = false },
             title = { Text("Visible Navigation Tabs", fontWeight = FontWeight.Bold) },
             text = {
@@ -601,14 +604,14 @@ fun SettingsScreen(
                                 checked = isVisible,
                                 onCheckedChange = null,
                                 colors = CheckboxDefaults.colors(
-                                    checkedColor = Poweramp_Cyan,
-                                    checkmarkColor = Color.Black
+                                    checkedColor = colors.accentCyan,
+                                    checkmarkColor = if (colors.isDark) Color.Black else Color.White
                                 )
                             )
                             Spacer(Modifier.width(12.dp))
                             Text(
                                 tab.lowercase().replaceFirstChar { it.uppercase() },
-                                color = if (isVisible) Color.White else Color(0xFF7A8A9E),
+                                color = if (isVisible) colors.textPrimary else colors.textMuted,
                                 fontWeight = if (isVisible) FontWeight.SemiBold else FontWeight.Normal
                             )
                         }
@@ -618,7 +621,7 @@ fun SettingsScreen(
             confirmButton = {
                 TextButton(
                     onClick = { showTabsDialog = false },
-                    colors = ButtonDefaults.textButtonColors(contentColor = Poweramp_Cyan)
+                    colors = ButtonDefaults.textButtonColors(contentColor = colors.accentCyan)
                 ) {
                     Text("Done")
                 }
@@ -633,6 +636,7 @@ fun SettingsSection(
     sectionIcon: ImageVector,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    val colors = SoundboxTheme.colors
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -642,7 +646,7 @@ fun SettingsSection(
             Icon(
                 imageVector = sectionIcon,
                 contentDescription = null,
-                tint = Poweramp_Cyan,
+                tint = colors.accentCyan,
                 modifier = Modifier.size(14.dp)
             )
             Text(
@@ -653,14 +657,14 @@ fun SettingsSection(
                     fontSize = 11.sp,
                     fontFamily = FontFamily.Monospace
                 ),
-                color = Poweramp_Cyan
+                color = colors.accentCyan
             )
         }
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(14.dp),
-            color = Color(0xFF0F1521),
-            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1B283A))
+            color = colors.surface,
+            border = androidx.compose.foundation.BorderStroke(1.dp, colors.border)
         ) {
             Column(content = content)
         }
@@ -670,7 +674,7 @@ fun SettingsSection(
 @Composable
 fun SettingsDivider() {
     HorizontalDivider(
-        color = Color(0xFF172230),
+        color = SoundboxTheme.colors.borderSubtle,
         thickness = 1.dp,
         modifier = Modifier.padding(horizontal = 14.dp)
     )
@@ -682,9 +686,11 @@ fun SettingsCardRow(
     subtitle: String,
     icon: ImageVector,
     badge: String? = null,
-    badgeColor: Color = Poweramp_Cyan,
+    badgeColor: Color? = null,
     onClick: () -> Unit
 ) {
+    val colors = SoundboxTheme.colors
+    val effectiveBadgeColor = badgeColor ?: colors.accentCyan
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -696,13 +702,13 @@ fun SettingsCardRow(
             modifier = Modifier
                 .size(36.dp)
                 .clip(RoundedCornerShape(8.dp))
-                .background(Color(0xFF162130)),
+                .background(colors.surfaceVariant),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = Poweramp_Cyan,
+                tint = colors.accentCyan,
                 modifier = Modifier.size(20.dp)
             )
         }
@@ -713,19 +719,19 @@ fun SettingsCardRow(
                 style = MaterialTheme.typography.bodyMedium.copy(
                     fontWeight = FontWeight.SemiBold
                 ),
-                color = Color.White
+                color = colors.textPrimary
             )
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodySmall,
-                color = Color(0xFF7D8E9E)
+                color = colors.textSecondary
             )
         }
         if (badge != null) {
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(4.dp))
-                    .background(badgeColor)
+                    .background(effectiveBadgeColor)
                     .padding(horizontal = 6.dp, vertical = 2.dp)
             ) {
                 Text(
@@ -735,7 +741,7 @@ fun SettingsCardRow(
                         fontSize = 8.5.sp,
                         letterSpacing = 0.5.sp
                     ),
-                    color = Color.Black
+                    color = if (colors.isDark) Color.Black else Color.White
                 )
             }
         }
@@ -750,6 +756,7 @@ fun SettingsToggleRow(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit
 ) {
+    val colors = SoundboxTheme.colors
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -761,13 +768,13 @@ fun SettingsToggleRow(
             modifier = Modifier
                 .size(36.dp)
                 .clip(RoundedCornerShape(8.dp))
-                .background(Color(0xFF162130)),
+                .background(colors.surfaceVariant),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = Poweramp_Cyan,
+                tint = colors.accentCyan,
                 modifier = Modifier.size(20.dp)
             )
         }
@@ -778,22 +785,22 @@ fun SettingsToggleRow(
                 style = MaterialTheme.typography.bodyMedium.copy(
                     fontWeight = FontWeight.SemiBold
                 ),
-                color = Color.White
+                color = colors.textPrimary
             )
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodySmall,
-                color = Color(0xFF7D8E9E)
+                color = colors.textSecondary
             )
         }
         Switch(
             checked = checked,
             onCheckedChange = onCheckedChange,
             colors = SwitchDefaults.colors(
-                checkedThumbColor = Color.Black,
-                checkedTrackColor = Poweramp_Cyan,
-                uncheckedThumbColor = Color(0xFF7D8E9E),
-                uncheckedTrackColor = Color(0xFF172230)
+                checkedThumbColor = if (colors.isDark) Color.Black else Color.White,
+                checkedTrackColor = colors.accentCyan,
+                uncheckedThumbColor = colors.textMuted,
+                uncheckedTrackColor = colors.surfaceVariant
             )
         )
     }

@@ -38,6 +38,7 @@ import com.example.ui.theme.Poweramp_Amber
 import com.example.ui.theme.Poweramp_Cyan
 import com.example.ui.theme.Poweramp_Lime
 import com.example.ui.theme.Poweramp_Purple
+import com.example.ui.theme.SoundboxTheme
 import com.example.ui.viewmodel.MusicViewModel
 import java.util.Locale
 
@@ -83,10 +84,16 @@ fun PowerampEqualizerScreen(
     val currentPresetName by viewModel.currentPresetName.collectAsState()
     val playbackSpeed by viewModel.playbackSpeed.collectAsState()
     val playbackPitch by viewModel.playbackPitch.collectAsState()
+    val hwBands by viewModel.equalizerHardwareBands.collectAsState()
+    val eqStatus by viewModel.equalizerStatus.collectAsState()
+    val audioSessionId by viewModel.audioSessionId.collectAsState()
 
     var activeTab by remember { mutableIntStateOf(0) } // 0: Equalizer, 1: Tone & Space, 2: Reverb & Tempo
 
+    val colors = SoundboxTheme.colors
+
     Scaffold(
+        containerColor = colors.background,
         topBar = {
             TopAppBar(
                 title = {
@@ -101,30 +108,30 @@ fun PowerampEqualizerScreen(
                                 letterSpacing = 2.sp,
                                 fontFamily = FontFamily.Monospace
                             ),
-                            color = Poweramp_Cyan
+                            color = colors.accentCyan
                         )
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(4.dp))
-                                .background(Color(0xFF00E5FF).copy(alpha = 0.15f))
-                                .border(1.dp, Poweramp_Cyan.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
+                                .background(colors.accentCyan.copy(alpha = 0.15f))
+                                .border(1.dp, colors.accentCyan.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
                                 .padding(horizontal = 4.dp, vertical = 2.dp)
                         ) {
                             Text(
-                                text = "32-BIT FLOAT",
+                                text = if (hwBands > 0) "HW $hwBands-BAND" else "32-BIT FLOAT",
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 7.5.sp,
                                     fontFamily = FontFamily.Monospace
                                 ),
-                                color = Poweramp_Cyan
+                                color = colors.accentCyan
                             )
                         }
                     }
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = colors.textPrimary)
                     }
                 },
                 actions = {
@@ -133,18 +140,18 @@ fun PowerampEqualizerScreen(
                         checked = equalizerEnabled,
                         onCheckedChange = { viewModel.toggleEqualizer() },
                         colors = SwitchDefaults.colors(
-                            checkedThumbColor = Poweramp_Cyan,
-                            checkedTrackColor = Poweramp_Cyan.copy(alpha = 0.35f),
-                            uncheckedThumbColor = Color(0xFF5A687D),
-                            uncheckedTrackColor = Color(0xFF1B2433)
+                            checkedThumbColor = colors.accentCyan,
+                            checkedTrackColor = colors.accentCyan.copy(alpha = 0.35f),
+                            uncheckedThumbColor = colors.textMuted,
+                            uncheckedTrackColor = colors.surfaceVariant
                         )
                     )
                     IconButton(onClick = { viewModel.resetEqualizerToFlat() }) {
-                        Icon(Icons.Default.RestartAlt, contentDescription = "Reset EQ", tint = Poweramp_Amber)
+                        Icon(Icons.Default.RestartAlt, contentDescription = "Reset EQ", tint = colors.accentAmber)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+                    containerColor = colors.topBarBackground
                 )
             )
         }
@@ -153,28 +160,71 @@ fun PowerampEqualizerScreen(
             modifier = Modifier
                 .padding(innerPadding)
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
+                .background(colors.background)
         ) {
+            // Live Hardware DSP Engine Banner
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(if (equalizerEnabled) colors.accentCyan.copy(alpha = 0.12f) else colors.surfaceVariant)
+                    .border(1.dp, if (equalizerEnabled) colors.accentCyan.copy(alpha = 0.35f) else colors.border, RoundedCornerShape(8.dp))
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(if (equalizerEnabled) colors.accentLime else colors.textMuted)
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = if (equalizerEnabled) {
+                        if (hwBands > 0) "HARDWARE DSP: ACTIVE ($hwBands BANDS)" else "HARDWARE DSP: READY"
+                    } else "DSP BYPASSED (DIRECT AUDIO PATH)",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 10.sp,
+                        letterSpacing = 0.5.sp
+                    ),
+                    color = if (equalizerEnabled) colors.accentCyan else colors.textMuted,
+                    modifier = Modifier.weight(1f)
+                )
+                if (equalizerEnabled && audioSessionId > 0) {
+                    Text(
+                        text = "SESSION #$audioSessionId",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 9.sp
+                        ),
+                        color = colors.accentAmber
+                    )
+                }
+            }
             // Poweramp Sub-tabs selector
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 6.dp)
                     .clip(RoundedCornerShape(10.dp))
-                    .background(Color(0xFF121722)),
+                    .background(colors.surface),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 listOf("GRAPHIC EQ", "TONE & SPACE", "REVERB & TEMPO").forEachIndexed { index, label ->
                     val isSelected = activeTab == index
                     val tabColor by animateColorAsState(
-                        if (isSelected) Poweramp_Cyan else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                        if (isSelected) colors.accentCyan else colors.textMuted,
                         label = "tabColor"
                     )
                     Box(
                         modifier = Modifier
                             .weight(1f)
                             .clip(RoundedCornerShape(8.dp))
-                            .background(if (isSelected) Color(0xFF1E2838) else Color.Transparent)
+                            .background(if (isSelected) colors.surfaceElevated else Color.Transparent)
                             .clickable { activeTab = index }
                             .padding(vertical = 10.dp),
                         contentAlignment = Alignment.Center
@@ -204,10 +254,10 @@ fun PowerampEqualizerScreen(
                     val isSelected = currentPresetName == preset.name
                     Surface(
                         shape = RoundedCornerShape(8.dp),
-                        color = if (isSelected) Poweramp_Cyan.copy(alpha = 0.2f) else Color(0xFF131A26),
+                        color = if (isSelected) colors.accentCyan.copy(alpha = 0.2f) else colors.surfaceVariant,
                         border = androidx.compose.foundation.BorderStroke(
                             1.dp,
-                            if (isSelected) Poweramp_Cyan else Color(0xFF243042)
+                            if (isSelected) colors.accentCyan else colors.border
                         ),
                         modifier = Modifier.clickable {
                             viewModel.applyPowerampPreset(
@@ -227,7 +277,7 @@ fun PowerampEqualizerScreen(
                                 letterSpacing = 0.8.sp,
                                 fontFamily = FontFamily.Monospace
                             ),
-                            color = if (isSelected) Poweramp_Cyan else MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = if (isSelected) colors.accentCyan else colors.textSecondary,
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                         )
                     }

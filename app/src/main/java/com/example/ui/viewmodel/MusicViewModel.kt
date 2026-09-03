@@ -59,6 +59,8 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     val reverbPreset: StateFlow<Int> = playbackManager.reverbPreset
     val currentPresetName: StateFlow<String> = playbackManager.currentPresetName
     val audioSessionId: StateFlow<Int> = playbackManager.audioSessionId
+    val equalizerHardwareBands: StateFlow<Int> = playbackManager.equalizerHardwareBands
+    val equalizerStatus: StateFlow<String> = playbackManager.equalizerStatus
 
     // Scanning states
     private val _isScanning = MutableStateFlow(false)

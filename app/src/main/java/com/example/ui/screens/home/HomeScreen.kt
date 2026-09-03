@@ -29,6 +29,7 @@ import com.example.ui.screens.songs.SongsScreen
 import com.example.ui.theme.Poweramp_Amber
 import com.example.ui.theme.Poweramp_Cyan
 import com.example.ui.theme.Poweramp_Lime
+import com.example.ui.theme.SoundboxTheme
 import com.example.ui.viewmodel.MusicViewModel
 
 enum class HomeTab(val title: String, val icon: ImageVector) {
@@ -138,13 +139,14 @@ fun HomeScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFF080B10)
+                    containerColor = SoundboxTheme.colors.topBarBackground
                 )
             )
         },
         bottomBar = {
+            val colors = SoundboxTheme.colors
             NavigationBar(
-                containerColor = Color(0xFF0D121B),
+                containerColor = colors.surface,
                 tonalElevation = 6.dp
             ) {
                 visibleTabs.forEach { tab ->
@@ -169,11 +171,11 @@ fun HomeScreen(
                             )
                         },
                         colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = Color.Black,
-                            selectedTextColor = Poweramp_Cyan,
-                            indicatorColor = Poweramp_Cyan,
-                            unselectedIconColor = Color(0xFF708096),
-                            unselectedTextColor = Color(0xFF708096)
+                            selectedIconColor = if (colors.isDark) Color.Black else Color.White,
+                            selectedTextColor = colors.accentCyan,
+                            indicatorColor = colors.accentCyan,
+                            unselectedIconColor = colors.textMuted,
+                            unselectedTextColor = colors.textMuted
                         )
                     )
                 }
@@ -184,7 +186,7 @@ fun HomeScreen(
             modifier = Modifier
                 .padding(innerPadding)
                 .fillMaxSize()
-                .background(Color(0xFF080B10))
+                .background(SoundboxTheme.colors.background)
         ) {
             when (selectedTab) {
                 HomeTab.SONGS -> SongsScreen(

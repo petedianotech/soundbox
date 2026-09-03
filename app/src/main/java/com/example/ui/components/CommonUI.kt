@@ -26,6 +26,7 @@ import com.example.data.model.Song
 import com.example.util.AlbumArtHelper
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
+import com.example.ui.theme.SoundboxTheme
 
 @Composable
 fun SongImagePlaceholder(
@@ -115,11 +116,12 @@ fun TrackRow(
     onLongClick: (() -> Unit)? = null,
     extraInfo: String? = null
 ) {
+    val colors = SoundboxTheme.colors
     Surface(
         color = if (isSelected) {
-            Color(0xFF00E5FF).copy(alpha = 0.18f)
+            colors.accentCyan.copy(alpha = 0.18f)
         } else if (isPlaying) {
-            Color(0xFF142436)
+            colors.surfaceElevated
         } else {
             Color.Transparent
         },
@@ -233,13 +235,14 @@ fun MiniPlayer(
         modifier = modifier
     ) {
         currentSong?.let { song ->
+            val colors = SoundboxTheme.colors
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { onOpenNowPlaying() },
                 shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
-                color = Color(0xFF0F1521),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1F2B3E)),
+                color = colors.miniPlayerBackground,
+                border = androidx.compose.foundation.BorderStroke(1.dp, colors.border),
                 tonalElevation = 8.dp,
                 shadowElevation = 12.dp
             ) {
@@ -250,8 +253,8 @@ fun MiniPlayer(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(2.5.dp),
-                            color = Color(0xFF00E5FF),
-                            trackColor = Color(0xFF141D2B)
+                            color = colors.accentCyan,
+                            trackColor = colors.borderSubtle
                         )
                     }
 
@@ -279,7 +282,7 @@ fun MiniPlayer(
                                     fontWeight = FontWeight.Black,
                                     letterSpacing = 0.3.sp
                                 ),
-                                color = Color.White,
+                                color = colors.textPrimary,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -290,7 +293,7 @@ fun MiniPlayer(
                                     fontSize = 11.sp,
                                     fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
                                 ),
-                                color = Color(0xFF00E5FF).copy(alpha = 0.85f),
+                                color = colors.accentCyan.copy(alpha = 0.85f),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -301,7 +304,7 @@ fun MiniPlayer(
                         FilledIconButton(
                             onClick = onPlayPause,
                             colors = IconButtonDefaults.filledIconButtonColors(
-                                containerColor = Color(0xFF00E5FF),
+                                containerColor = colors.accentCyan,
                                 contentColor = Color.Black
                             ),
                             modifier = Modifier.size(40.dp)

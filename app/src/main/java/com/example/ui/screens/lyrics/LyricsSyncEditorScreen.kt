@@ -34,6 +34,7 @@ import com.example.ui.components.poweramp.PowerampWaveformBar
 import com.example.ui.theme.Poweramp_Amber
 import com.example.ui.theme.Poweramp_Cyan
 import com.example.ui.theme.Poweramp_Lime
+import com.example.ui.theme.SoundboxTheme
 import com.example.ui.viewmodel.MusicViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -106,8 +107,10 @@ fun LyricsSyncEditorScreen(
         }
     }
 
+    val colors = SoundboxTheme.colors
+
     Scaffold(
-        containerColor = Color(0xFF080C13),
+        containerColor = colors.background,
         topBar = {
             TopAppBar(
                 title = {
@@ -122,12 +125,12 @@ fun LyricsSyncEditorScreen(
                                 letterSpacing = 1.5.sp,
                                 fontFamily = FontFamily.Monospace
                             ),
-                            color = Poweramp_Cyan
+                            color = colors.accentCyan
                         )
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(4.dp))
-                                .background(Color(0xFF162536))
+                                .background(colors.surfaceVariant)
                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
                             Text(
@@ -137,7 +140,7 @@ fun LyricsSyncEditorScreen(
                                     fontWeight = FontWeight.Bold,
                                     fontFamily = FontFamily.Monospace
                                 ),
-                                color = Poweramp_Lime
+                                color = colors.accentLime
                             )
                         }
                     }
@@ -147,7 +150,7 @@ fun LyricsSyncEditorScreen(
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = Color.White
+                            tint = colors.textPrimary
                         )
                     }
                 },
@@ -160,13 +163,13 @@ fun LyricsSyncEditorScreen(
                             Icon(
                                 Icons.Default.EditNote,
                                 contentDescription = "Edit Text Lines",
-                                tint = Poweramp_Cyan
+                                tint = colors.accentCyan
                             )
                         }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFF0A1018)
+                    containerColor = colors.topBarBackground
                 )
             )
         }

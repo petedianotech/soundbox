@@ -113,6 +113,12 @@ class PlaybackManager private constructor(private val context: Context) {
     private val _audioSessionId = MutableStateFlow(player.audioSessionId)
     val audioSessionId: StateFlow<Int> = _audioSessionId.asStateFlow()
 
+    private val _equalizerHardwareBands = MutableStateFlow(0)
+    val equalizerHardwareBands: StateFlow<Int> = _equalizerHardwareBands.asStateFlow()
+
+    private val _equalizerStatus = MutableStateFlow("DSP Engine Standby")
+    val equalizerStatus: StateFlow<String> = _equalizerStatus.asStateFlow()
+
     private var sleepTimer: Timer? = null
     private val handler = Handler(Looper.getMainLooper())
 
@@ -159,6 +165,16 @@ class PlaybackManager private constructor(private val context: Context) {
                 _duration.value = player.duration.coerceAtLeast(0L)
             }
 
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                if (playbackState == Player.STATE_READY) {
+                    val sid = player.audioSessionId
+                    if (sid > 0) {
+                        _audioSessionId.value = sid
+                        initAudioEffects(sid)
+                    }
+                }
+            }
+
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                 val mediaId = mediaItem?.mediaId
                 if (mediaId != null) {
@@ -185,69 +201,178 @@ class PlaybackManager private constructor(private val context: Context) {
             override fun onRepeatModeChanged(newRepeatMode: Int) {
                 _repeatMode.value = newRepeatMode
             }
+        })
 
-            override fun onAudioSessionIdChanged(audioSessionId: Int) {
-                super.onAudioSessionIdChanged(audioSessionId)
-                _audioSessionId.value = audioSessionId
-                initAudioEffects(audioSessionId)
+        // Media3 AnalyticsListener for reliable AudioSessionId tracking
+        player.addAnalyticsListener(object : androidx.media3.exoplayer.analytics.AnalyticsListener {
+            override fun onAudioSessionIdChanged(
+                eventTime: androidx.media3.exoplayer.analytics.AnalyticsListener.EventTime,
+                audioSessionId: Int
+            ) {
+                Log.d("PlaybackManager", "Audio session ID received via AnalyticsListener: $audioSessionId")
+                if (audioSessionId > 0) {
+                    _audioSessionId.value = audioSessionId
+                    initAudioEffects(audioSessionId)
+                }
             }
         })
     }
 
-    private fun initAudioEffects(audioSessionId: Int) {
-        if (audioSessionId == 0) return
+    private var lastAttachedSessionId: Int = -1
+
+    private fun releaseAudioEffects() {
         try {
-            equalizer = Equalizer(0, audioSessionId).apply {
+            equalizer?.release()
+            equalizer = null
+            bassBoost?.release()
+            bassBoost = null
+            virtualizer?.release()
+            virtualizer = null
+            presetReverb?.release()
+            presetReverb = null
+        } catch (e: Exception) {
+            Log.w("PlaybackManager", "Error releasing audio effects: ${e.message}")
+        }
+    }
+
+    private fun initAudioEffects(audioSessionId: Int) {
+        if (audioSessionId <= 0) return
+        if (equalizer != null && lastAttachedSessionId == audioSessionId) {
+            applyHardwareEqualizerBands()
+            return
+        }
+
+        releaseAudioEffects()
+        lastAttachedSessionId = audioSessionId
+
+        try {
+            val openIntent = android.content.Intent(android.media.audiofx.AudioEffect.ACTION_OPEN_AUDIO_EFFECT_CONTROL_SESSION).apply {
+                putExtra(android.media.audiofx.AudioEffect.EXTRA_AUDIO_SESSION, audioSessionId)
+                putExtra(android.media.audiofx.AudioEffect.EXTRA_PACKAGE_NAME, context.packageName)
+                putExtra(android.media.audiofx.AudioEffect.EXTRA_CONTENT_TYPE, android.media.audiofx.AudioEffect.CONTENT_TYPE_MUSIC)
+            }
+            context.sendBroadcast(openIntent)
+        } catch (e: Exception) {
+            Log.w("PlaybackManager", "AudioEffect session broadcast error: ${e.message}")
+        }
+
+        try {
+            val eq = Equalizer(1000, audioSessionId).apply {
                 enabled = _equalizerEnabled.value
             }
-            bassBoost = BassBoost(0, audioSessionId).apply {
+            equalizer = eq
+            val bandsCount = eq.numberOfBands.toInt()
+            _equalizerHardwareBands.value = bandsCount
+            _equalizerStatus.value = "Hardware DSP Active ($bandsCount HW Bands • Session #$audioSessionId)"
+            Log.d("PlaybackManager", "Hardware Equalizer initialized: $bandsCount bands on session $audioSessionId")
+        } catch (e: Exception) {
+            Log.e("PlaybackManager", "Hardware Equalizer activation error: ${e.message}")
+            _equalizerStatus.value = "DSP Software Emulation Mode"
+        }
+
+        try {
+            val boost = BassBoost(1000, audioSessionId).apply {
                 enabled = _bassBoostStrength.value > 0
-                if (enabled) {
+                if (strengthSupported) {
                     setStrength(_bassBoostStrength.value.toShort())
                 }
             }
-            virtualizer = Virtualizer(0, audioSessionId).apply {
+            bassBoost = boost
+            Log.d("PlaybackManager", "Hardware BassBoost initialized (supported=${boost.strengthSupported})")
+        } catch (e: Exception) {
+            Log.w("PlaybackManager", "BassBoost activation skipped: ${e.message}")
+        }
+
+        try {
+            val virt = Virtualizer(1000, audioSessionId).apply {
                 enabled = _virtualizerStrength.value > 0
-                if (enabled) {
+                if (strengthSupported) {
                     setStrength(_virtualizerStrength.value.toShort())
                 }
             }
-            presetReverb = PresetReverb(0, audioSessionId).apply {
+            virtualizer = virt
+            Log.d("PlaybackManager", "Hardware Virtualizer initialized (supported=${virt.strengthSupported})")
+        } catch (e: Exception) {
+            Log.w("PlaybackManager", "Virtualizer activation skipped: ${e.message}")
+        }
+
+        try {
+            val reverb = PresetReverb(1000, audioSessionId).apply {
                 enabled = _reverbPreset.value != PresetReverb.PRESET_NONE.toInt()
                 if (enabled) {
                     preset = _reverbPreset.value.toShort()
                 }
             }
-            applyHardwareEqualizerBands()
-            Log.d("PlaybackManager", "Poweramp Audio DSP Engine initialized on session $audioSessionId")
+            presetReverb = reverb
+            player.setAuxEffectInfo(androidx.media3.common.AuxEffectInfo(reverb.id, 1.0f))
+            Log.d("PlaybackManager", "Hardware PresetReverb attached to ExoPlayer AuxEffect")
         } catch (e: Exception) {
-            Log.e("PlaybackManager", "Audio effects activation skipped: ${e.message}")
+            Log.w("PlaybackManager", "PresetReverb activation skipped: ${e.message}")
         }
+
+        applyHardwareEqualizerBands()
+    }
+
+    private val userBandFrequencies = listOf(31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000)
+
+    private fun updatePlayerVolume() {
+        val preampDb = _preampGain.value
+        // Real-time digital headroom/boost: 0dB = 1.0f, +6dB ~ 1.41f, -6dB ~ 0.5f
+        val preampFactor = Math.pow(10.0, (preampDb / 20.0).toDouble()).toFloat().coerceIn(0.05f, 1.8f)
+        val balance = _audioBalance.value
+        val balFactor = if (Math.abs(balance) > 0.05f) 1f - (Math.abs(balance) * 0.15f) else 1f
+        player.volume = (preampFactor * balFactor).coerceIn(0f, 1.8f)
     }
 
     private fun applyHardwareEqualizerBands() {
+        updatePlayerVolume()
+
         val eq = equalizer ?: return
         try {
             val numBands = eq.numberOfBands.toInt()
             val currentGains = _eqBandLevels.value
             val preamp = _preampGain.value
             val treble = _trebleGain.value
+            val bassBoostFactor = _bassBoostStrength.value / 1000f
 
             val minLevel = eq.bandLevelRange?.get(0)?.toInt() ?: -1500
             val maxLevel = eq.bandLevelRange?.get(1)?.toInt() ?: 1500
 
-            for (i in 0 until numBands) {
-                // Map 10-band profile into hardware bands
-                val profileIdx = ((i.toFloat() / (numBands - 1).coerceAtLeast(1)) * (currentGains.size - 1)).toInt()
-                var gainDb = currentGains.getOrElse(profileIdx) { 0f } + preamp
-
-                // Apply treble boost to top 30% of bands
-                if (i >= numBands * 0.7f) {
-                    gainDb += treble
+            for (hwBand in 0 until numBands) {
+                val hwFreqHz = try {
+                    (eq.getCenterFreq(hwBand.toShort()) / 1000).coerceAtLeast(20)
+                } catch (e: Exception) {
+                    val ratio = hwBand.toFloat() / (numBands - 1).coerceAtLeast(1)
+                    (31 * Math.pow(16000.0 / 31.0, ratio.toDouble())).toInt()
                 }
 
-                val millibels = (gainDb * 100f).toInt().coerceIn(minLevel, maxLevel)
-                eq.setBandLevel(i.toShort(), millibels.toShort())
+                // Match with closest user band on logarithmic scale
+                var closestIdx = 0
+                var minDiff = Float.MAX_VALUE
+                for (i in userBandFrequencies.indices) {
+                    val diff = Math.abs(Math.log(hwFreqHz.toDouble()) - Math.log(userBandFrequencies[i].toDouble())).toFloat()
+                    if (diff < minDiff) {
+                        minDiff = diff
+                        closestIdx = i
+                    }
+                }
+
+                var targetGainDb = currentGains.getOrElse(closestIdx) { 0f } + preamp
+
+                // Treble boost on high frequencies (> 3000 Hz)
+                if (hwFreqHz >= 3000) {
+                    val trebleRatio = ((hwFreqHz - 3000f) / 13000f).coerceIn(0.2f, 1f)
+                    targetGainDb += treble * trebleRatio
+                }
+
+                // Bass boost reinforcement on low frequencies (<= 250 Hz)
+                if (hwFreqHz <= 250) {
+                    val bassRatio = (1f - (hwFreqHz / 250f)).coerceIn(0.2f, 1f)
+                    targetGainDb += (bassBoostFactor * 6f) * bassRatio
+                }
+
+                val millibels = (targetGainDb * 100f).toInt().coerceIn(minLevel, maxLevel)
+                eq.setBandLevel(hwBand.toShort(), millibels.toShort())
             }
         } catch (e: Exception) {
             Log.w("PlaybackManager", "Error applying EQ band gains: ${e.message}")
@@ -461,13 +586,14 @@ class PlaybackManager private constructor(private val context: Context) {
         try {
             bassBoost?.let { boost ->
                 boost.enabled = clamped > 0
-                if (clamped > 0) {
+                if (clamped > 0 && boost.strengthSupported) {
                     boost.setStrength(clamped.toShort())
                 }
             }
         } catch (e: Exception) {
             Log.w("PlaybackManager", "Error setting bass boost strength: ${e.message}")
         }
+        applyHardwareEqualizerBands()
     }
 
     fun setVirtualizerStrength(strength: Int) { // 0 to 1000
@@ -476,7 +602,7 @@ class PlaybackManager private constructor(private val context: Context) {
         try {
             virtualizer?.let { virt ->
                 virt.enabled = clamped > 0
-                if (clamped > 0) {
+                if (clamped > 0 && virt.strengthSupported) {
                     virt.setStrength(clamped.toShort())
                 }
             }
@@ -488,11 +614,7 @@ class PlaybackManager private constructor(private val context: Context) {
     fun setAudioBalance(balance: Float) { // -1.0f (Full Left) to +1.0f (Full Right)
         val clamped = balance.coerceIn(-1f, 1f)
         _audioBalance.value = clamped
-        // ExoPlayer stereo balance volume emulation
-        val leftVol = if (clamped > 0f) 1f - clamped else 1f
-        val rightVol = if (clamped < 0f) 1f + clamped else 1f
-        val avgVol = (leftVol + rightVol) / 2f
-        player.volume = avgVol
+        updatePlayerVolume()
     }
 
     fun setReverbPreset(presetId: Int) {
