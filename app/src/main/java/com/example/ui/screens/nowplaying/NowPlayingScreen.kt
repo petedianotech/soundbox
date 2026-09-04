@@ -64,6 +64,7 @@ import com.example.ui.components.poweramp.PowerampWaveformBar
 import com.example.ui.theme.Poweramp_Amber
 import com.example.ui.theme.Poweramp_Cyan
 import com.example.ui.theme.Poweramp_Lime
+import com.example.ui.theme.SoundboxTheme
 import com.example.ui.viewmodel.MusicViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -212,7 +213,8 @@ fun NowPlayingScreen(
     }
 
     // Cohesive, Stable Theme Palette
-    val accentColor = MaterialTheme.colorScheme.primary
+    val colors = SoundboxTheme.colors
+    val accentColor = colors.accentCyan
     val secondaryColor = MaterialTheme.colorScheme.secondary
 
     Scaffold(
@@ -231,7 +233,7 @@ fun NowPlayingScreen(
                         Text(
                             text = song.album.ifEmpty { "Audio Library" },
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = colors.textSecondary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -243,7 +245,7 @@ fun NowPlayingScreen(
                             imageVector = Icons.Default.KeyboardArrowDown,
                             contentDescription = "Collapse Player",
                             modifier = Modifier.size(30.dp),
-                            tint = MaterialTheme.colorScheme.onSurface
+                            tint = colors.textPrimary
                         )
                     }
                 },
@@ -258,7 +260,7 @@ fun NowPlayingScreen(
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.QueueMusic,
                                 contentDescription = "Playback Queue",
-                                tint = MaterialTheme.colorScheme.onSurface
+                                tint = colors.textPrimary
                             )
                         }
                     }
@@ -267,13 +269,13 @@ fun NowPlayingScreen(
                     IconButton(onClick = onNavigateToEqualizer) {
                         BadgedBox(badge = {
                             if (eqEnabled || bassStrength > 0 || virtualizerStrength > 0) {
-                                Badge(containerColor = Poweramp_Lime) { Text("DSP", color = Color.Black) }
+                                Badge(containerColor = colors.accentLime) { Text("DSP", color = Color.Black) }
                             }
                         }) {
                             Icon(
                                 imageVector = Icons.Default.Equalizer,
                                 contentDescription = "Equalizer & DSP",
-                                tint = if (eqEnabled || bassStrength > 0 || virtualizerStrength > 0) Poweramp_Cyan else MaterialTheme.colorScheme.onSurface
+                                tint = if (eqEnabled || bassStrength > 0 || virtualizerStrength > 0) colors.accentCyan else colors.textPrimary
                             )
                         }
                     }
@@ -283,7 +285,7 @@ fun NowPlayingScreen(
                         Icon(
                             imageVector = Icons.Default.MoreVert,
                             contentDescription = "Song & Lyrics Options",
-                            tint = MaterialTheme.colorScheme.onSurface
+                            tint = colors.textPrimary
                         )
                     }
                 },
@@ -292,19 +294,29 @@ fun NowPlayingScreen(
                 )
             )
         },
-        containerColor = MaterialTheme.colorScheme.surface
+        containerColor = colors.background
     ) { innerPadding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color(0xFF0F1722),
-                            Color(0xFF090D14),
-                            Color(0xFF040608)
+                    if (colors.isDark) {
+                        Brush.verticalGradient(
+                            listOf(
+                                Color(0xFF0F1722),
+                                Color(0xFF090D14),
+                                Color(0xFF040608)
+                            )
                         )
-                    )
+                    } else {
+                        Brush.verticalGradient(
+                            listOf(
+                                Color(0xFFF8FAFC),
+                                Color(0xFFF1F5F9),
+                                Color(0xFFE2E8F0)
+                            )
+                        )
+                    }
                 )
                 .padding(innerPadding)
         ) {
@@ -442,7 +454,7 @@ fun NowPlayingScreen(
                             duration = duration,
                             isPlaying = isPlaying,
                             onSeek = { targetMs -> viewModel.seekTo(targetMs) },
-                            accentColor = Color(0xFF00E5FF),
+                            accentColor = colors.accentCyan,
                             seedKey = song.id.toString(),
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -465,7 +477,7 @@ fun NowPlayingScreen(
                                     fontFamily = FontFamily.Monospace,
                                     letterSpacing = 0.5.sp
                                 ),
-                                color = Color(0xFF00E5FF)
+                                color = colors.accentCyan
                             )
 
                             // Tap to switch between total duration and remaining duration
@@ -480,7 +492,7 @@ fun NowPlayingScreen(
                                     fontFamily = FontFamily.Monospace,
                                     letterSpacing = 0.5.sp
                                 ),
-                                color = Color(0xFF8A99AD),
+                                color = colors.textSecondary,
                                 modifier = Modifier.clickable { showRemainingTime = !showRemainingTime }
                             )
                         }
@@ -497,8 +509,8 @@ fun NowPlayingScreen(
                         // Left: Audio Engine Format Capsule
                         Surface(
                             shape = CircleShape,
-                            color = Color(0xFF111824),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1E2C3F))
+                            color = colors.surfaceVariant,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, colors.border)
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
@@ -509,7 +521,7 @@ fun NowPlayingScreen(
                                     imageVector = Icons.Default.GraphicEq,
                                     contentDescription = null,
                                     modifier = Modifier.size(13.dp),
-                                    tint = Poweramp_Cyan
+                                    tint = colors.accentCyan
                                 )
                                 Text(
                                     text = if (song.path.endsWith(".flac", ignoreCase = true)) "STUDIO FLAC • 24-BIT" else "320 KBPS • LOSSLESS",
@@ -519,7 +531,7 @@ fun NowPlayingScreen(
                                         fontFamily = FontFamily.Monospace,
                                         letterSpacing = 0.5.sp
                                     ),
-                                    color = Color(0xFF8A99AD)
+                                    color = colors.textSecondary
                                 )
                             }
                         }
@@ -528,10 +540,10 @@ fun NowPlayingScreen(
                         Surface(
                             onClick = onNavigateToEqualizer,
                             shape = CircleShape,
-                            color = Color(0xFF111824),
+                            color = colors.surfaceVariant,
                             border = androidx.compose.foundation.BorderStroke(
                                 1.dp,
-                                if (eqEnabled) Poweramp_Cyan.copy(alpha = 0.6f) else Color(0xFF1E2C3F)
+                                if (eqEnabled) colors.accentCyan.copy(alpha = 0.6f) else colors.border
                             )
                         ) {
                             Row(
@@ -543,7 +555,7 @@ fun NowPlayingScreen(
                                     modifier = Modifier
                                         .size(6.dp)
                                         .clip(CircleShape)
-                                        .background(if (eqEnabled) Poweramp_Lime else Color(0xFF4A5568))
+                                        .background(if (eqEnabled) colors.accentLime else colors.textMuted)
                                 )
                                 Text(
                                     text = if (eqEnabled) "10-BAND EQ ON" else "EQUALIZER",
@@ -552,13 +564,13 @@ fun NowPlayingScreen(
                                         fontSize = 10.sp,
                                         letterSpacing = 0.5.sp
                                     ),
-                                    color = if (eqEnabled) Color.White else Color(0xFF8A99AD)
+                                    color = if (eqEnabled) colors.textPrimary else colors.textSecondary
                                 )
                                 Icon(
                                     imageVector = Icons.Default.ArrowForwardIos,
                                     contentDescription = null,
                                     modifier = Modifier.size(9.dp),
-                                    tint = if (eqEnabled) Poweramp_Cyan else Color(0xFF5A697D)
+                                    tint = if (eqEnabled) colors.accentCyan else colors.textMuted
                                 )
                             }
                         }

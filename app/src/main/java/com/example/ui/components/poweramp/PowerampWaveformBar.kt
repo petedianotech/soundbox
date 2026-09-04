@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.theme.Poweramp_Cyan
+import com.example.ui.theme.SoundboxTheme
 import kotlin.math.abs
 import kotlin.math.sin
 
@@ -43,6 +44,7 @@ fun PowerampWaveformBar(
     accentColor: Color = Poweramp_Cyan,
     seedKey: String = "default"
 ) {
+    val themeColors = SoundboxTheme.colors
     val progress = remember(currentPosition, duration) {
         if (duration > 0) (currentPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f) else 0f
     }
@@ -156,14 +158,23 @@ fun PowerampWaveformBar(
                         cornerRadius = CornerRadius(2.dp.toPx(), 2.dp.toPx())
                     )
                 } else {
-                    // Unplayed Waveform: Sleek metallic slate
+                    // Unplayed Waveform: Sleek metallic slate (Dark) or refined soft gray (Light)
+                    val unplayedColors = if (themeColors.isDark) {
+                        listOf(
+                            Color(0xFF2C384C),
+                            Color(0xFF192230),
+                            Color(0xFF2C384C)
+                        )
+                    } else {
+                        listOf(
+                            Color(0xFFCBD5E1),
+                            Color(0xFFE2E8F0),
+                            Color(0xFFCBD5E1)
+                        )
+                    }
                     drawRoundRect(
                         brush = Brush.verticalGradient(
-                            colors = listOf(
-                                Color(0xFF2C384C),
-                                Color(0xFF192230),
-                                Color(0xFF2C384C)
-                            ),
+                            colors = unplayedColors,
                             startY = topY,
                             endY = topY + barH
                         ),
@@ -185,7 +196,7 @@ fun PowerampWaveformBar(
             )
             // Playhead solid line
             drawLine(
-                color = Color.White,
+                color = if (themeColors.isDark) Color.White else Color(0xFF0F172A),
                 start = Offset(needleX, 0f),
                 end = Offset(needleX, canvasHeight),
                 strokeWidth = 2.5.dp.toPx()

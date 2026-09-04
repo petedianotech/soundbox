@@ -440,20 +440,23 @@ class PlaybackManager private constructor(private val context: Context) {
         }
     }
 
-    private fun extractArtworkBytes(path: String): ByteArray? {
-        return try {
+    private fun extractArtworkBytes(songItem: Song): ByteArray? {
+        try {
             val retriever = android.media.MediaMetadataRetriever()
-            if (path.startsWith("content://")) {
-                retriever.setDataSource(context, android.net.Uri.parse(path))
+            if (songItem.path.startsWith("content://")) {
+                retriever.setDataSource(context, android.net.Uri.parse(songItem.path))
             } else {
-                retriever.setDataSource(path)
+                retriever.setDataSource(songItem.path)
             }
             val art = retriever.embeddedPicture
             retriever.release()
-            art
+            if (art != null && art.isNotEmpty()) {
+                return art
+            }
         } catch (e: Exception) {
-            null
+            // Fall through to generated studio album art
         }
+        return com.example.util.AlbumArtHelper.getArtworkBytes(context, songItem)
     }
 
     private fun buildMediaItem(songItem: Song): MediaItem {
@@ -463,14 +466,17 @@ class PlaybackManager private constructor(private val context: Context) {
             android.net.Uri.fromFile(java.io.File(songItem.path))
         }
 
+        val artResId = com.example.util.AlbumArtHelper.getAlbumArtResId(songItem)
+        val artUri = android.net.Uri.parse("android.resource://${context.packageName}/$artResId")
+
         val metadataBuilder = androidx.media3.common.MediaMetadata.Builder()
             .setTitle(songItem.title)
             .setArtist(songItem.artist)
             .setAlbumTitle(songItem.album)
             .setDisplayTitle(songItem.title)
-            .setArtworkUri(fileUri)
+            .setArtworkUri(artUri)
 
-        val artworkBytes = extractArtworkBytes(songItem.path)
+        val artworkBytes = extractArtworkBytes(songItem)
         if (artworkBytes != null) {
             metadataBuilder.setArtworkData(artworkBytes, androidx.media3.common.MediaMetadata.PICTURE_TYPE_FRONT_COVER)
         }

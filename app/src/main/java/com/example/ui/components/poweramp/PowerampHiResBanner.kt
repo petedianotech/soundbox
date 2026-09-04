@@ -29,9 +29,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.Song
+import com.example.ui.theme.LocalSoundboxSkin
 import com.example.ui.theme.Poweramp_Amber
 import com.example.ui.theme.Poweramp_Cyan
 import com.example.ui.theme.Poweramp_Lime
+import com.example.ui.theme.SoundboxTheme
 
 /**
  * Poweramp Hi-Res Audio Engine / DSP Status Banner.
@@ -46,6 +48,7 @@ fun PowerampHiResBanner(
     modifier: Modifier = Modifier,
     onOpenDsp: () -> Unit = {}
 ) {
+    val colors = SoundboxTheme.colors
     val (format, sampleRate, bitDepth) = remember(song?.path, song?.title) {
         val path = song?.path?.lowercase() ?: ""
         when {
@@ -59,8 +62,8 @@ fun PowerampHiResBanner(
 
     Surface(
         shape = RoundedCornerShape(12.dp),
-        color = Color(0xFF0F1521),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1E2A3C)),
+        color = colors.surfaceVariant,
+        border = androidx.compose.foundation.BorderStroke(1.dp, colors.border),
         modifier = modifier
             .fillMaxWidth()
             .clickable { onOpenDsp() }
@@ -107,7 +110,7 @@ fun PowerampHiResBanner(
                         fontFamily = FontFamily.Monospace,
                         letterSpacing = 0.5.sp
                     ),
-                    color = Poweramp_Cyan
+                    color = if (colors.isDark) colors.accentCyan else colors.accentCyan
                 )
             }
 
@@ -119,20 +122,20 @@ fun PowerampHiResBanner(
                 if (equalizerEnabled) {
                     PowerampChip(
                         label = "EQ",
-                        color = Poweramp_Cyan
+                        color = colors.accentCyan
                     )
                 }
 
                 if (bassBoostActive) {
                     PowerampChip(
                         label = "BASS",
-                        color = Poweramp_Lime
+                        color = colors.accentLime
                     )
                 }
 
                 PowerampChip(
                     label = "32-BIT DSP",
-                    color = Color(0xFF64B5F6)
+                    color = if (colors.isDark) Color(0xFF64B5F6) else Color(0xFF2563EB)
                 )
             }
         }

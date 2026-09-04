@@ -49,4 +49,33 @@ object AlbumArtHelper {
             }
         }
     }
+
+    /**
+     * Extracts byte array of the album art drawable for passing to Media3 / MediaMetadata
+     */
+    fun getArtworkBytes(context: android.content.Context, song: Song?): ByteArray? {
+        val resId = getAlbumArtResId(song)
+        return try {
+            val bitmap = android.graphics.BitmapFactory.decodeResource(context.resources, resId)
+            if (bitmap != null) {
+                val stream = java.io.ByteArrayOutputStream()
+                bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 92, stream)
+                stream.toByteArray()
+            } else null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /**
+     * Decodes the album art drawable as a high-resolution Bitmap for notifications and UI widgets
+     */
+    fun getArtworkBitmap(context: android.content.Context, song: Song?): android.graphics.Bitmap? {
+        val resId = getAlbumArtResId(song)
+        return try {
+            android.graphics.BitmapFactory.decodeResource(context.resources, resId)
+        } catch (e: Exception) {
+            null
+        }
+    }
 }
