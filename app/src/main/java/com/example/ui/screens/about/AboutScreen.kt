@@ -26,19 +26,19 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.ui.theme.Poweramp_Cyan
-import com.example.ui.theme.Poweramp_Lime
+import com.example.ui.theme.SoundboxTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AboutScreen(
     onNavigateBack: () -> Unit
 ) {
+    val colors = SoundboxTheme.colors
     val context = LocalContext.current
     val scrollState = rememberScrollState()
 
     Scaffold(
-        containerColor = Color(0xFF080C13),
+        containerColor = colors.background,
         topBar = {
             TopAppBar(
                 title = {
@@ -49,7 +49,7 @@ fun AboutScreen(
                             letterSpacing = 1.5.sp,
                             fontFamily = FontFamily.Monospace
                         ),
-                        color = Poweramp_Cyan
+                        color = colors.textPrimary
                     )
                 },
                 navigationIcon = {
@@ -57,12 +57,12 @@ fun AboutScreen(
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = Color.White
+                            tint = colors.textPrimary
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFF0A1018)
+                    containerColor = colors.topBarBackground
                 )
             )
         }
@@ -81,17 +81,17 @@ fun AboutScreen(
                     .clip(CircleShape)
                     .background(
                         Brush.radialGradient(
-                            listOf(Color(0xFF00E5FF).copy(alpha = 0.25f), Color(0xFF0C1622))
+                            listOf(colors.accentCyan.copy(alpha = 0.25f), colors.surfaceVariant)
                         )
                     )
-                    .border(1.5.dp, Poweramp_Cyan, CircleShape),
+                    .border(1.5.dp, colors.accentCyan, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.GraphicEq,
                     contentDescription = "Soundbox Audio Engine",
                     modifier = Modifier.size(42.dp),
-                    tint = Poweramp_Cyan
+                    tint = colors.accentCyan
                 )
             }
 
@@ -105,7 +105,7 @@ fun AboutScreen(
                     letterSpacing = 2.sp,
                     fontFamily = FontFamily.Monospace
                 ),
-                color = Color.White
+                color = colors.textPrimary
             )
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -114,17 +114,17 @@ fun AboutScreen(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(4.dp))
-                        .background(Color(0xFF132233))
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                        .background(colors.surfaceVariant)
+                        .padding(horizontal = 8.dp, vertical = 3.dp)
                 ) {
                     Text(
                         text = "V2.4 PRO AUDIO ENGINE",
                         style = MaterialTheme.typography.labelSmall.copy(
-                            fontSize = 9.sp,
+                            fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
                             fontFamily = FontFamily.Monospace
                         ),
-                        color = Poweramp_Lime
+                        color = colors.accentLime
                     )
                 }
             }
@@ -135,8 +135,8 @@ fun AboutScreen(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                color = Color(0xFF0E1622),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1D2B3D))
+                color = colors.surface,
+                border = androidx.compose.foundation.BorderStroke(1.dp, colors.border)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(
@@ -146,7 +146,7 @@ fun AboutScreen(
                         Icon(
                             Icons.Default.Person,
                             contentDescription = null,
-                            tint = Poweramp_Cyan,
+                            tint = colors.accentCyan,
                             modifier = Modifier.size(18.dp)
                         )
                         Text(
@@ -156,7 +156,7 @@ fun AboutScreen(
                                 letterSpacing = 1.2.sp,
                                 fontFamily = FontFamily.Monospace
                             ),
-                            color = Poweramp_Cyan
+                            color = colors.accentCyan
                         )
                     }
 
@@ -165,12 +165,12 @@ fun AboutScreen(
                     Text(
                         text = "Peter Damiano (Petediano)",
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        color = Color.White
+                        color = colors.textPrimary
                     )
                     Text(
                         text = "Software Developer & UI/UX Craftsman • Malawi",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF8A9CAF)
+                        color = colors.textSecondary
                     )
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -178,7 +178,7 @@ fun AboutScreen(
                     Text(
                         text = "Specializing in high-performance native Android applications, low-latency audio processing, and tactile DSP interface design.",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Color(0xFFB0BEC5)
+                        color = colors.textSecondary
                     )
                 }
             }
@@ -189,8 +189,8 @@ fun AboutScreen(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                color = Color(0xFF0E1622),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1D2B3D))
+                color = colors.surface,
+                border = androidx.compose.foundation.BorderStroke(1.dp, colors.border)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(
@@ -200,7 +200,7 @@ fun AboutScreen(
                         Icon(
                             Icons.Default.FlashOn,
                             contentDescription = null,
-                            tint = Poweramp_Lime,
+                            tint = colors.accentLime,
                             modifier = Modifier.size(18.dp)
                         )
                         Text(
@@ -210,7 +210,7 @@ fun AboutScreen(
                                 letterSpacing = 1.2.sp,
                                 fontFamily = FontFamily.Monospace
                             ),
-                            color = Poweramp_Lime
+                            color = colors.accentLime
                         )
                     }
 
@@ -219,7 +219,7 @@ fun AboutScreen(
                     Text(
                         text = "Built with 10-Band Graphic Equalization, 64-bit float internal audio processing pipeline, tactile rotaries, real-time waveform navigation, and live Karaoke LRC syncing.",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Color(0xFFB0BEC5)
+                        color = colors.textSecondary
                     )
                 }
             }
@@ -266,7 +266,7 @@ fun AboutScreen(
             Text(
                 text = "Soundbox • Crafted with Precision",
                 style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                color = Color(0xFF4A5E75),
+                color = colors.textMuted,
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(16.dp))
@@ -281,10 +281,11 @@ private fun AboutActionTile(
     subtitle: String,
     onClick: () -> Unit
 ) {
+    val colors = SoundboxTheme.colors
     Surface(
         onClick = onClick,
-        color = Color(0xFF0E1622),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1D2B3D)),
+        color = colors.surface,
+        border = androidx.compose.foundation.BorderStroke(1.dp, colors.border),
         shape = RoundedCornerShape(12.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -298,13 +299,13 @@ private fun AboutActionTile(
                 modifier = Modifier
                     .size(36.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0xFF152232)),
+                    .background(colors.surfaceVariant),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = title,
-                    tint = Poweramp_Cyan,
+                    tint = colors.accentCyan,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -313,18 +314,18 @@ private fun AboutActionTile(
                 Text(
                     text = title,
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                    color = Color.White
+                    color = colors.textPrimary
                 )
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFF8A9CAF)
+                    color = colors.textSecondary
                 )
             }
             Icon(
                 Icons.Default.ChevronRight,
                 contentDescription = null,
-                tint = Color(0xFF4A5E75),
+                tint = colors.textMuted,
                 modifier = Modifier.size(18.dp)
             )
         }

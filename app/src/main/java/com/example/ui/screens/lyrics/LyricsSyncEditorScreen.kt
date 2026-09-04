@@ -190,27 +190,27 @@ fun LyricsSyncEditorScreen(
                         modifier = Modifier
                             .size(72.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFF131D2A)),
+                            .background(colors.surfaceVariant),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.MusicOff,
                             contentDescription = "No music",
                             modifier = Modifier.size(36.dp),
-                            tint = Color(0xFF5A6E85)
+                            tint = colors.textSecondary
                         )
                     }
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
                         text = "No track currently loaded",
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        color = Color.White
+                        color = colors.textPrimary
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "Play an audio file from your library first, then return here to tag time-synced lyrics.",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Color(0xFF7A8E9E),
+                        color = colors.textSecondary,
                         textAlign = TextAlign.Center
                     )
                 }
@@ -229,8 +229,8 @@ fun LyricsSyncEditorScreen(
                         .fillMaxWidth()
                         .padding(horizontal = 14.dp, vertical = 8.dp),
                     shape = RoundedCornerShape(14.dp),
-                    color = Color(0xFF0E1622),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1D2B3D))
+                    color = colors.surface,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, colors.border)
                 ) {
                     Column(
                         modifier = Modifier
@@ -245,13 +245,13 @@ fun LyricsSyncEditorScreen(
                                 modifier = Modifier
                                     .size(40.dp)
                                     .clip(RoundedCornerShape(8.dp))
-                                    .background(Color(0xFF182638)),
+                                    .background(colors.surfaceVariant),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     Icons.Default.GraphicEq,
                                     contentDescription = null,
-                                    tint = Poweramp_Cyan,
+                                    tint = colors.accentCyan,
                                     modifier = Modifier.size(22.dp)
                                 )
                             }
@@ -260,7 +260,7 @@ fun LyricsSyncEditorScreen(
                                 Text(
                                     text = song.title,
                                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                                    color = Color.White,
+                                    color = colors.textPrimary,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
@@ -270,7 +270,7 @@ fun LyricsSyncEditorScreen(
                                         fontSize = 11.sp,
                                         fontFamily = FontFamily.Monospace
                                     ),
-                                    color = Poweramp_Cyan.copy(alpha = 0.8f),
+                                    color = colors.accentCyan,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
@@ -285,7 +285,7 @@ fun LyricsSyncEditorScreen(
                             duration = songDuration,
                             isPlaying = isPlaying,
                             onSeek = { targetMs -> viewModel.seekTo(targetMs) },
-                            accentColor = Poweramp_Cyan,
+                            accentColor = colors.accentCyan,
                             seedKey = song.id.toString(),
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -310,7 +310,7 @@ fun LyricsSyncEditorScreen(
                             Icon(
                                 Icons.Default.Subject,
                                 contentDescription = null,
-                                tint = Poweramp_Cyan,
+                                tint = colors.accentCyan,
                                 modifier = Modifier.size(16.dp)
                             )
                             Text(
@@ -321,25 +321,25 @@ fun LyricsSyncEditorScreen(
                                     fontSize = 10.sp,
                                     fontFamily = FontFamily.Monospace
                                 ),
-                                color = Poweramp_Cyan
+                                color = colors.accentCyan
                             )
                         }
 
                         OutlinedTextField(
                             value = rawInputText,
                             onValueChange = { rawInputText = it },
-                            placeholder = { Text("Paste song lyrics line-by-line here...", color = Color(0xFF5A6E85)) },
+                            placeholder = { Text("Paste song lyrics line-by-line here...", color = colors.textSecondary) },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .weight(1f),
                             shape = RoundedCornerShape(12.dp),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = Color(0xFF0C131D),
-                                unfocusedContainerColor = Color(0xFF0C131D),
-                                focusedBorderColor = Poweramp_Cyan,
-                                unfocusedBorderColor = Color(0xFF1E2C3D),
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White
+                                focusedContainerColor = colors.surface,
+                                unfocusedContainerColor = colors.surface,
+                                focusedBorderColor = colors.accentCyan,
+                                unfocusedBorderColor = colors.border,
+                                focusedTextColor = colors.textPrimary,
+                                unfocusedTextColor = colors.textPrimary
                             ),
                             textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Default)
                         )
@@ -369,7 +369,7 @@ fun LyricsSyncEditorScreen(
                                 .fillMaxWidth()
                                 .height(52.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Poweramp_Cyan,
+                                containerColor = colors.accentCyan,
                                 contentColor = Color.Black
                             ),
                             shape = RoundedCornerShape(12.dp)
@@ -413,13 +413,13 @@ fun LyricsSyncEditorScreen(
 
                             Surface(
                                 color = when {
-                                    isCurrentTagTarget -> Color(0xFF00E5FF).copy(alpha = 0.12f)
-                                    hasTimestamp -> Color(0xFF101B27)
-                                    else -> Color(0xFF0C121B)
+                                    isCurrentTagTarget -> colors.accentCyan.copy(alpha = 0.15f)
+                                    hasTimestamp -> colors.surfaceVariant
+                                    else -> colors.surface
                                 },
                                 border = androidx.compose.foundation.BorderStroke(
                                     1.dp,
-                                    if (isCurrentTagTarget) Poweramp_Cyan else Color(0xFF182535)
+                                    if (isCurrentTagTarget) colors.accentCyan else colors.border
                                 ),
                                 shape = RoundedCornerShape(10.dp),
                                 modifier = Modifier
@@ -448,8 +448,8 @@ fun LyricsSyncEditorScreen(
                                             .width(84.dp)
                                             .clip(RoundedCornerShape(6.dp))
                                             .background(
-                                                if (hasTimestamp) Poweramp_Cyan.copy(alpha = 0.15f)
-                                                else Color(0xFF15202E)
+                                                if (hasTimestamp) colors.accentCyan.copy(alpha = 0.15f)
+                                                else colors.surfaceVariant
                                             )
                                             .padding(vertical = 4.dp, horizontal = 6.dp),
                                         contentAlignment = Alignment.Center
@@ -461,7 +461,7 @@ fun LyricsSyncEditorScreen(
                                                 fontFamily = FontFamily.Monospace,
                                                 fontSize = 11.sp
                                             ),
-                                            color = if (hasTimestamp) Poweramp_Cyan else Color(0xFF5A6E85)
+                                            color = if (hasTimestamp) colors.accentCyan else colors.textSecondary
                                         )
                                     }
 
@@ -472,7 +472,7 @@ fun LyricsSyncEditorScreen(
                                         style = MaterialTheme.typography.bodyMedium.copy(
                                             fontWeight = if (isCurrentTagTarget) FontWeight.Bold else FontWeight.Normal
                                         ),
-                                        color = if (isCurrentTagTarget) Poweramp_Cyan else if (hasTimestamp) Color.White else Color(0xFF8A9CAF),
+                                        color = if (isCurrentTagTarget) colors.accentCyan else if (hasTimestamp) colors.textPrimary else colors.textSecondary,
                                         modifier = Modifier.weight(1f)
                                     )
 
@@ -480,7 +480,7 @@ fun LyricsSyncEditorScreen(
                                         Box(
                                             modifier = Modifier
                                                 .clip(RoundedCornerShape(4.dp))
-                                                .background(Poweramp_Lime)
+                                                .background(colors.accentLime)
                                                 .padding(horizontal = 5.dp, vertical = 2.dp)
                                         ) {
                                             Text(
@@ -501,8 +501,8 @@ fun LyricsSyncEditorScreen(
 
                     // Section 3: Bottom Editor Toolbar
                     Surface(
-                        color = Color(0xFF0A1019),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1A2738)),
+                        color = colors.surface,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, colors.border),
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
                     ) {
@@ -522,7 +522,7 @@ fun LyricsSyncEditorScreen(
                                     Icon(
                                         Icons.Default.Replay5,
                                         contentDescription = "Back 5s",
-                                        tint = Poweramp_Cyan,
+                                        tint = colors.accentCyan,
                                         modifier = Modifier.size(26.dp)
                                     )
                                 }
@@ -530,7 +530,7 @@ fun LyricsSyncEditorScreen(
                                 Surface(
                                     onClick = { viewModel.playPause() },
                                     shape = CircleShape,
-                                    color = Poweramp_Cyan,
+                                    color = colors.accentCyan,
                                     modifier = Modifier.size(46.dp)
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
@@ -547,7 +547,7 @@ fun LyricsSyncEditorScreen(
                                     Icon(
                                         Icons.Default.Forward5,
                                         contentDescription = "Forward 5s",
-                                        tint = Poweramp_Cyan,
+                                        tint = colors.accentCyan,
                                         modifier = Modifier.size(26.dp)
                                     )
                                 }
@@ -565,7 +565,7 @@ fun LyricsSyncEditorScreen(
                                     Icon(
                                         Icons.Default.Undo,
                                         contentDescription = "Undo",
-                                        tint = if (linesList.any { it.timeMs != null }) Poweramp_Amber else Color(0xFF3B4D60)
+                                        tint = if (linesList.any { it.timeMs != null }) colors.accentAmber else colors.textMuted
                                     )
                                 }
                             }
@@ -586,7 +586,7 @@ fun LyricsSyncEditorScreen(
                                     .height(52.dp),
                                 shape = RoundedCornerShape(12.dp),
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (nextSyncIndex >= 0) Poweramp_Cyan else Poweramp_Lime,
+                                    containerColor = if (nextSyncIndex >= 0) colors.accentCyan else colors.accentLime,
                                     contentColor = Color.Black
                                 )
                             ) {
@@ -617,7 +617,7 @@ fun LyricsSyncEditorScreen(
                                     onClick = onNavigateBack,
                                     modifier = Modifier.weight(1f),
                                     shape = RoundedCornerShape(10.dp),
-                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF8A9CAF))
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = colors.textSecondary)
                                 ) {
                                     Text("Discard")
                                 }
@@ -641,8 +641,8 @@ fun LyricsSyncEditorScreen(
                                     modifier = Modifier.weight(1f),
                                     shape = RoundedCornerShape(10.dp),
                                     colors = ButtonDefaults.buttonColors(
-                                        containerColor = Color(0xFF1A3048),
-                                        contentColor = Poweramp_Cyan
+                                        containerColor = colors.surfaceVariant,
+                                        contentColor = colors.accentCyan
                                     )
                                 ) {
                                     Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -661,16 +661,16 @@ fun LyricsSyncEditorScreen(
     if (showEditDialog != null) {
         val target = showEditDialog!!
         AlertDialog(
-            containerColor = Color(0xFF0F1722),
-            titleContentColor = Color.White,
-            textContentColor = Color(0xFFB0BEC5),
+            containerColor = colors.dialogBackground,
+            titleContentColor = colors.textPrimary,
+            textContentColor = colors.textSecondary,
             onDismissRequest = { showEditDialog = null },
             title = {
                 Text(
                     "Edit Line #${target.index + 1}",
                     fontWeight = FontWeight.Bold,
                     fontFamily = FontFamily.Monospace,
-                    color = Poweramp_Cyan
+                    color = colors.accentCyan
                 )
             },
             text = {
@@ -681,14 +681,14 @@ fun LyricsSyncEditorScreen(
                     OutlinedTextField(
                         value = textEditValue,
                         onValueChange = { textEditValue = it },
-                        label = { Text("Line Text", color = Color(0xFF7A8E9E)) },
+                        label = { Text("Line Text", color = colors.textSecondary) },
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color(0xFF141E2C),
-                            unfocusedContainerColor = Color(0xFF141E2C),
-                            focusedBorderColor = Poweramp_Cyan,
-                            unfocusedBorderColor = Color(0xFF223245),
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White
+                            focusedContainerColor = colors.surface,
+                            unfocusedContainerColor = colors.surface,
+                            focusedBorderColor = colors.accentCyan,
+                            unfocusedBorderColor = colors.border,
+                            focusedTextColor = colors.textPrimary,
+                            unfocusedTextColor = colors.textPrimary
                         ),
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -696,7 +696,7 @@ fun LyricsSyncEditorScreen(
                     Text(
                         "Manual Timestamp (mm : ss . xx):",
                         style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                        color = Poweramp_Cyan
+                        color = colors.accentCyan
                     )
 
                     Row(
@@ -710,44 +710,44 @@ fun LyricsSyncEditorScreen(
                             label = { Text("Min") },
                             modifier = Modifier.weight(1f),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = Color(0xFF141E2C),
-                                unfocusedContainerColor = Color(0xFF141E2C),
-                                focusedBorderColor = Poweramp_Cyan,
-                                unfocusedBorderColor = Color(0xFF223245),
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White
+                                focusedContainerColor = colors.surface,
+                                unfocusedContainerColor = colors.surface,
+                                focusedBorderColor = colors.accentCyan,
+                                unfocusedBorderColor = colors.border,
+                                focusedTextColor = colors.textPrimary,
+                                unfocusedTextColor = colors.textPrimary
                             ),
                             textStyle = androidx.compose.ui.text.TextStyle(textAlign = androidx.compose.ui.text.style.TextAlign.Center, fontFamily = FontFamily.Monospace)
                         )
-                        Text(":", style = MaterialTheme.typography.titleLarge, color = Color.White)
+                        Text(":", style = MaterialTheme.typography.titleLarge, color = colors.textPrimary)
                         OutlinedTextField(
                             value = timeSecondsEdit,
                             onValueChange = { strSeconds -> if (strSeconds.length <= 2 && strSeconds.all { it.isDigit() }) timeSecondsEdit = strSeconds },
                             label = { Text("Sec") },
                             modifier = Modifier.weight(1f),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = Color(0xFF141E2C),
-                                unfocusedContainerColor = Color(0xFF141E2C),
-                                focusedBorderColor = Poweramp_Cyan,
-                                unfocusedBorderColor = Color(0xFF223245),
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White
+                                focusedContainerColor = colors.surface,
+                                unfocusedContainerColor = colors.surface,
+                                focusedBorderColor = colors.accentCyan,
+                                unfocusedBorderColor = colors.border,
+                                focusedTextColor = colors.textPrimary,
+                                unfocusedTextColor = colors.textPrimary
                             ),
                             textStyle = androidx.compose.ui.text.TextStyle(textAlign = androidx.compose.ui.text.style.TextAlign.Center, fontFamily = FontFamily.Monospace)
                         )
-                        Text(".", style = MaterialTheme.typography.titleLarge, color = Color.White)
+                        Text(".", style = MaterialTheme.typography.titleLarge, color = colors.textPrimary)
                         OutlinedTextField(
                             value = timeHundredthsEdit,
                             onValueChange = { strHund -> if (strHund.length <= 2 && strHund.all { it.isDigit() }) timeHundredthsEdit = strHund },
                             label = { Text("Hund") },
                             modifier = Modifier.weight(1.2f),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = Color(0xFF141E2C),
-                                unfocusedContainerColor = Color(0xFF141E2C),
-                                focusedBorderColor = Poweramp_Cyan,
-                                unfocusedBorderColor = Color(0xFF223245),
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White
+                                focusedContainerColor = colors.surface,
+                                unfocusedContainerColor = colors.surface,
+                                focusedBorderColor = colors.accentCyan,
+                                unfocusedBorderColor = colors.border,
+                                focusedTextColor = colors.textPrimary,
+                                unfocusedTextColor = colors.textPrimary
                             ),
                             textStyle = androidx.compose.ui.text.TextStyle(textAlign = androidx.compose.ui.text.style.TextAlign.Center, fontFamily = FontFamily.Monospace)
                         )

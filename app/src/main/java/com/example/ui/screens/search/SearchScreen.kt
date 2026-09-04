@@ -34,8 +34,7 @@ import androidx.compose.ui.unit.sp
 import com.example.ui.components.EmptyPlaceholder
 import com.example.ui.components.MiniPlayer
 import com.example.ui.components.TrackRow
-import com.example.ui.theme.Poweramp_Cyan
-import com.example.ui.theme.Poweramp_Lime
+import com.example.ui.theme.SoundboxTheme
 import com.example.ui.viewmodel.MusicViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -45,6 +44,7 @@ fun SearchScreen(
     onNavigateToNowPlaying: () -> Unit,
     onBackClick: (() -> Unit)? = null
 ) {
+    val colors = SoundboxTheme.colors
     val songs by viewModel.allSongs.collectAsState()
     val currentSong by viewModel.currentSong.collectAsState()
     val searchHistory by viewModel.searchHistory.collectAsState()
@@ -79,7 +79,7 @@ fun SearchScreen(
 
     Surface(
         modifier = Modifier.fillMaxSize(),
-        color = Color(0xFF080C13)
+        color = colors.background
     ) {
         Box(
             modifier = Modifier
@@ -104,7 +104,7 @@ fun SearchScreen(
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "Back",
-                                tint = Color.White
+                                tint = colors.textPrimary
                             )
                         }
                     }
@@ -118,7 +118,7 @@ fun SearchScreen(
                         placeholder = {
                             Text(
                                 "Search tracks, artists, albums...",
-                                color = Color(0xFF5A6E85),
+                                color = colors.textSecondary,
                                 fontSize = 14.sp
                             )
                         },
@@ -126,7 +126,7 @@ fun SearchScreen(
                             Icon(
                                 Icons.Default.Search,
                                 contentDescription = "Search Icon",
-                                tint = Poweramp_Cyan
+                                tint = colors.accentCyan
                             )
                         },
                         trailingIcon = {
@@ -135,7 +135,7 @@ fun SearchScreen(
                                     Icon(
                                         Icons.Default.Close,
                                         contentDescription = "Clear Search",
-                                        tint = Poweramp_Cyan
+                                        tint = colors.accentCyan
                                     )
                                 }
                             }
@@ -154,12 +154,12 @@ fun SearchScreen(
                         ),
                         shape = RoundedCornerShape(12.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            focusedContainerColor = Color(0xFF0D1520),
-                            unfocusedContainerColor = Color(0xFF0D1520),
-                            focusedBorderColor = Poweramp_Cyan,
-                            unfocusedBorderColor = Color(0xFF1B2838)
+                            focusedTextColor = colors.textPrimary,
+                            unfocusedTextColor = colors.textPrimary,
+                            focusedContainerColor = colors.surface,
+                            unfocusedContainerColor = colors.surface,
+                            focusedBorderColor = colors.accentCyan,
+                            unfocusedBorderColor = colors.border
                         )
                     )
                 }
@@ -184,7 +184,7 @@ fun SearchScreen(
                                     Icon(
                                         Icons.Default.History,
                                         contentDescription = null,
-                                        tint = Poweramp_Cyan,
+                                        tint = colors.accentCyan,
                                         modifier = Modifier.size(16.dp)
                                     )
                                     Text(
@@ -194,7 +194,7 @@ fun SearchScreen(
                                             letterSpacing = 1.2.sp,
                                             fontFamily = FontFamily.Monospace
                                         ),
-                                        color = Poweramp_Cyan
+                                        color = colors.accentCyan
                                     )
                                 }
                                 TextButton(
@@ -204,7 +204,7 @@ fun SearchScreen(
                                     Text(
                                         "Clear All",
                                         style = MaterialTheme.typography.labelMedium,
-                                        color = Color(0xFFFF5252)
+                                        color = MaterialTheme.colorScheme.error
                                     )
                                 }
                             }
@@ -214,8 +214,8 @@ fun SearchScreen(
                             searchHistory.forEach { historyQuery ->
                                 Surface(
                                     shape = RoundedCornerShape(10.dp),
-                                    color = Color(0xFF0C131D),
-                                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF182332)),
+                                    color = colors.surface,
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, colors.border),
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(vertical = 4.dp)
@@ -233,14 +233,14 @@ fun SearchScreen(
                                         Icon(
                                             imageVector = Icons.Default.History,
                                             contentDescription = "History",
-                                            tint = Color(0xFF5A6E85),
+                                            tint = colors.textSecondary,
                                             modifier = Modifier.size(18.dp)
                                         )
                                         Spacer(modifier = Modifier.width(12.dp))
                                         Text(
                                             text = historyQuery,
                                             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                                            color = Color.White,
+                                            color = colors.textPrimary,
                                             modifier = Modifier.weight(1f)
                                         )
                                         IconButton(
@@ -250,7 +250,7 @@ fun SearchScreen(
                                             Icon(
                                                 imageVector = Icons.Default.Close,
                                                 contentDescription = "Delete from history",
-                                                tint = Color(0xFF5A6E85),
+                                                tint = colors.textSecondary,
                                                 modifier = Modifier.size(16.dp)
                                             )
                                         }
@@ -286,7 +286,7 @@ fun SearchScreen(
                                 letterSpacing = 1.sp,
                                 fontFamily = FontFamily.Monospace
                             ),
-                            color = Poweramp_Lime
+                            color = colors.accentLime
                         )
                     }
 
