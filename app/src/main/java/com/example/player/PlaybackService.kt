@@ -122,48 +122,13 @@ class PlaybackService : MediaSessionService() {
             })
             .build()
             
-        // Use DefaultMediaNotificationProvider with custom professional presentation
-        val defaultProvider = DefaultMediaNotificationProvider.Builder(this)
+        // Use DefaultMediaNotificationProvider
+        val notificationProvider = DefaultMediaNotificationProvider.Builder(this)
             .setChannelId(CHANNEL_ID)
             .setChannelName(R.string.notification_channel_name)
             .build()
-        // Use clean monochrome music note vector icon for 100% Android notification status bar compatibility
-        defaultProvider.setSmallIcon(R.drawable.ic_music_note)
-
-        val customNotificationProvider = object : androidx.media3.session.MediaNotification.Provider {
-            override fun createNotification(
-                session: MediaSession,
-                customLayout: com.google.common.collect.ImmutableList<CommandButton>,
-                actionFactory: androidx.media3.session.MediaNotification.ActionFactory,
-                onNotificationChangedCallback: androidx.media3.session.MediaNotification.Provider.Callback
-            ): androidx.media3.session.MediaNotification {
-                val mediaNotification = defaultProvider.createNotification(
-                    session,
-                    customLayout,
-                    actionFactory,
-                    onNotificationChangedCallback
-                )
-                val notification = mediaNotification.notification
-                // Explicitly disable chronometer / elapsed seconds in the notification bar
-                notification.`when` = 0L
-                notification.extras?.apply {
-                    putBoolean(android.app.Notification.EXTRA_SHOW_WHEN, false)
-                    putBoolean(android.app.Notification.EXTRA_SHOW_CHRONOMETER, false)
-                    putCharSequence(android.app.Notification.EXTRA_SUB_TEXT, "SoundBox Pro")
-                }
-                return mediaNotification
-            }
-
-            override fun handleCustomCommand(
-                session: MediaSession,
-                action: String,
-                extras: Bundle
-            ): Boolean {
-                return defaultProvider.handleCustomCommand(session, action, extras)
-            }
-        }
-
-        setMediaNotificationProvider(customNotificationProvider)
+        notificationProvider.setSmallIcon(R.drawable.ic_music_note)
+        setMediaNotificationProvider(notificationProvider)
     }
 
     private fun createNotificationChannel() {

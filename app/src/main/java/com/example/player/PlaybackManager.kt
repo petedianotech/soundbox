@@ -440,25 +440,6 @@ class PlaybackManager private constructor(private val context: Context) {
         }
     }
 
-    private fun extractArtworkBytes(songItem: Song): ByteArray? {
-        try {
-            val retriever = android.media.MediaMetadataRetriever()
-            if (songItem.path.startsWith("content://")) {
-                retriever.setDataSource(context, android.net.Uri.parse(songItem.path))
-            } else {
-                retriever.setDataSource(songItem.path)
-            }
-            val art = retriever.embeddedPicture
-            retriever.release()
-            if (art != null && art.isNotEmpty()) {
-                return art
-            }
-        } catch (e: Exception) {
-            // Fall through to generated studio album art
-        }
-        return com.example.util.AlbumArtHelper.getArtworkBytes(context, songItem)
-    }
-
     private fun buildMediaItem(songItem: Song): MediaItem {
         val fileUri = if (songItem.path.startsWith("content://") || songItem.path.startsWith("file://")) {
             android.net.Uri.parse(songItem.path)
@@ -475,11 +456,6 @@ class PlaybackManager private constructor(private val context: Context) {
             .setAlbumTitle(songItem.album)
             .setDisplayTitle(songItem.title)
             .setArtworkUri(artUri)
-
-        val artworkBytes = extractArtworkBytes(songItem)
-        if (artworkBytes != null) {
-            metadataBuilder.setArtworkData(artworkBytes, androidx.media3.common.MediaMetadata.PICTURE_TYPE_FRONT_COVER)
-        }
 
         return MediaItem.Builder()
             .setMediaId(songItem.id)

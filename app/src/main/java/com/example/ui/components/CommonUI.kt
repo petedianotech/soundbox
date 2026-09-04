@@ -187,6 +187,7 @@ fun TrackRow(
                 onLongClick = onLongClick
             )
     ) {
+        val colors = SoundboxTheme.colors
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -210,7 +211,7 @@ fun TrackRow(
                         fontWeight = if (isPlaying) FontWeight.Black else FontWeight.Bold,
                         letterSpacing = 0.3.sp
                     ),
-                    color = if (isPlaying) Color(0xFF00E5FF) else MaterialTheme.colorScheme.onSurface,
+                    color = if (isPlaying) colors.accentCyan else colors.textPrimary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -223,7 +224,8 @@ fun TrackRow(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(3.dp))
-                                .background(Color(0xFF00E5FF))
+                                .background(colors.accentCyan.copy(alpha = 0.16f))
+                                .border(0.5.dp, colors.accentCyan.copy(alpha = 0.5f), RoundedCornerShape(3.dp))
                                 .padding(horizontal = 4.dp, vertical = 1.dp)
                         ) {
                             Text(
@@ -233,7 +235,7 @@ fun TrackRow(
                                     fontSize = 7.sp,
                                     letterSpacing = 0.5.sp
                                 ),
-                                color = Color.Black
+                                color = colors.accentCyan
                             )
                         }
                     }
@@ -245,7 +247,7 @@ fun TrackRow(
                     Text(
                         text = subtitleText,
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF8A99AD),
+                        color = colors.textSecondary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -256,7 +258,7 @@ fun TrackRow(
                 Icon(
                     imageVector = if (song.isFavorite) Icons.Default.ThumbUp else Icons.Outlined.ThumbUp,
                     contentDescription = if (song.isFavorite) "Unlike song" else "Like song",
-                    tint = if (song.isFavorite) Color(0xFF00E5FF) else Color(0xFF67778D),
+                    tint = if (song.isFavorite) colors.accentCyan else colors.textMuted,
                     modifier = Modifier.size(19.dp)
                 )
             }
@@ -265,7 +267,7 @@ fun TrackRow(
                 Icon(
                     imageVector = Icons.Default.MoreVert,
                     contentDescription = "Song options",
-                    tint = Color(0xFF67778D)
+                    tint = colors.textMuted
                 )
             }
         }

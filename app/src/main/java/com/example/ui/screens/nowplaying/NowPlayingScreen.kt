@@ -250,21 +250,6 @@ fun NowPlayingScreen(
                     }
                 },
                 actions = {
-                    // Queue Sheet
-                    IconButton(onClick = { showQueueSheet = true }) {
-                        BadgedBox(badge = {
-                            if (queue.isNotEmpty()) {
-                                Badge { Text("${queue.size}") }
-                            }
-                        }) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.QueueMusic,
-                                contentDescription = "Playback Queue",
-                                tint = colors.textPrimary
-                            )
-                        }
-                    }
-
                     // Equalizer & Audio Effects
                     IconButton(onClick = onNavigateToEqualizer) {
                         BadgedBox(badge = {
@@ -280,11 +265,11 @@ fun NowPlayingScreen(
                         }
                     }
 
-                    // More Menu
+                    // More Menu (Song & Playlist Options)
                     IconButton(onClick = { showLyricsOptionsSheet = true }) {
                         Icon(
                             imageVector = Icons.Default.MoreVert,
-                            contentDescription = "Song & Lyrics Options",
+                            contentDescription = "Song & Options",
                             tint = colors.textPrimary
                         )
                     }
@@ -321,15 +306,6 @@ fun NowPlayingScreen(
                 .padding(innerPadding)
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
-                // Poweramp Hi-Res Spec Banner
-                PowerampHiResBanner(
-                    song = song,
-                    equalizerEnabled = eqEnabled,
-                    bassBoostActive = bassStrength > 0,
-                    onOpenDsp = onNavigateToEqualizer,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp)
-                )
-
                 // Main Upper Stage (Center Content: Artwork vs Lyrics View)
                 Box(
                     modifier = Modifier
@@ -498,85 +474,7 @@ fun NowPlayingScreen(
                         }
                     }
 
-                    // Sleek Audio Engine & DSP Indicator Pill
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 6.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // Left: Audio Engine Format Capsule
-                        Surface(
-                            shape = CircleShape,
-                            color = colors.surfaceVariant,
-                            border = androidx.compose.foundation.BorderStroke(1.dp, colors.border)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.GraphicEq,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(13.dp),
-                                    tint = colors.accentCyan
-                                )
-                                Text(
-                                    text = if (song.path.endsWith(".flac", ignoreCase = true)) "STUDIO FLAC • 24-BIT" else "320 KBPS • LOSSLESS",
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        fontFamily = FontFamily.Monospace,
-                                        letterSpacing = 0.5.sp
-                                    ),
-                                    color = colors.textSecondary
-                                )
-                            }
-                        }
-
-                        // Right: Equalizer & DSP Capsule
-                        Surface(
-                            onClick = onNavigateToEqualizer,
-                            shape = CircleShape,
-                            color = colors.surfaceVariant,
-                            border = androidx.compose.foundation.BorderStroke(
-                                1.dp,
-                                if (eqEnabled) colors.accentCyan.copy(alpha = 0.6f) else colors.border
-                            )
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(6.dp)
-                                        .clip(CircleShape)
-                                        .background(if (eqEnabled) colors.accentLime else colors.textMuted)
-                                )
-                                Text(
-                                    text = if (eqEnabled) "10-BAND EQ ON" else "EQUALIZER",
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 10.sp,
-                                        letterSpacing = 0.5.sp
-                                    ),
-                                    color = if (eqEnabled) colors.textPrimary else colors.textSecondary
-                                )
-                                Icon(
-                                    imageVector = Icons.Default.ArrowForwardIos,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(9.dp),
-                                    tint = if (eqEnabled) colors.accentCyan else colors.textMuted
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
                     // Core Playback Controls Row (Smooth Rounded Shapes)
                     Row(
@@ -1048,7 +946,7 @@ fun NowPlayingScreen(
                         color = MaterialTheme.colorScheme.surfaceContainerHigh
                     ) {
                         Column(
-                            modifier = Modifier.padding(vertical = 12.dp, horizontal = 8.dp),
+                            modifier = Modifier.padding(vertical = 12.dp, horizontal = 4.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Center
                         ) {
@@ -1064,16 +962,37 @@ fun NowPlayingScreen(
                             .clip(RoundedCornerShape(12.dp))
                             .clickable {
                                 showLyricsOptionsSheet = false
+                                showQueueSheet = true
+                            },
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(vertical = 12.dp, horizontal = 4.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = null, tint = colors.accentCyan, modifier = Modifier.size(22.dp))
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text("Queue", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold))
+                        }
+                    }
+
+                    Surface(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable {
+                                showLyricsOptionsSheet = false
                                 onNavigateToEqualizer()
                             },
                         color = MaterialTheme.colorScheme.surfaceContainerHigh
                     ) {
                         Column(
-                            modifier = Modifier.padding(vertical = 12.dp, horizontal = 8.dp),
+                            modifier = Modifier.padding(vertical = 12.dp, horizontal = 4.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Center
                         ) {
-                            Icon(Icons.Default.Equalizer, contentDescription = null, tint = Poweramp_Lime, modifier = Modifier.size(22.dp))
+                            Icon(Icons.Default.Equalizer, contentDescription = null, tint = colors.accentLime, modifier = Modifier.size(22.dp))
                             Spacer(modifier = Modifier.height(4.dp))
                             Text("Equalizer", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold))
                         }
@@ -1090,7 +1009,7 @@ fun NowPlayingScreen(
                         color = MaterialTheme.colorScheme.surfaceContainerHigh
                     ) {
                         Column(
-                            modifier = Modifier.padding(vertical = 12.dp, horizontal = 8.dp),
+                            modifier = Modifier.padding(vertical = 12.dp, horizontal = 4.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Center
                         ) {
@@ -1116,34 +1035,13 @@ fun NowPlayingScreen(
                         color = MaterialTheme.colorScheme.surfaceContainerHigh
                     ) {
                         Column(
-                            modifier = Modifier.padding(vertical = 12.dp, horizontal = 8.dp),
+                            modifier = Modifier.padding(vertical = 12.dp, horizontal = 4.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Center
                         ) {
-                            Icon(Icons.Default.Share, contentDescription = null, tint = Poweramp_Cyan, modifier = Modifier.size(22.dp))
+                            Icon(Icons.Default.Share, contentDescription = null, tint = colors.accentCyan, modifier = Modifier.size(22.dp))
                             Spacer(modifier = Modifier.height(4.dp))
                             Text("Share", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold))
-                        }
-                    }
-
-                    Surface(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(12.dp))
-                            .clickable {
-                                showLyricsOptionsSheet = false
-                                showTrackInfoDialog = true
-                            },
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(vertical = 12.dp, horizontal = 8.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center
-                        ) {
-                            Icon(Icons.Default.Info, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(22.dp))
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text("Details", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold))
                         }
                     }
                 }
@@ -1792,22 +1690,6 @@ private fun ArtworkMainStage(
                     modifier = Modifier.fillMaxSize(),
                     size = 280f
                 )
-
-                // Lossless / Format Badge
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.82f),
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(14.dp)
-                ) {
-                    Text(
-                        text = "HD AUDIO",
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, fontSize = 9.sp),
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
-                    )
-                }
             }
         }
 
@@ -1836,25 +1718,25 @@ private fun ArtworkMainStage(
                 )
             }
 
-            // Animated Favorite Heart
+            // Animated Like Button
             IconButton(
                 onClick = onToggleFavorite,
                 modifier = Modifier.size(48.dp)
             ) {
-                val heartScale by animateFloatAsState(
-                    targetValue = if (song.isFavorite) 1.15f else 1.0f,
+                val likeScale by animateFloatAsState(
+                    targetValue = if (song.isFavorite) 1.2f else 1.0f,
                     animationSpec = spring(dampingRatio = 0.4f),
-                    label = "HeartScale"
+                    label = "LikeScale"
                 )
                 Icon(
-                    imageVector = if (song.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                    contentDescription = if (song.isFavorite) "Liked" else "Add to favorites",
-                    tint = if (song.isFavorite) Color(0xFFE53935) else MaterialTheme.colorScheme.onSurfaceVariant,
+                    imageVector = if (song.isFavorite) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp,
+                    contentDescription = if (song.isFavorite) "Liked" else "Like song",
+                    tint = if (song.isFavorite) accentColor else MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier
-                        .size(30.dp)
+                        .size(28.dp)
                         .graphicsLayer {
-                            scaleX = heartScale
-                            scaleY = heartScale
+                            scaleX = likeScale
+                            scaleY = likeScale
                         }
                 )
             }

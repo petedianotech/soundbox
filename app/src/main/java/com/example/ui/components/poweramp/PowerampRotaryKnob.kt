@@ -29,10 +29,11 @@ import com.example.ui.theme.Poweramp_Amber
 import com.example.ui.theme.Poweramp_Cyan
 import com.example.ui.theme.Poweramp_Knob_Cap
 import com.example.ui.theme.Poweramp_Knob_Rim
+import com.example.ui.theme.SoundboxTheme
 import kotlin.math.*
 
 /**
- * Authentic Poweramp-style rotary knob control with radial ticks,
+ * Authentic rotary knob control with radial ticks,
  * metallic bevels, glowing value arc, and tactile drag interaction.
  */
 @Composable
@@ -44,14 +45,25 @@ fun PowerampRotaryKnob(
     label: String = "",
     displayValue: String = "",
     knobSize: Dp = 80.dp,
-    accentColor: Color = Poweramp_Cyan,
+    accentColor: Color = SoundboxTheme.colors.accentCyan,
     subText: String? = null
 ) {
+    val colors = SoundboxTheme.colors
+    val isDark = colors.isDark
+
+    val tickInactiveColor = if (isDark) Color(0xFF2C384C) else Color(0xFFCBD5E1)
+    val inactiveTrackColor = if (isDark) Color(0xFF161E2B) else Color(0xFFE2E8F0)
+    val capRimColor = if (isDark) Poweramp_Knob_Rim else Color(0xFFE2E8F0)
+    val capBodyColor = if (isDark) Poweramp_Knob_Cap else Color(0xFFF1F5F9)
+    val capDarkEdge = if (isDark) Color(0xFF0C1017) else Color(0xFFCBD5E1)
+    val capBorderColor = if (isDark) Color(0xFF3B4A61) else Color(0xFF94A3B8)
+    val capGrooveColor = if (isDark) Color(0xFF0F151E) else Color(0xFFE2E8F0)
+
     val normalizedValue = remember(value, valueRange) {
         ((value - valueRange.start) / (valueRange.endInclusive - valueRange.start)).coerceIn(0f, 1f)
     }
 
-    // Poweramp knob sweep angle: from -140 deg (min) to +140 deg (max) -> 280 deg total sweep
+    // Sweep angle: from -140 deg (min) to +140 deg (max) -> 280 deg total sweep
     val startAngle = 130f
     val sweepAngleTotal = 280f
     val currentAngle = startAngle + (normalizedValue * sweepAngleTotal)
@@ -82,7 +94,7 @@ fun PowerampRotaryKnob(
                     letterSpacing = 1.5.sp,
                     fontFamily = FontFamily.Monospace
                 ),
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
+                color = colors.textSecondary,
                 modifier = Modifier.padding(bottom = 4.dp)
             )
         }
@@ -97,7 +109,6 @@ fun PowerampRotaryKnob(
                         },
                         onDrag = { change, dragAmount ->
                             change.consume()
-                            // Vertical upward drag increases, downward decreases smoothly
                             val sensitivity = 0.005f
                             activeDragNorm = (activeDragNorm - dragAmount.y * sensitivity).coerceIn(0f, 1f)
                             val computed = currentValueRange.start + activeDragNorm * (currentValueRange.endInclusive - currentValueRange.start)
@@ -113,7 +124,7 @@ fun PowerampRotaryKnob(
                 val strokeWidth = radius * 0.12f
                 val knobRadius = radius * 0.72f
 
-                // 1. Draw outer tick marks (Poweramp style radial hashes)
+                // 1. Draw outer tick marks
                 val tickCount = 21
                 for (i in 0 until tickCount) {
                     val tickNormalized = i.toFloat() / (tickCount - 1)
@@ -124,7 +135,7 @@ fun PowerampRotaryKnob(
                     val tickColor = if (isHighlighted) {
                         accentColor.copy(alpha = 0.9f)
                     } else {
-                        Color(0xFF2C384C)
+                        tickInactiveColor
                     }
 
                     val tickLength = if (i == 0 || i == tickCount - 1 || i == tickCount / 2) radius * 0.18f else radius * 0.11f
@@ -149,7 +160,7 @@ fun PowerampRotaryKnob(
 
                 // Inactive base track
                 drawArc(
-                    color = Color(0xFF161E2B),
+                    color = inactiveTrackColor,
                     startAngle = startAngle,
                     sweepAngle = sweepAngleTotal,
                     useCenter = false,
@@ -177,13 +188,13 @@ fun PowerampRotaryKnob(
                     )
                 }
 
-                // 3. Metallic Rotary Cap (Dark brushed finish with 3D bevel)
+                // 3. Metallic Rotary Cap (Brushed finish with 3D bevel)
                 drawCircle(
                     brush = Brush.radialGradient(
                         colors = listOf(
-                            Poweramp_Knob_Rim,
-                            Poweramp_Knob_Cap,
-                            Color(0xFF0C1017)
+                            capRimColor,
+                            capBodyColor,
+                            capDarkEdge
                         ),
                         center = center,
                         radius = knobRadius
@@ -194,7 +205,7 @@ fun PowerampRotaryKnob(
 
                 // Cap outer metallic border
                 drawCircle(
-                    color = Color(0xFF3B4A61),
+                    color = capBorderColor,
                     radius = knobRadius,
                     center = center,
                     style = Stroke(width = 1.5.dp.toPx())
@@ -202,13 +213,13 @@ fun PowerampRotaryKnob(
 
                 // Inner inset groove
                 drawCircle(
-                    color = Color(0xFF0F151E),
+                    color = capGrooveColor,
                     radius = knobRadius * 0.82f,
                     center = center,
                     style = Stroke(width = 1.dp.toPx())
                 )
 
-                // 4. Poweramp Indicator Notch / LED Needle
+                // 4. Indicator Notch / LED Needle
                 val indicatorRad = Math.toRadians(animatedAngle.toDouble())
                 val dotCenterDistance = knobRadius * 0.65f
                 val dotX = center.x + dotCenterDistance * cos(indicatorRad).toFloat()
@@ -239,8 +250,8 @@ fun PowerampRotaryKnob(
         if (displayValue.isNotEmpty()) {
             Surface(
                 shape = RoundedCornerShape(6.dp),
-                color = Color(0xFF131A26),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF263347)),
+                color = colors.surfaceVariant,
+                border = androidx.compose.foundation.BorderStroke(1.dp, colors.border),
                 modifier = Modifier.padding(top = 6.dp)
             ) {
                 Text(
@@ -261,7 +272,7 @@ fun PowerampRotaryKnob(
                 text = subText,
                 style = MaterialTheme.typography.labelSmall.copy(
                     fontSize = 9.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    color = colors.textMuted
                 ),
                 modifier = Modifier.padding(top = 2.dp)
             )

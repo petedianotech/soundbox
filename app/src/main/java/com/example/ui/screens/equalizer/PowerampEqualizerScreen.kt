@@ -274,8 +274,8 @@ fun PowerampEqualizerScreen(
             // Frequency Response Spline Visualizer Card
             Surface(
                 shape = RoundedCornerShape(12.dp),
-                color = Color(0xFF0C121C),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1B2637)),
+                color = colors.surface,
+                border = androidx.compose.foundation.BorderStroke(1.dp, colors.border),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp)
@@ -324,8 +324,8 @@ fun PowerampEqualizerScreen(
             // Precision Tactile Fader Console: Preamp (Master) on left + 10 Frequency bands
             Surface(
                 shape = RoundedCornerShape(14.dp),
-                color = Color(0xFF090E17),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF17202E)),
+                color = colors.surface,
+                border = androidx.compose.foundation.BorderStroke(1.dp, colors.border),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp)
@@ -345,7 +345,7 @@ fun PowerampEqualizerScreen(
                             subLabel = "GAIN",
                             value = preampGain,
                             onValueChange = { viewModel.setPreampGain(it) },
-                            accentColor = Poweramp_Amber,
+                            accentColor = colors.accentAmber,
                             isEnabled = equalizerEnabled,
                             faderWidth = 54.dp,
                             trackHeight = 180.dp
@@ -358,7 +358,7 @@ fun PowerampEqualizerScreen(
                             .padding(horizontal = 4.dp)
                             .width(1.dp)
                             .height(230.dp)
-                            .background(Color(0xFF1E2A3C))
+                            .background(colors.border)
                     )
 
                     // 10-Band Horizontal Scrollable Console
@@ -378,7 +378,7 @@ fun PowerampEqualizerScreen(
                                 subLabel = subLabel,
                                 value = gain,
                                 onValueChange = { viewModel.setEqBandLevel(index, it) },
-                                accentColor = Poweramp_Cyan,
+                                accentColor = colors.accentCyan,
                                 isEnabled = equalizerEnabled,
                                 faderWidth = 54.dp,
                                 trackHeight = 180.dp
@@ -408,8 +408,8 @@ fun PowerampEqualizerScreen(
             // 4-Knob Studio Panel: Bass, Treble, Virtualizer, Balance
             Surface(
                 shape = RoundedCornerShape(14.dp),
-                color = Color(0xFF090E17),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF17202E)),
+                color = colors.surface,
+                border = androidx.compose.foundation.BorderStroke(1.dp, colors.border),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp)
@@ -433,7 +433,7 @@ fun PowerampEqualizerScreen(
                             label = "BASS BOOST",
                             displayValue = if (bassBoostStrength > 0) "+${bassBoostStrength / 10}%" else "0%",
                             knobSize = 96.dp,
-                            accentColor = Poweramp_Lime,
+                            accentColor = colors.accentLime,
                             subText = "SUB-BASS 55Hz"
                         )
 
@@ -444,7 +444,7 @@ fun PowerampEqualizerScreen(
                             label = "TREBLE AIR",
                             displayValue = "${if (trebleGain > 0) "+" else ""}${String.format(Locale.US, "%.1f", trebleGain)} dB",
                             knobSize = 96.dp,
-                            accentColor = Poweramp_Cyan,
+                            accentColor = colors.accentCyan,
                             subText = "HIGH-AIR 12kHz"
                         )
                     }
@@ -479,7 +479,7 @@ fun PowerampEqualizerScreen(
                                 else -> "CENTER"
                             },
                             knobSize = 92.dp,
-                            accentColor = Poweramp_Amber,
+                            accentColor = colors.accentAmber,
                             subText = "L <-> R"
                         )
                     }
@@ -524,10 +524,10 @@ fun PowerampEqualizerScreen(
                     val isSelected = reverbPreset == id
                     Surface(
                         shape = RoundedCornerShape(8.dp),
-                        color = if (isSelected) Poweramp_Cyan.copy(alpha = 0.22f) else Color(0xFF0F1622),
+                        color = if (isSelected) colors.accentCyan.copy(alpha = 0.22f) else colors.surfaceVariant,
                         border = androidx.compose.foundation.BorderStroke(
                             1.dp,
-                            if (isSelected) Poweramp_Cyan else Color(0xFF1E2837)
+                            if (isSelected) colors.accentCyan else colors.border
                         ),
                         modifier = Modifier.clickable { viewModel.setReverbPreset(id) }
                     ) {
@@ -539,7 +539,7 @@ fun PowerampEqualizerScreen(
                                 fontSize = 10.sp,
                                 letterSpacing = 0.5.sp
                             ),
-                            color = if (isSelected) Poweramp_Cyan else colors.textSecondary,
+                            color = if (isSelected) colors.accentCyan else colors.textSecondary,
                             textAlign = TextAlign.Center,
                             modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp)
                         )
@@ -570,6 +570,7 @@ fun TactileVerticalFader(
     trackHeight: Dp = 180.dp,
     valueRange: ClosedFloatingPointRange<Float> = -15f..15f
 ) {
+    val colors = SoundboxTheme.colors
     val density = LocalDensity.current
     val trackHeightPx = with(density) { trackHeight.toPx() }
     val capHeightPx = with(density) { 34.dp.toPx() }
@@ -589,10 +590,10 @@ fun TactileVerticalFader(
         // Value indicator pill - Tap to reset to 0.0 dB
         Surface(
             shape = RoundedCornerShape(4.dp),
-            color = if (isEnabled && abs(value) > 0.1f) accentColor.copy(alpha = 0.18f) else Color(0xFF131A24),
+            color = if (isEnabled && abs(value) > 0.1f) accentColor.copy(alpha = 0.16f) else colors.surfaceVariant,
             border = androidx.compose.foundation.BorderStroke(
                 0.75.dp,
-                if (isEnabled && abs(value) > 0.1f) accentColor.copy(alpha = 0.5f) else Color(0xFF1E2838)
+                if (isEnabled && abs(value) > 0.1f) accentColor.copy(alpha = 0.5f) else colors.border
             ),
             modifier = Modifier.clickable(enabled = isEnabled) { currentOnValueChange(0f) }
         ) {
@@ -604,8 +605,8 @@ fun TactileVerticalFader(
                     fontFamily = FontFamily.Monospace
                 ),
                 color = if (isEnabled) {
-                    if (abs(value) > 0.1f) accentColor else Color(0xFF94A3B8)
-                } else Color(0xFF475569),
+                    if (abs(value) > 0.1f) accentColor else colors.textPrimary
+                } else colors.textMuted,
                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
             )
         }
@@ -616,7 +617,7 @@ fun TactileVerticalFader(
                 .padding(vertical = 3.dp)
                 .size(24.dp, 16.dp)
                 .clip(RoundedCornerShape(3.dp))
-                .background(if (isEnabled) Color(0xFF131A26) else Color.Transparent)
+                .background(if (isEnabled) colors.surfaceVariant else Color.Transparent)
                 .clickable(enabled = isEnabled) {
                     val newVal = (value + 0.5f).coerceIn(minVal, maxVal)
                     currentOnValueChange(newVal)
@@ -626,7 +627,7 @@ fun TactileVerticalFader(
             Text(
                 text = "+",
                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Black),
-                color = if (isEnabled) accentColor.copy(alpha = 0.85f) else Color(0xFF334155)
+                color = if (isEnabled) accentColor.copy(alpha = 0.85f) else colors.textMuted
             )
         }
 
@@ -661,9 +662,12 @@ fun TactileVerticalFader(
                 val trackWidth = 7.dp.toPx()
                 val trackLeft = (w - trackWidth) / 2f
 
+                val recessedColor = if (colors.isDark) Color(0xFF0A0F17) else Color(0xFFE2E8F0)
+                val trackBorderColor = if (colors.isDark) Color(0xFF1B2433) else Color(0xFFCBD5E1)
+
                 // Recessed track background groove
                 drawRoundRect(
-                    color = Color(0xFF0A0F17),
+                    color = recessedColor,
                     topLeft = Offset(trackLeft, capHeightPx / 2f),
                     size = Size(trackWidth, usableHeightPx),
                     cornerRadius = CornerRadius(3.5.dp.toPx(), 3.5.dp.toPx())
@@ -671,7 +675,7 @@ fun TactileVerticalFader(
 
                 // Track subtle inner border
                 drawRoundRect(
-                    color = Color(0xFF1B2433),
+                    color = trackBorderColor,
                     topLeft = Offset(trackLeft, capHeightPx / 2f),
                     size = Size(trackWidth, usableHeightPx),
                     cornerRadius = CornerRadius(3.5.dp.toPx(), 3.5.dp.toPx()),
@@ -696,24 +700,26 @@ fun TactileVerticalFader(
 
                 // 0dB Center Detent horizontal line ticks
                 val tickWidth = 6.dp.toPx()
+                val detentColor = if (isEnabled) colors.textSecondary else colors.textMuted
                 drawLine(
-                    color = if (isEnabled) Color(0xFF5B6E8A) else Color(0xFF2E3846),
+                    color = detentColor,
                     start = Offset(trackLeft - tickWidth - 1.dp.toPx(), zeroY),
                     end = Offset(trackLeft - 1.dp.toPx(), zeroY),
                     strokeWidth = 1.5.dp.toPx()
                 )
                 drawLine(
-                    color = if (isEnabled) Color(0xFF5B6E8A) else Color(0xFF2E3846),
+                    color = detentColor,
                     start = Offset(trackLeft + trackWidth + 1.dp.toPx(), zeroY),
                     end = Offset(trackLeft + trackWidth + tickWidth + 1.dp.toPx(), zeroY),
                     strokeWidth = 1.5.dp.toPx()
                 )
 
                 // +10dB and -10dB subtle guide ticks
+                val guideTickColor = colors.border
                 val tenPlusFrac = ((10f - minVal) / (maxVal - minVal)).coerceIn(0f, 1f)
                 val tenPlusY = (1f - tenPlusFrac) * usableHeightPx + capHeightPx / 2f
                 drawLine(
-                    color = Color(0xFF253041),
+                    color = guideTickColor,
                     start = Offset(trackLeft - 4.dp.toPx(), tenPlusY),
                     end = Offset(trackLeft - 1.dp.toPx(), tenPlusY),
                     strokeWidth = 1.dp.toPx()
@@ -722,7 +728,7 @@ fun TactileVerticalFader(
                 val tenMinusFrac = ((-10f - minVal) / (maxVal - minVal)).coerceIn(0f, 1f)
                 val tenMinusY = (1f - tenMinusFrac) * usableHeightPx + capHeightPx / 2f
                 drawLine(
-                    color = Color(0xFF253041),
+                    color = guideTickColor,
                     start = Offset(trackLeft - 4.dp.toPx(), tenMinusY),
                     end = Offset(trackLeft - 1.dp.toPx(), tenMinusY),
                     strokeWidth = 1.dp.toPx()
@@ -734,12 +740,36 @@ fun TactileVerticalFader(
                 ((1f - normalizedFraction) * usableHeightPx).toDp()
             }
 
+            val capGradient = if (colors.isDark) {
+                if (isEnabled) {
+                    listOf(Color(0xFF425164), Color(0xFF25303E), Color(0xFF141C26))
+                } else {
+                    listOf(Color(0xFF242E3B), Color(0xFF18202A), Color(0xFF10151C))
+                }
+            } else {
+                if (isEnabled) {
+                    listOf(Color(0xFFFFFFFF), Color(0xFFF1F5F9), Color(0xFFE2E8F0))
+                } else {
+                    listOf(Color(0xFFF8FAFC), Color(0xFFE2E8F0), Color(0xFFCBD5E1))
+                }
+            }
+            val capBorderColor = if (colors.isDark) {
+                if (isEnabled) Color(0xFF5E7492) else Color(0xFF2A3442)
+            } else {
+                if (isEnabled) Color(0xFF94A3B8) else Color(0xFFCBD5E1)
+            }
+            val gripGrooveColor = if (colors.isDark) {
+                if (isEnabled) Color(0xFF6B82A1) else Color(0xFF2E3846)
+            } else {
+                if (isEnabled) Color(0xFFCBD5E1) else Color(0xFFE2E8F0)
+            }
+
             Surface(
                 modifier = Modifier
                     .offset(y = capOffsetY)
                     .width(46.dp)
                     .height(34.dp)
-                    .shadow(elevation = 8.dp, shape = RoundedCornerShape(6.dp)),
+                    .shadow(elevation = if (colors.isDark) 8.dp else 4.dp, shape = RoundedCornerShape(6.dp)),
                 shape = RoundedCornerShape(6.dp),
                 color = Color.Transparent
             ) {
@@ -747,18 +777,12 @@ fun TactileVerticalFader(
                     modifier = Modifier
                         .fillMaxSize()
                         .background(
-                            brush = Brush.verticalGradient(
-                                colors = if (isEnabled) {
-                                    listOf(Color(0xFF425164), Color(0xFF25303E), Color(0xFF141C26))
-                                } else {
-                                    listOf(Color(0xFF242E3B), Color(0xFF18202A), Color(0xFF10151C))
-                                }
-                            ),
+                            brush = Brush.verticalGradient(colors = capGradient),
                             shape = RoundedCornerShape(6.dp)
                         )
                         .border(
                             width = 1.dp,
-                            color = if (isEnabled) Color(0xFF5E7492) else Color(0xFF2A3442),
+                            color = capBorderColor,
                             shape = RoundedCornerShape(6.dp)
                         ),
                     contentAlignment = Alignment.Center
@@ -772,7 +796,7 @@ fun TactileVerticalFader(
                             modifier = Modifier
                                 .width(24.dp)
                                 .height(1.dp)
-                                .background(if (isEnabled) Color(0xFF6B82A1) else Color(0xFF2E3846))
+                                .background(gripGrooveColor)
                         )
 
                         // Center illuminated neon indicator line
@@ -781,14 +805,14 @@ fun TactileVerticalFader(
                                 .width(30.dp)
                                 .height(3.dp)
                                 .clip(RoundedCornerShape(1.5.dp))
-                                .background(if (isEnabled) accentColor else Color(0xFF475569))
+                                .background(if (isEnabled) accentColor else colors.textMuted)
                         )
 
                         Box(
                             modifier = Modifier
                                 .width(24.dp)
                                 .height(1.dp)
-                                .background(if (isEnabled) Color(0xFF6B82A1) else Color(0xFF2E3846))
+                                .background(gripGrooveColor)
                         )
                     }
                 }
@@ -801,7 +825,7 @@ fun TactileVerticalFader(
                 .padding(vertical = 3.dp)
                 .size(24.dp, 16.dp)
                 .clip(RoundedCornerShape(3.dp))
-                .background(if (isEnabled) Color(0xFF131A26) else Color.Transparent)
+                .background(if (isEnabled) colors.surfaceVariant else Color.Transparent)
                 .clickable(enabled = isEnabled) {
                     val newVal = (value - 0.5f).coerceIn(minVal, maxVal)
                     currentOnValueChange(newVal)
@@ -811,7 +835,7 @@ fun TactileVerticalFader(
             Text(
                 text = "−",
                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Black),
-                color = if (isEnabled) accentColor.copy(alpha = 0.85f) else Color(0xFF334155)
+                color = if (isEnabled) accentColor.copy(alpha = 0.85f) else colors.textMuted
             )
         }
 
@@ -825,7 +849,7 @@ fun TactileVerticalFader(
                 fontWeight = FontWeight.Black,
                 fontFamily = FontFamily.Monospace
             ),
-            color = if (isEnabled) Color(0xFFE2E8F0) else Color(0xFF475569)
+            color = if (isEnabled) colors.textPrimary else colors.textMuted
         )
         Text(
             text = subLabel,
@@ -834,7 +858,7 @@ fun TactileVerticalFader(
                 fontWeight = FontWeight.Bold,
                 fontFamily = FontFamily.Monospace
             ),
-            color = if (isEnabled) Color(0xFF64748B) else Color(0xFF334155)
+            color = if (isEnabled) colors.textSecondary else colors.textMuted
         )
     }
 }
@@ -849,6 +873,7 @@ private fun EqCurveCanvas(
     isEnabled: Boolean,
     modifier: Modifier = Modifier
 ) {
+    val colors = SoundboxTheme.colors
     Canvas(
         modifier = modifier
             .fillMaxSize()
@@ -861,7 +886,7 @@ private fun EqCurveCanvas(
 
         // Draw 0 dB reference line
         drawLine(
-            color = Color(0xFF233044),
+            color = colors.border,
             start = Offset(0f, centerY),
             end = Offset(w, centerY),
             strokeWidth = 1.2.dp.toPx()
@@ -870,7 +895,7 @@ private fun EqCurveCanvas(
         // Draw +10dB and -10dB grid guides
         val y10Plus = centerY - (10f / maxGain) * (h / 2f - 4.dp.toPx())
         drawLine(
-            color = Color(0xFF141C28),
+            color = colors.borderSubtle,
             start = Offset(0f, y10Plus),
             end = Offset(w, y10Plus),
             strokeWidth = 1.dp.toPx()
@@ -878,7 +903,7 @@ private fun EqCurveCanvas(
 
         val y10Minus = centerY - (-10f / maxGain) * (h / 2f - 4.dp.toPx())
         drawLine(
-            color = Color(0xFF141C28),
+            color = colors.borderSubtle,
             start = Offset(0f, y10Minus),
             end = Offset(w, y10Minus),
             strokeWidth = 1.dp.toPx()
@@ -920,7 +945,7 @@ private fun EqCurveCanvas(
                     path = fillPath,
                     brush = Brush.verticalGradient(
                         colors = listOf(
-                            Poweramp_Cyan.copy(alpha = 0.3f),
+                            colors.accentCyan.copy(alpha = 0.25f),
                             Color.Transparent
                         ),
                         startY = 0f,
@@ -932,20 +957,20 @@ private fun EqCurveCanvas(
             // Draw glowing spline line
             drawPath(
                 path = path,
-                color = if (isEnabled) Poweramp_Cyan else Color(0xFF334155),
+                color = if (isEnabled) colors.accentCyan else colors.textMuted,
                 style = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round)
             )
 
             // Draw frequency node dots
             points.forEach { pt ->
                 drawCircle(
-                    color = if (isEnabled) Poweramp_Cyan else Color(0xFF334155),
+                    color = if (isEnabled) colors.accentCyan else colors.textMuted,
                     radius = 3.dp.toPx(),
                     center = pt
                 )
                 if (isEnabled) {
                     drawCircle(
-                        color = Color.White,
+                        color = if (colors.isDark) Color.White else colors.surface,
                         radius = 1.5.dp.toPx(),
                         center = pt
                     )

@@ -77,6 +77,7 @@ fun HomeScreen(
         topBar = {
             TopAppBar(
                 title = {
+                    val colors = SoundboxTheme.colors
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -88,45 +89,26 @@ fun HomeScreen(
                                 letterSpacing = 2.sp,
                                 fontFamily = FontFamily.Monospace
                             ),
-                            color = Poweramp_Cyan
+                            color = colors.textPrimary
                         )
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(
-                                    Brush.horizontalGradient(
-                                        listOf(Poweramp_Amber, Color(0xFFFF6D00))
-                                    )
-                                )
-                                .padding(horizontal = 4.dp, vertical = 1.5.dp)
-                        ) {
-                            Text(
-                                text = "DSP HD",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontWeight = FontWeight.Black,
-                                    fontSize = 7.5.sp,
-                                    fontFamily = FontFamily.Monospace
-                                ),
-                                color = Color.Black
-                            )
-                        }
                     }
                 },
                 actions = {
-                    // Poweramp Equalizer quick launch with live LED
+                    val colors = SoundboxTheme.colors
+                    // Equalizer quick launch with live LED
                     IconButton(onClick = onNavigateToEqualizer) {
                         Box(contentAlignment = Alignment.TopEnd) {
                             Icon(
                                 Icons.Default.Equalizer,
-                                contentDescription = "Equalizer & DSP",
-                                tint = if (equalizerEnabled) Poweramp_Cyan else MaterialTheme.colorScheme.onSurfaceVariant
+                                contentDescription = "Equalizer",
+                                tint = if (equalizerEnabled) colors.accentCyan else colors.textSecondary
                             )
                             if (equalizerEnabled) {
                                 Box(
                                     modifier = Modifier
                                         .size(6.dp)
                                         .clip(CircleShape)
-                                        .background(Poweramp_Lime)
+                                        .background(colors.accentLime)
                                 )
                             }
                         }
