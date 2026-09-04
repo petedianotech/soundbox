@@ -105,10 +105,10 @@ class MusicRepository(private val context: Context) {
         }
     }
 
-    // Scanning Device for Audio Files
-    suspend fun scanStorage() {
-        withContext(Dispatchers.IO) {
-            Log.d(TAG, "Starting media scan...")
+    // Scanning Device for Audio Files safely without clearing existing tracks
+    suspend fun scanStorage(): Int {
+        return withContext(Dispatchers.IO) {
+            Log.d(TAG, "Starting silent media scan...")
             val fetchedSongs = mutableListOf<Song>()
 
             val projection = mutableListOf(
@@ -128,7 +128,7 @@ class MusicRepository(private val context: Context) {
                 projection.add(MediaStore.Audio.Media.GENRE)
             }
 
-            // Filtering for only music sounds
+            // Filtering for only valid music sounds
             val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0 AND ${MediaStore.Audio.Media.DURATION} >= 5000"
             val queryUri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
 
@@ -209,20 +209,23 @@ class MusicRepository(private val context: Context) {
 
             Log.d(TAG, "Scan completed: Found ${fetchedSongs.size} songs on disk.")
 
-            // Delete any legacy synthetic/placeholder songs
-            songDao.deleteSyntheticSongs()
-
+            var newSongsCount = 0
             if (fetchedSongs.isNotEmpty()) {
-                // Save physical songs to cache db
+                val existingIds = songDao.getAllSongIds().toSet()
+                val newSongs = fetchedSongs.filter { it.id !in existingIds }
+                newSongsCount = newSongs.size
+
+                // Insert only active tracks
                 songDao.insertSongs(fetchedSongs)
-                
-                // Clean up songs that are no longer present on storage
+
+                // Clean up songs that are no longer present on physical storage
                 val paths = fetchedSongs.map { it.path }
                 songDao.deleteStaleSongs(paths)
-            } else {
-                // Clear any cached songs if storage is empty
-                songDao.clearAllSongs()
             }
+            // CRITICAL: If fetchedSongs is empty (e.g. MediaStore query returned 0 during app resume or test),
+            // NEVER clear the database! Keep existing cached songs so the app never loses its library.
+
+            newSongsCount
         }
     }
 }

@@ -3,6 +3,6 @@
     <item
         android:width="66dp"
         android:height="66dp"
-        android:drawable="@drawable/soundbox_cyber_icon_1788447025162"
+        android:drawable="@drawable/img_soundbox_audiophile_icon_1788530361353"
         android:gravity="center" />
 </layer-list>

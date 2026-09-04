@@ -62,9 +62,16 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     val equalizerHardwareBands: StateFlow<Int> = playbackManager.equalizerHardwareBands
     val equalizerStatus: StateFlow<String> = playbackManager.equalizerStatus
 
-    // Scanning states
+    // Scanning states & silent notification
     private val _isScanning = MutableStateFlow(false)
     val isScanning: StateFlow<Boolean> = _isScanning.asStateFlow()
+
+    private val _scanNotification = MutableStateFlow<String?>(null)
+    val scanNotification: StateFlow<String?> = _scanNotification.asStateFlow()
+
+    fun clearScanNotification() {
+        _scanNotification.value = null
+    }
 
     enum class SortOrder {
         A_TO_Z, Z_TO_A, DATE_ADDED, DURATION
@@ -77,7 +84,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         _sortOrder.value = order
     }
 
-    // Core dataset flows
+    // Core dataset flows (using Lazily so songs are never wiped/reset when backgrounding the app)
     val allSongs: StateFlow<List<Song>> = combine(repository.allSongs, _sortOrder) { songs, order ->
         when (order) {
             SortOrder.A_TO_Z -> songs.sortedBy { it.title.lowercase() }
@@ -85,39 +92,39 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             SortOrder.DATE_ADDED -> songs.sortedByDescending { it.dateAdded }
             SortOrder.DURATION -> songs.sortedByDescending { it.duration }
         }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     val favoriteSongs: StateFlow<List<Song>> = repository.favoriteSongs
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     val mostPlayedSongs: StateFlow<List<Song>> = repository.mostPlayedSongs
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     val recentlyPlayedSongs: StateFlow<List<Song>> = repository.recentlyPlayedSongs
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     val recentlyAddedSongs: StateFlow<List<Song>> = repository.recentlyAddedSongs
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     val allPlaylists: StateFlow<List<Playlist>> = repository.allPlaylists
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     // UI grouping states (Folder-based navigation, album grouping, and artist metadata projection)
     val folderList: StateFlow<Map<String, List<Song>>> = repository.allSongs
         .map { songs -> songs.groupBy { it.folderPath } }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+        .stateIn(viewModelScope, SharingStarted.Lazily, emptyMap())
 
     val albumList: StateFlow<Map<String, List<Song>>> = repository.allSongs
         .map { songs -> songs.groupBy { it.album } }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+        .stateIn(viewModelScope, SharingStarted.Lazily, emptyMap())
 
     val artistList: StateFlow<Map<String, List<Song>>> = repository.allSongs
         .map { songs -> songs.groupBy { it.artist } }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+        .stateIn(viewModelScope, SharingStarted.Lazily, emptyMap())
 
     val genreList: StateFlow<Map<String, List<Song>>> = repository.allSongs
         .map { songs -> songs.groupBy { it.genre } }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+        .stateIn(viewModelScope, SharingStarted.Lazily, emptyMap())
 
     // Dynamic Smart Playlists combining metadata, play history, and genres
     val smartPlaylists: StateFlow<List<SmartPlaylist>> = combine(
@@ -129,16 +136,16 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     ) { all, favs, mostPlayed, recentRuns, recentAdded ->
         val list = mutableListOf<SmartPlaylist>()
 
-        // 1. Favorites
+        // 1. Liked Songs
         if (favs.isNotEmpty()) {
             list.add(
                 SmartPlaylist(
                     id = "smart_favorites",
                     type = SmartPlaylistType.FAVORITES,
-                    title = "Favorites",
-                    description = "Songs you marked with a heart",
-                    icon = Icons.Default.Favorite,
-                    tintColor = Color(0xFFE53935),
+                    title = "Liked Songs",
+                    description = "Your liked and favorite tracks",
+                    icon = Icons.Default.ThumbUp,
+                    tintColor = Color(0xFF00E5FF),
                     songs = favs
                 )
             )
@@ -267,10 +274,10 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         list
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     init {
-        // Run first local scan to populate music database
+        // Run first local scan to populate music database silently
         scanStorage()
     }
 
@@ -278,7 +285,14 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             _isScanning.value = true
             try {
-                repository.scanStorage()
+                val newCount = repository.scanStorage()
+                if (newCount > 0) {
+                    _scanNotification.value = "Library updated • $newCount new track${if (newCount > 1) "s" else ""} added"
+                    launch {
+                        kotlinx.coroutines.delay(4000)
+                        _scanNotification.value = null
+                    }
+                }
             } catch (e: Exception) {
                 // Squelch and handle scan anomalies
             } finally {

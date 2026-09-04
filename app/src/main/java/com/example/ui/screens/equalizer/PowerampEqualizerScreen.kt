@@ -7,6 +7,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -21,16 +23,21 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.components.poweramp.PowerampRotaryKnob
@@ -41,6 +48,7 @@ import com.example.ui.theme.Poweramp_Purple
 import com.example.ui.theme.SoundboxTheme
 import com.example.ui.viewmodel.MusicViewModel
 import java.util.Locale
+import kotlin.math.abs
 
 data class PowerampPresetItem(
     val name: String,
@@ -82,13 +90,8 @@ fun PowerampEqualizerScreen(
     val audioBalance by viewModel.audioBalance.collectAsState()
     val reverbPreset by viewModel.reverbPreset.collectAsState()
     val currentPresetName by viewModel.currentPresetName.collectAsState()
-    val playbackSpeed by viewModel.playbackSpeed.collectAsState()
-    val playbackPitch by viewModel.playbackPitch.collectAsState()
     val hwBands by viewModel.equalizerHardwareBands.collectAsState()
-    val eqStatus by viewModel.equalizerStatus.collectAsState()
     val audioSessionId by viewModel.audioSessionId.collectAsState()
-
-    var activeTab by remember { mutableIntStateOf(0) } // 0: Equalizer, 1: Tone & Space, 2: Reverb & Tempo
 
     val colors = SoundboxTheme.colors
 
@@ -102,26 +105,26 @@ fun PowerampEqualizerScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            text = "EQUALIZER / DSP",
+                            text = "EQUALIZER & DSP",
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Black,
-                                letterSpacing = 2.sp,
+                                letterSpacing = 1.5.sp,
                                 fontFamily = FontFamily.Monospace
                             ),
-                            color = colors.accentCyan
+                            color = if (equalizerEnabled) colors.accentCyan else colors.textPrimary
                         )
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(4.dp))
                                 .background(colors.accentCyan.copy(alpha = 0.15f))
-                                .border(1.dp, colors.accentCyan.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
-                                .padding(horizontal = 4.dp, vertical = 2.dp)
+                                .border(1.dp, colors.accentCyan.copy(alpha = 0.4f), RoundedCornerShape(4.dp))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
                             Text(
                                 text = if (hwBands > 0) "HW $hwBands-BAND" else "32-BIT FLOAT",
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 7.5.sp,
+                                    fontSize = 8.sp,
                                     fontFamily = FontFamily.Monospace
                                 ),
                                 color = colors.accentCyan
@@ -135,7 +138,23 @@ fun PowerampEqualizerScreen(
                     }
                 },
                 actions = {
-                    // Poweramp Master EQ Switch
+                    // Reset to Flat button
+                    TextButton(
+                        onClick = { viewModel.resetEqualizerToFlat() },
+                        colors = ButtonDefaults.textButtonColors(contentColor = colors.accentAmber)
+                    ) {
+                        Icon(Icons.Default.RestartAlt, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            text = "FLAT",
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        )
+                    }
+
+                    // Master EQ Switch
                     Switch(
                         checked = equalizerEnabled,
                         onCheckedChange = { viewModel.toggleEqualizer() },
@@ -144,11 +163,9 @@ fun PowerampEqualizerScreen(
                             checkedTrackColor = colors.accentCyan.copy(alpha = 0.35f),
                             uncheckedThumbColor = colors.textMuted,
                             uncheckedTrackColor = colors.surfaceVariant
-                        )
+                        ),
+                        modifier = Modifier.padding(end = 8.dp)
                     )
-                    IconButton(onClick = { viewModel.resetEqualizerToFlat() }) {
-                        Icon(Icons.Default.RestartAlt, contentDescription = "Reset EQ", tint = colors.accentAmber)
-                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = colors.topBarBackground
@@ -161,33 +178,34 @@ fun PowerampEqualizerScreen(
                 .padding(innerPadding)
                 .fillMaxSize()
                 .background(colors.background)
+                .verticalScroll(rememberScrollState())
         ) {
-            // Live Hardware DSP Engine Banner
+            // Live Hardware DSP Engine Status Banner
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 4.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(if (equalizerEnabled) colors.accentCyan.copy(alpha = 0.12f) else colors.surfaceVariant)
-                    .border(1.dp, if (equalizerEnabled) colors.accentCyan.copy(alpha = 0.35f) else colors.border, RoundedCornerShape(8.dp))
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                    .background(if (equalizerEnabled) colors.accentCyan.copy(alpha = 0.1f) else colors.surfaceVariant)
+                    .border(1.dp, if (equalizerEnabled) colors.accentCyan.copy(alpha = 0.3f) else colors.border, RoundedCornerShape(8.dp))
+                    .padding(horizontal = 12.dp, vertical = 7.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
                     modifier = Modifier
                         .size(8.dp)
-                        .clip(RoundedCornerShape(4.dp))
+                        .clip(CircleShape)
                         .background(if (equalizerEnabled) colors.accentLime else colors.textMuted)
                 )
                 Spacer(Modifier.width(8.dp))
                 Text(
                     text = if (equalizerEnabled) {
-                        if (hwBands > 0) "HARDWARE DSP: ACTIVE ($hwBands BANDS)" else "HARDWARE DSP: READY"
-                    } else "DSP BYPASSED (DIRECT AUDIO PATH)",
+                        if (hwBands > 0) "HARDWARE DSP ENGINE: ACTIVE ($hwBands BANDS)" else "PRECISION DSP ENGINE: ACTIVE"
+                    } else "DSP BYPASSED • BIT-PERFECT DIRECT AUDIO",
                     style = MaterialTheme.typography.labelSmall.copy(
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 10.sp,
+                        fontSize = 9.5.sp,
                         letterSpacing = 0.5.sp
                     ),
                     color = if (equalizerEnabled) colors.accentCyan else colors.textMuted,
@@ -199,50 +217,16 @@ fun PowerampEqualizerScreen(
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 9.sp
+                            fontSize = 8.5.sp
                         ),
                         color = colors.accentAmber
                     )
                 }
             }
-            // Poweramp Sub-tabs selector
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 6.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(colors.surface),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                listOf("GRAPHIC EQ", "TONE & SPACE", "REVERB & TEMPO").forEachIndexed { index, label ->
-                    val isSelected = activeTab == index
-                    val tabColor by animateColorAsState(
-                        if (isSelected) colors.accentCyan else colors.textMuted,
-                        label = "tabColor"
-                    )
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(if (isSelected) colors.surfaceElevated else Color.Transparent)
-                            .clickable { activeTab = index }
-                            .padding(vertical = 10.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = label,
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = if (isSelected) FontWeight.Black else FontWeight.Bold,
-                                letterSpacing = 1.sp,
-                                fontFamily = FontFamily.Monospace
-                            ),
-                            color = tabColor
-                        )
-                    }
-                }
-            }
 
-            // Poweramp Presets Scrollable Chip Row
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Studio Presets Carousel
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -254,10 +238,10 @@ fun PowerampEqualizerScreen(
                     val isSelected = currentPresetName == preset.name
                     Surface(
                         shape = RoundedCornerShape(8.dp),
-                        color = if (isSelected) colors.accentCyan.copy(alpha = 0.2f) else colors.surfaceVariant,
+                        color = if (isSelected) colors.accentCyan.copy(alpha = 0.22f) else colors.surfaceVariant,
                         border = androidx.compose.foundation.BorderStroke(
                             1.dp,
-                            if (isSelected) colors.accentCyan else colors.border
+                            if (isSelected) colors.accentCyan else colors.border.copy(alpha = 0.5f)
                         ),
                         modifier = Modifier.clickable {
                             viewModel.applyPowerampPreset(
@@ -275,283 +259,583 @@ fun PowerampEqualizerScreen(
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = if (isSelected) FontWeight.Black else FontWeight.Bold,
                                 letterSpacing = 0.8.sp,
-                                fontFamily = FontFamily.Monospace
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 10.sp
                             ),
                             color = if (isSelected) colors.accentCyan else colors.textSecondary,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp)
                         )
                     }
                 }
             }
 
-            when (activeTab) {
-                0 -> {
-                    // TAB 0: 10-Band Graphic Equalizer with Spline Curve
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .verticalScroll(rememberScrollState())
-                            .padding(horizontal = 16.dp, vertical = 8.dp)
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Frequency Response Spline Visualizer Card
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = Color(0xFF0C121C),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1B2637)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .height(115.dp)
+            ) {
+                EqCurveCanvas(
+                    bandLevels = bandLevels,
+                    preamp = preampGain,
+                    isEnabled = equalizerEnabled
+                )
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Section Header: 10-Band Graphic Equalizer
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "10-BAND GRAPHIC CONSOLE",
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 1.2.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 11.sp
+                    ),
+                    color = colors.textSecondary
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                Text(
+                    text = "TAP dB TO ZERO • DRAG FADER",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.Medium,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 8.5.sp
+                    ),
+                    color = colors.textMuted
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Precision Tactile Fader Console: Preamp (Master) on left + 10 Frequency bands
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = Color(0xFF090E17),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF17202E)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 12.dp, horizontal = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Dedicated Master PREAMP Channel
+                    Box(
+                        modifier = Modifier.padding(start = 6.dp, end = 4.dp)
                     ) {
-                        // Poweramp EQ Spline Curve Visualizer
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = Color(0xFF0F1521),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1C283A)),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(110.dp)
-                        ) {
-                            EqCurveCanvas(
-                                bandLevels = bandLevels,
-                                preamp = preampGain,
-                                isEnabled = equalizerEnabled
-                            )
-                        }
+                        TactileVerticalFader(
+                            label = "PRE",
+                            subLabel = "GAIN",
+                            value = preampGain,
+                            onValueChange = { viewModel.setPreampGain(it) },
+                            accentColor = Poweramp_Amber,
+                            isEnabled = equalizerEnabled,
+                            faderWidth = 54.dp,
+                            trackHeight = 180.dp
+                        )
+                    }
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                    // Vertical Channel Divider
+                    Box(
+                        modifier = Modifier
+                            .padding(horizontal = 4.dp)
+                            .width(1.dp)
+                            .height(230.dp)
+                            .background(Color(0xFF1E2A3C))
+                    )
 
-                        // Preamp + 10 Faders Container
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(260.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            // Master Preamp Vertical Slider
-                            VerticalEqFader(
-                                label = "PRE",
-                                value = preampGain,
-                                onValueChange = { viewModel.setPreampGain(it) },
-                                accentColor = Poweramp_Amber,
+                    // 10-Band Horizontal Scrollable Console
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState())
+                            .padding(horizontal = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        bandLevels.forEachIndexed { index, gain ->
+                            val label = EQ_BAND_LABELS.getOrElse(index) { "$index" }
+                            val subLabel = if (index < 5) "Hz" else "kHz"
+                            TactileVerticalFader(
+                                label = label,
+                                subLabel = subLabel,
+                                value = gain,
+                                onValueChange = { viewModel.setEqBandLevel(index, it) },
+                                accentColor = Poweramp_Cyan,
                                 isEnabled = equalizerEnabled,
-                                modifier = Modifier.weight(1f)
+                                faderWidth = 54.dp,
+                                trackHeight = 180.dp
                             )
-
-                            VerticalDivider(
-                                color = Color(0xFF1F293A),
-                                modifier = Modifier
-                                    .padding(horizontal = 4.dp, vertical = 8.dp)
-                                    .fillMaxHeight()
-                            )
-
-                            // 10 Frequency Faders
-                            bandLevels.forEachIndexed { index, gain ->
-                                val label = EQ_BAND_LABELS.getOrElse(index) { "$index" }
-                                VerticalEqFader(
-                                    label = label,
-                                    value = gain,
-                                    onValueChange = { viewModel.setEqBandLevel(index, it) },
-                                    accentColor = Poweramp_Cyan,
-                                    isEnabled = equalizerEnabled,
-                                    modifier = Modifier.weight(1f)
-                                )
-                            }
                         }
-
-                        Spacer(modifier = Modifier.height(20.dp))
                     }
                 }
-                1 -> {
-                    // TAB 1: Tone & Space (Rotary Knobs for Bass, Treble, Stereo Virtualizer, Balance)
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .verticalScroll(rememberScrollState())
-                            .padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Section Header: Analog Tone & Spatial Controls
+            Text(
+                text = "ANALOG TONE & SPATIAL STAGE",
+                style = MaterialTheme.typography.labelMedium.copy(
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 1.2.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 11.sp
+                ),
+                color = colors.textSecondary,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // 4-Knob Studio Panel: Bass, Treble, Virtualizer, Balance
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = Color(0xFF090E17),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF17202E)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    // Row 1: Bass Boost & Treble Tone
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "TONE & DYNAMICS ENGINE",
-                            style = MaterialTheme.typography.labelMedium.copy(
-                                fontWeight = FontWeight.Black,
-                                letterSpacing = 2.sp,
-                                fontFamily = FontFamily.Monospace
-                            ),
-                            color = Poweramp_Amber,
-                            modifier = Modifier.padding(bottom = 16.dp)
+                        PowerampRotaryKnob(
+                            value = bassBoostStrength.toFloat(),
+                            onValueChange = { viewModel.setBassBoost(it.toInt()) },
+                            valueRange = 0f..1000f,
+                            label = "BASS BOOST",
+                            displayValue = if (bassBoostStrength > 0) "+${bassBoostStrength / 10}%" else "0%",
+                            knobSize = 96.dp,
+                            accentColor = Poweramp_Lime,
+                            subText = "SUB-BASS 55Hz"
                         )
 
-                        // Row 1: Bass & Treble Rotary Knobs
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceEvenly,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            PowerampRotaryKnob(
-                                value = bassBoostStrength.toFloat(),
-                                onValueChange = { viewModel.setBassBoost(it.toInt()) },
-                                valueRange = 0f..1000f,
-                                label = "BASS BOOST",
-                                displayValue = if (bassBoostStrength > 0) "+${bassBoostStrength / 10}%" else "0%",
-                                knobSize = 110.dp,
-                                accentColor = Poweramp_Lime,
-                                subText = "SUB-BASS 55Hz"
-                            )
+                        PowerampRotaryKnob(
+                            value = trebleGain,
+                            onValueChange = { viewModel.setTrebleGain(it) },
+                            valueRange = -15f..15f,
+                            label = "TREBLE AIR",
+                            displayValue = "${if (trebleGain > 0) "+" else ""}${String.format(Locale.US, "%.1f", trebleGain)} dB",
+                            knobSize = 96.dp,
+                            accentColor = Poweramp_Cyan,
+                            subText = "HIGH-AIR 12kHz"
+                        )
+                    }
 
-                            PowerampRotaryKnob(
-                                value = trebleGain,
-                                onValueChange = { viewModel.setTrebleGain(it) },
-                                valueRange = -15f..15f,
-                                label = "TREBLE TONE",
-                                displayValue = "${if (trebleGain > 0) "+" else ""}${String.format(Locale.US, "%.1f", trebleGain)} dB",
-                                knobSize = 110.dp,
-                                accentColor = Poweramp_Cyan,
-                                subText = "HIGH-AIR 12kHz"
-                            )
-                        }
+                    Spacer(modifier = Modifier.height(20.dp))
 
-                        Spacer(modifier = Modifier.height(28.dp))
+                    // Row 2: Stereo Expand & Audio Balance
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        PowerampRotaryKnob(
+                            value = virtualizerStrength.toFloat(),
+                            onValueChange = { viewModel.setVirtualizerStrength(it.toInt()) },
+                            valueRange = 0f..1000f,
+                            label = "STEREO EXPAND",
+                            displayValue = "${virtualizerStrength / 10}%",
+                            knobSize = 92.dp,
+                            accentColor = Poweramp_Purple,
+                            subText = "3D SPATIAL"
+                        )
 
-                        // Row 2: Stereo Virtualizer & Audio Balance
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceEvenly,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            PowerampRotaryKnob(
-                                value = virtualizerStrength.toFloat(),
-                                onValueChange = { viewModel.setVirtualizerStrength(it.toInt()) },
-                                valueRange = 0f..1000f,
-                                label = "STEREO EXPAND",
-                                displayValue = "${virtualizerStrength / 10}%",
-                                knobSize = 100.dp,
-                                accentColor = Poweramp_Purple,
-                                subText = "3D SPATIAL"
-                            )
-
-                            PowerampRotaryKnob(
-                                value = audioBalance,
-                                onValueChange = { viewModel.setAudioBalance(it) },
-                                valueRange = -1f..1f,
-                                label = "BALANCE",
-                                displayValue = when {
-                                    audioBalance < -0.05f -> "L ${(-audioBalance * 100).toInt()}%"
-                                    audioBalance > 0.05f -> "R ${(audioBalance * 100).toInt()}%"
-                                    else -> "CENTER"
-                                },
-                                knobSize = 100.dp,
-                                accentColor = Poweramp_Amber,
-                                subText = "L <-> R"
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(24.dp))
+                        PowerampRotaryKnob(
+                            value = audioBalance,
+                            onValueChange = { viewModel.setAudioBalance(it) },
+                            valueRange = -1f..1f,
+                            label = "BALANCE",
+                            displayValue = when {
+                                audioBalance < -0.05f -> "L ${(-audioBalance * 100).toInt()}%"
+                                audioBalance > 0.05f -> "R ${(audioBalance * 100).toInt()}%"
+                                else -> "CENTER"
+                            },
+                            knobSize = 92.dp,
+                            accentColor = Poweramp_Amber,
+                            subText = "L <-> R"
+                        )
                     }
                 }
-                2 -> {
-                    // TAB 2: Reverb & Tempo (Environmental Reverb, Speed, Pitch)
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .verticalScroll(rememberScrollState())
-                            .padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Section Header: Environmental Reverb Acoustics
+            Text(
+                text = "ENVIRONMENTAL REVERB ACOUSTICS",
+                style = MaterialTheme.typography.labelMedium.copy(
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 1.2.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 11.sp
+                ),
+                color = colors.textSecondary,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            val reverbOptions = listOf(
+                "OFF" to PresetReverb.PRESET_NONE.toInt(),
+                "STUDIO ROOM" to PresetReverb.PRESET_SMALLROOM.toInt(),
+                "CHAMBER" to PresetReverb.PRESET_MEDIUMROOM.toInt(),
+                "CONCERT HALL" to PresetReverb.PRESET_LARGEROOM.toInt(),
+                "ARENA" to PresetReverb.PRESET_MEDIUMHALL.toInt(),
+                "CATHEDRAL" to PresetReverb.PRESET_LARGEHALL.toInt(),
+                "PLATE" to PresetReverb.PRESET_PLATE.toInt()
+            )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                reverbOptions.forEach { (title, id) ->
+                    val isSelected = reverbPreset == id
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = if (isSelected) Poweramp_Cyan.copy(alpha = 0.22f) else Color(0xFF0F1622),
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            if (isSelected) Poweramp_Cyan else Color(0xFF1E2837)
+                        ),
+                        modifier = Modifier.clickable { viewModel.setReverbPreset(id) }
                     ) {
                         Text(
-                            text = "REVERBERATION ENVIRONMENT",
-                            style = MaterialTheme.typography.labelMedium.copy(
-                                fontWeight = FontWeight.Black,
-                                letterSpacing = 2.sp,
-                                fontFamily = FontFamily.Monospace
+                            text = title,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = if (isSelected) FontWeight.Black else FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 10.sp,
+                                letterSpacing = 0.5.sp
                             ),
-                            color = Poweramp_Cyan,
-                            modifier = Modifier.padding(bottom = 12.dp)
+                            color = if (isSelected) Poweramp_Cyan else colors.textSecondary,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp)
                         )
+                    }
+                }
+            }
 
-                        // Reverb preset buttons
-                        val reverbOptions = listOf(
-                            "OFF" to PresetReverb.PRESET_NONE.toInt(),
-                            "STUDIO ROOM" to PresetReverb.PRESET_SMALLROOM.toInt(),
-                            "CHAMBER" to PresetReverb.PRESET_MEDIUMROOM.toInt(),
-                            "CONCERT HALL" to PresetReverb.PRESET_LARGEROOM.toInt(),
-                            "ARENA HALL" to PresetReverb.PRESET_MEDIUMHALL.toInt(),
-                            "CATHEDRAL" to PresetReverb.PRESET_LARGEHALL.toInt(),
-                            "PLATE REVERB" to PresetReverb.PRESET_PLATE.toInt()
-                        )
+            Spacer(modifier = Modifier.height(36.dp))
+        }
+    }
+}
 
-                        reverbOptions.chunked(2).forEach { rowItems ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 4.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                rowItems.forEach { (title, id) ->
-                                    val isSelected = reverbPreset == id
-                                    Surface(
-                                        shape = RoundedCornerShape(8.dp),
-                                        color = if (isSelected) Poweramp_Cyan.copy(alpha = 0.2f) else Color(0xFF131A26),
-                                        border = androidx.compose.foundation.BorderStroke(
-                                            1.dp,
-                                            if (isSelected) Poweramp_Cyan else Color(0xFF243042)
-                                        ),
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .clickable { viewModel.setReverbPreset(id) }
-                                    ) {
-                                        Text(
-                                            text = title,
-                                            style = MaterialTheme.typography.labelMedium.copy(
-                                                fontWeight = FontWeight.Bold,
-                                                fontFamily = FontFamily.Monospace,
-                                                letterSpacing = 0.5.sp
-                                            ),
-                                            color = if (isSelected) Poweramp_Cyan else MaterialTheme.colorScheme.onSurfaceVariant,
-                                            textAlign = TextAlign.Center,
-                                            modifier = Modifier.padding(vertical = 12.dp, horizontal = 6.dp)
-                                        )
-                                    }
+/**
+ * Professional Studio Tactile Vertical Fader:
+ * Substantial capacitive fader cap (40dp x 26dp), illuminated position bar,
+ * center 0dB detent notch, real-time vertical drag, and instant tap-to-zero.
+ */
+@Composable
+fun TactileVerticalFader(
+    label: String,
+    subLabel: String,
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    accentColor: Color,
+    isEnabled: Boolean,
+    modifier: Modifier = Modifier,
+    faderWidth: Dp = 54.dp,
+    trackHeight: Dp = 180.dp,
+    valueRange: ClosedFloatingPointRange<Float> = -15f..15f
+) {
+    val density = LocalDensity.current
+    val trackHeightPx = with(density) { trackHeight.toPx() }
+    val capHeightPx = with(density) { 34.dp.toPx() }
+    val usableHeightPx = (trackHeightPx - capHeightPx).coerceAtLeast(1f)
+
+    val minVal = valueRange.start
+    val maxVal = valueRange.endInclusive
+    val normalizedFraction = ((value - minVal) / (maxVal - minVal)).coerceIn(0f, 1f)
+    val zeroFraction = ((0f - minVal) / (maxVal - minVal)).coerceIn(0f, 1f)
+
+    val currentOnValueChange by rememberUpdatedState(onValueChange)
+
+    Column(
+        modifier = modifier.width(faderWidth),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // Value indicator pill - Tap to reset to 0.0 dB
+        Surface(
+            shape = RoundedCornerShape(4.dp),
+            color = if (isEnabled && abs(value) > 0.1f) accentColor.copy(alpha = 0.18f) else Color(0xFF131A24),
+            border = androidx.compose.foundation.BorderStroke(
+                0.75.dp,
+                if (isEnabled && abs(value) > 0.1f) accentColor.copy(alpha = 0.5f) else Color(0xFF1E2838)
+            ),
+            modifier = Modifier.clickable(enabled = isEnabled) { currentOnValueChange(0f) }
+        ) {
+            Text(
+                text = "${if (value > 0.05f) "+" else ""}${String.format(Locale.US, "%.1f", value)}",
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace
+                ),
+                color = if (isEnabled) {
+                    if (abs(value) > 0.1f) accentColor else Color(0xFF94A3B8)
+                } else Color(0xFF475569),
+                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+            )
+        }
+
+        // Quick +0.5 dB step button
+        Box(
+            modifier = Modifier
+                .padding(vertical = 3.dp)
+                .size(24.dp, 16.dp)
+                .clip(RoundedCornerShape(3.dp))
+                .background(if (isEnabled) Color(0xFF131A26) else Color.Transparent)
+                .clickable(enabled = isEnabled) {
+                    val newVal = (value + 0.5f).coerceIn(minVal, maxVal)
+                    currentOnValueChange(newVal)
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "+",
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Black),
+                color = if (isEnabled) accentColor.copy(alpha = 0.85f) else Color(0xFF334155)
+            )
+        }
+
+        // Fader Channel Interactive Box: Direct 1:1 finger tracking, cannot reverse or stutter
+        Box(
+            modifier = Modifier
+                .width(faderWidth)
+                .height(trackHeight)
+                .pointerInput(isEnabled, usableHeightPx, minVal, maxVal) {
+                    if (!isEnabled) return@pointerInput
+                    detectDragGestures(
+                        onDragStart = { offset ->
+                            val clampedY = (offset.y - capHeightPx / 2f).coerceIn(0f, usableHeightPx)
+                            val fraction = 1f - (clampedY / usableHeightPx)
+                            val newVal = (minVal + fraction * (maxVal - minVal)).coerceIn(minVal, maxVal)
+                            currentOnValueChange(newVal)
+                        },
+                        onDrag = { change, _ ->
+                            change.consume()
+                            val clampedY = (change.position.y - capHeightPx / 2f).coerceIn(0f, usableHeightPx)
+                            val fraction = 1f - (clampedY / usableHeightPx)
+                            val newVal = (minVal + fraction * (maxVal - minVal)).coerceIn(minVal, maxVal)
+                            currentOnValueChange(newVal)
+                        }
+                    )
+                },
+            contentAlignment = Alignment.TopCenter
+        ) {
+            // Draw Recessed Track, Center 0dB Detent, Scale Ticks, and Active Level Fill
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val w = size.width
+                val trackWidth = 7.dp.toPx()
+                val trackLeft = (w - trackWidth) / 2f
+
+                // Recessed track background groove
+                drawRoundRect(
+                    color = Color(0xFF0A0F17),
+                    topLeft = Offset(trackLeft, capHeightPx / 2f),
+                    size = Size(trackWidth, usableHeightPx),
+                    cornerRadius = CornerRadius(3.5.dp.toPx(), 3.5.dp.toPx())
+                )
+
+                // Track subtle inner border
+                drawRoundRect(
+                    color = Color(0xFF1B2433),
+                    topLeft = Offset(trackLeft, capHeightPx / 2f),
+                    size = Size(trackWidth, usableHeightPx),
+                    cornerRadius = CornerRadius(3.5.dp.toPx(), 3.5.dp.toPx()),
+                    style = Stroke(width = 1.dp.toPx())
+                )
+
+                val zeroY = (1f - zeroFraction) * usableHeightPx + capHeightPx / 2f
+                val currentCapCenterY = (1f - normalizedFraction) * usableHeightPx + capHeightPx / 2f
+
+                // Active Level Glow Fill from 0dB Center to Current Cap
+                if (isEnabled && abs(currentCapCenterY - zeroY) > 1f) {
+                    val fillTop = minOf(zeroY, currentCapCenterY)
+                    val fillHeight = abs(currentCapCenterY - zeroY)
+                    val fillColor = if (value >= 0) accentColor.copy(alpha = 0.85f) else accentColor.copy(alpha = 0.45f)
+                    drawRoundRect(
+                        color = fillColor,
+                        topLeft = Offset(trackLeft + 1.dp.toPx(), fillTop),
+                        size = Size(trackWidth - 2.dp.toPx(), fillHeight),
+                        cornerRadius = CornerRadius(2.dp.toPx(), 2.dp.toPx())
+                    )
+                }
+
+                // 0dB Center Detent horizontal line ticks
+                val tickWidth = 6.dp.toPx()
+                drawLine(
+                    color = if (isEnabled) Color(0xFF5B6E8A) else Color(0xFF2E3846),
+                    start = Offset(trackLeft - tickWidth - 1.dp.toPx(), zeroY),
+                    end = Offset(trackLeft - 1.dp.toPx(), zeroY),
+                    strokeWidth = 1.5.dp.toPx()
+                )
+                drawLine(
+                    color = if (isEnabled) Color(0xFF5B6E8A) else Color(0xFF2E3846),
+                    start = Offset(trackLeft + trackWidth + 1.dp.toPx(), zeroY),
+                    end = Offset(trackLeft + trackWidth + tickWidth + 1.dp.toPx(), zeroY),
+                    strokeWidth = 1.5.dp.toPx()
+                )
+
+                // +10dB and -10dB subtle guide ticks
+                val tenPlusFrac = ((10f - minVal) / (maxVal - minVal)).coerceIn(0f, 1f)
+                val tenPlusY = (1f - tenPlusFrac) * usableHeightPx + capHeightPx / 2f
+                drawLine(
+                    color = Color(0xFF253041),
+                    start = Offset(trackLeft - 4.dp.toPx(), tenPlusY),
+                    end = Offset(trackLeft - 1.dp.toPx(), tenPlusY),
+                    strokeWidth = 1.dp.toPx()
+                )
+
+                val tenMinusFrac = ((-10f - minVal) / (maxVal - minVal)).coerceIn(0f, 1f)
+                val tenMinusY = (1f - tenMinusFrac) * usableHeightPx + capHeightPx / 2f
+                drawLine(
+                    color = Color(0xFF253041),
+                    start = Offset(trackLeft - 4.dp.toPx(), tenMinusY),
+                    end = Offset(trackLeft - 1.dp.toPx(), tenMinusY),
+                    strokeWidth = 1.dp.toPx()
+                )
+            }
+
+            // Tactile Fader Cap (Substantial thumb knob: 46dp x 34dp)
+            val capOffsetY = with(density) {
+                ((1f - normalizedFraction) * usableHeightPx).toDp()
+            }
+
+            Surface(
+                modifier = Modifier
+                    .offset(y = capOffsetY)
+                    .width(46.dp)
+                    .height(34.dp)
+                    .shadow(elevation = 8.dp, shape = RoundedCornerShape(6.dp)),
+                shape = RoundedCornerShape(6.dp),
+                color = Color.Transparent
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            brush = Brush.verticalGradient(
+                                colors = if (isEnabled) {
+                                    listOf(Color(0xFF425164), Color(0xFF25303E), Color(0xFF141C26))
+                                } else {
+                                    listOf(Color(0xFF242E3B), Color(0xFF18202A), Color(0xFF10151C))
                                 }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(24.dp))
-
-                        Text(
-                            text = "TEMPO & PITCH DYNAMICS",
-                            style = MaterialTheme.typography.labelMedium.copy(
-                                fontWeight = FontWeight.Black,
-                                letterSpacing = 2.sp,
-                                fontFamily = FontFamily.Monospace
                             ),
-                            color = Poweramp_Amber,
-                            modifier = Modifier.padding(bottom = 12.dp)
+                            shape = RoundedCornerShape(6.dp)
+                        )
+                        .border(
+                            width = 1.dp,
+                            color = if (isEnabled) Color(0xFF5E7492) else Color(0xFF2A3442),
+                            shape = RoundedCornerShape(6.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    // Tactile horizontal grip grooves
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(3.5.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .width(24.dp)
+                                .height(1.dp)
+                                .background(if (isEnabled) Color(0xFF6B82A1) else Color(0xFF2E3846))
                         )
 
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceEvenly,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            PowerampRotaryKnob(
-                                value = playbackSpeed,
-                                onValueChange = { viewModel.setPlaybackRate(it, playbackPitch) },
-                                valueRange = 0.5f..2.0f,
-                                label = "PLAY SPEED",
-                                displayValue = "${String.format(Locale.US, "%.2f", playbackSpeed)}x",
-                                knobSize = 100.dp,
-                                accentColor = Poweramp_Cyan,
-                                subText = "0.5x - 2.0x"
-                            )
+                        // Center illuminated neon indicator line
+                        Box(
+                            modifier = Modifier
+                                .width(30.dp)
+                                .height(3.dp)
+                                .clip(RoundedCornerShape(1.5.dp))
+                                .background(if (isEnabled) accentColor else Color(0xFF475569))
+                        )
 
-                            PowerampRotaryKnob(
-                                value = playbackPitch,
-                                onValueChange = { viewModel.setPlaybackRate(playbackSpeed, it) },
-                                valueRange = 0.5f..2.0f,
-                                label = "AUDIO PITCH",
-                                displayValue = "${String.format(Locale.US, "%.2f", playbackPitch)}x",
-                                knobSize = 100.dp,
-                                accentColor = Poweramp_Amber,
-                                subText = "KEY ADJUST"
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(24.dp))
+                        Box(
+                            modifier = Modifier
+                                .width(24.dp)
+                                .height(1.dp)
+                                .background(if (isEnabled) Color(0xFF6B82A1) else Color(0xFF2E3846))
+                        )
                     }
                 }
             }
         }
+
+        // Quick -0.5 dB step button
+        Box(
+            modifier = Modifier
+                .padding(vertical = 3.dp)
+                .size(24.dp, 16.dp)
+                .clip(RoundedCornerShape(3.dp))
+                .background(if (isEnabled) Color(0xFF131A26) else Color.Transparent)
+                .clickable(enabled = isEnabled) {
+                    val newVal = (value - 0.5f).coerceIn(minVal, maxVal)
+                    currentOnValueChange(newVal)
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "−",
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Black),
+                color = if (isEnabled) accentColor.copy(alpha = 0.85f) else Color(0xFF334155)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(2.dp))
+
+        // Frequency Band & Sub-label
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall.copy(
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Black,
+                fontFamily = FontFamily.Monospace
+            ),
+            color = if (isEnabled) Color(0xFFE2E8F0) else Color(0xFF475569)
+        )
+        Text(
+            text = subLabel,
+            style = MaterialTheme.typography.labelSmall.copy(
+                fontSize = 8.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace
+            ),
+            color = if (isEnabled) Color(0xFF64748B) else Color(0xFF334155)
+        )
     }
 }
 
@@ -565,7 +849,11 @@ private fun EqCurveCanvas(
     isEnabled: Boolean,
     modifier: Modifier = Modifier
 ) {
-    Canvas(modifier = modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp)) {
+    Canvas(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+    ) {
         val w = size.width
         val h = size.height
         val centerY = h / 2f
@@ -573,23 +861,24 @@ private fun EqCurveCanvas(
 
         // Draw 0 dB reference line
         drawLine(
-            color = Color(0xFF2C384C),
+            color = Color(0xFF233044),
             start = Offset(0f, centerY),
             end = Offset(w, centerY),
-            strokeWidth = 1.dp.toPx()
+            strokeWidth = 1.2.dp.toPx()
         )
 
         // Draw +10dB and -10dB grid guides
         val y10Plus = centerY - (10f / maxGain) * (h / 2f - 4.dp.toPx())
-        val y10Minus = centerY - (-10f / maxGain) * (h / 2f - 4.dp.toPx())
         drawLine(
-            color = Color(0xFF1A2230),
+            color = Color(0xFF141C28),
             start = Offset(0f, y10Plus),
             end = Offset(w, y10Plus),
             strokeWidth = 1.dp.toPx()
         )
+
+        val y10Minus = centerY - (-10f / maxGain) * (h / 2f - 4.dp.toPx())
         drawLine(
-            color = Color(0xFF1A2230),
+            color = Color(0xFF141C28),
             start = Offset(0f, y10Minus),
             end = Offset(w, y10Minus),
             strokeWidth = 1.dp.toPx()
@@ -625,13 +914,13 @@ private fun EqCurveCanvas(
             fillPath.lineTo(points.last().x, centerY)
             fillPath.close()
 
-            // Draw translucent neon gradient underneath
+            // Draw translucent cyan gradient underneath
             if (isEnabled) {
                 drawPath(
                     path = fillPath,
                     brush = Brush.verticalGradient(
                         colors = listOf(
-                            Poweramp_Cyan.copy(alpha = 0.35f),
+                            Poweramp_Cyan.copy(alpha = 0.3f),
                             Color.Transparent
                         ),
                         startY = 0f,
@@ -643,14 +932,14 @@ private fun EqCurveCanvas(
             // Draw glowing spline line
             drawPath(
                 path = path,
-                color = if (isEnabled) Poweramp_Cyan else Color(0xFF4C5D75),
+                color = if (isEnabled) Poweramp_Cyan else Color(0xFF334155),
                 style = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round)
             )
 
-            // Draw nodes
+            // Draw frequency node dots
             points.forEach { pt ->
                 drawCircle(
-                    color = if (isEnabled) Poweramp_Cyan else Color(0xFF4C5D75),
+                    color = if (isEnabled) Poweramp_Cyan else Color(0xFF334155),
                     radius = 3.dp.toPx(),
                     center = pt
                 )
@@ -663,71 +952,5 @@ private fun EqCurveCanvas(
                 }
             }
         }
-    }
-}
-
-/**
- * Vertical Equalizer Fader with dB indicator and tactile drag
- */
-@Composable
-private fun VerticalEqFader(
-    label: String,
-    value: Float,
-    onValueChange: (Float) -> Unit,
-    accentColor: Color,
-    isEnabled: Boolean,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier.fillMaxHeight(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.SpaceBetween
-    ) {
-        // Value text
-        Text(
-            text = "${if (value > 0) "+" else ""}${value.toInt()}dB",
-            style = MaterialTheme.typography.labelSmall.copy(
-                fontSize = 8.5.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Monospace
-            ),
-            color = if (isEnabled) accentColor else Color(0xFF5A687D)
-        )
-
-        // Custom vertical slider track
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .width(28.dp)
-                .padding(vertical = 4.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Slider(
-                value = value,
-                onValueChange = onValueChange,
-                valueRange = -15f..15f,
-                enabled = isEnabled,
-                colors = SliderDefaults.colors(
-                    thumbColor = if (isEnabled) accentColor else Color(0xFF4A5568),
-                    activeTrackColor = if (isEnabled) accentColor else Color(0xFF2D3748),
-                    inactiveTrackColor = Color(0xFF161E2A)
-                ),
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .width(180.dp)
-                    .rotate(-90f)
-            )
-        }
-
-        // Frequency band label
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall.copy(
-                fontSize = 9.sp,
-                fontWeight = FontWeight.Black,
-                fontFamily = FontFamily.Monospace
-            ),
-            color = if (isEnabled) Color(0xFFC5D1E0) else Color(0xFF5A687D)
-        )
     }
 }

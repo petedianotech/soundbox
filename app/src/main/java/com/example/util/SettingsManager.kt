@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.StateFlow
 class SettingsManager(context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences("soundbox_settings", Context.MODE_PRIVATE)
 
-    private val _themeFlow = MutableStateFlow(prefs.getString("theme", "SYSTEM") ?: "SYSTEM")
+    private val _themeFlow = MutableStateFlow(prefs.getString("theme", "DARK") ?: "DARK")
     val themeFlow: StateFlow<String> = _themeFlow
 
     private val _visibleTabsFlow = MutableStateFlow(getVisibleTabs())
@@ -17,7 +17,7 @@ class SettingsManager(context: Context) {
     private val _searchHistoryFlow = MutableStateFlow(getSearchHistory())
     val searchHistoryFlow: StateFlow<List<String>> = _searchHistoryFlow
 
-    private val _crossfadeSeconds = MutableStateFlow(prefs.getInt("crossfade_sec", 0))
+    private val _crossfadeSeconds = MutableStateFlow(prefs.getInt("crossfade_sec", 3))
     val crossfadeSeconds: StateFlow<Int> = _crossfadeSeconds
 
     private val _gaplessPlayback = MutableStateFlow(prefs.getBoolean("gapless_playback", true))
@@ -37,6 +37,9 @@ class SettingsManager(context: Context) {
 
     private val _visualizerStyle = MutableStateFlow(prefs.getString("visualizer_style", "WAVEFORM") ?: "WAVEFORM")
     val visualizerStyle: StateFlow<String> = _visualizerStyle
+
+    private val _visualizerEnabled = MutableStateFlow(prefs.getBoolean("visualizer_enabled", true))
+    val visualizerEnabled: StateFlow<Boolean> = _visualizerEnabled
 
     fun setCrossfadeSeconds(seconds: Int) {
         prefs.edit().putInt("crossfade_sec", seconds).apply()
@@ -71,6 +74,11 @@ class SettingsManager(context: Context) {
     fun setVisualizerStyle(style: String) {
         prefs.edit().putString("visualizer_style", style).apply()
         _visualizerStyle.value = style
+    }
+
+    fun setVisualizerEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean("visualizer_enabled", enabled).apply()
+        _visualizerEnabled.value = enabled
     }
 
     fun setTheme(theme: String) {

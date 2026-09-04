@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.ThumbUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,6 +21,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.border
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import com.example.data.model.Song
@@ -36,7 +39,12 @@ fun SongImagePlaceholder(
     artist: String = "",
     genre: String = ""
 ) {
-    val shape = RoundedCornerShape((size * 0.22f).dp)
+    val cornerRadius = when {
+        size >= 120f -> 24.dp
+        size >= 72f -> 16.dp
+        else -> 12.dp
+    }
+    val shape = RoundedCornerShape(cornerRadius)
     val fallbackArtResId = remember(title, artist, genre) {
         AlbumArtHelper.getAlbumArtResId(title, artist, genre)
     }
@@ -44,16 +52,37 @@ fun SongImagePlaceholder(
     Surface(
         modifier = modifier
             .size(size.dp)
-            .clip(shape),
-        color = MaterialTheme.colorScheme.surfaceVariant,
+            .clip(shape)
+            .border(
+                width = 0.5.dp,
+                color = Color.White.copy(alpha = 0.06f),
+                shape = shape
+            ),
+        color = Color(0xFF0D121B),
         shape = shape
     ) {
-        Image(
-            painter = painterResource(id = fallbackArtResId),
-            contentDescription = "Album art for $title",
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop
-        )
+        Box(modifier = Modifier.fillMaxSize()) {
+            Image(
+                painter = painterResource(id = fallbackArtResId),
+                contentDescription = "Album art for $title",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+
+            // Soft studio ambient gradient to add warm audiophile depth
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.24f)
+                            )
+                        )
+                    )
+            )
+        }
     }
 }
 
@@ -75,30 +104,56 @@ fun ArtworkThumbnail(
         }
     }
 
-    val shape = if (isCircle) CircleShape else RoundedCornerShape((size * 0.2f).dp)
+    val cornerRadius = when {
+        size >= 120f -> 24.dp
+        size >= 72f -> 16.dp
+        else -> 12.dp
+    }
+    val shape = if (isCircle) CircleShape else RoundedCornerShape(cornerRadius)
 
     Surface(
         modifier = modifier
             .size(size.dp)
-            .clip(shape),
+            .clip(shape)
+            .border(
+                width = 0.5.dp,
+                color = Color.White.copy(alpha = 0.06f),
+                shape = shape
+            ),
         shape = shape,
-        color = MaterialTheme.colorScheme.surfaceVariant
+        color = Color(0xFF0D121B)
     ) {
-        if (artworkUri != null) {
-            coil.compose.SubcomposeAsyncImage(
-                model = artworkUri,
-                contentDescription = "Song artwork",
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop,
-                loading = {
-                    SongImagePlaceholder(title = title, artist = artist, genre = genre, modifier = Modifier.fillMaxSize(), size = size)
-                },
-                error = {
-                    SongImagePlaceholder(title = title, artist = artist, genre = genre, modifier = Modifier.fillMaxSize(), size = size)
-                }
+        Box(modifier = Modifier.fillMaxSize()) {
+            if (artworkUri != null) {
+                coil.compose.SubcomposeAsyncImage(
+                    model = artworkUri,
+                    contentDescription = "Song artwork",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                    loading = {
+                        SongImagePlaceholder(title = title, artist = artist, genre = genre, modifier = Modifier.fillMaxSize(), size = size)
+                    },
+                    error = {
+                        SongImagePlaceholder(title = title, artist = artist, genre = genre, modifier = Modifier.fillMaxSize(), size = size)
+                    }
+                )
+            } else {
+                SongImagePlaceholder(title = title, artist = artist, genre = genre, modifier = Modifier.fillMaxSize(), size = size)
+            }
+
+            // Subtle studio vignette to give deep, luxurious vinyl black levels
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.20f)
+                            )
+                        )
+                    )
             )
-        } else {
-            SongImagePlaceholder(title = title, artist = artist, genre = genre, modifier = Modifier.fillMaxSize(), size = size)
         }
     }
 }
@@ -199,10 +254,10 @@ fun TrackRow(
 
             IconButton(onClick = onFavoriteToggle) {
                 Icon(
-                    imageVector = if (song.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                    contentDescription = if (song.isFavorite) "Remove from favorites" else "Add to favorites",
-                    tint = if (song.isFavorite) Color(0xFFFF5252) else Color(0xFF67778D),
-                    modifier = Modifier.size(20.dp)
+                    imageVector = if (song.isFavorite) Icons.Default.ThumbUp else Icons.Outlined.ThumbUp,
+                    contentDescription = if (song.isFavorite) "Unlike song" else "Like song",
+                    tint = if (song.isFavorite) Color(0xFF00E5FF) else Color(0xFF67778D),
+                    modifier = Modifier.size(19.dp)
                 )
             }
 
@@ -318,14 +373,19 @@ fun MiniPlayer(
 
                         Spacer(modifier = Modifier.width(4.dp))
 
-                        IconButton(
+                        FilledTonalIconButton(
                             onClick = onSkipNext,
+                            shape = CircleShape,
+                            colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                containerColor = colors.surfaceElevated,
+                                contentColor = colors.textPrimary
+                            ),
                             modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.SkipNext,
                                 contentDescription = "Next Song",
-                                tint = Color.White
+                                modifier = Modifier.size(22.dp)
                             )
                         }
                     }

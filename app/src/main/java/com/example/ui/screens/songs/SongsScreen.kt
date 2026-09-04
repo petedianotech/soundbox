@@ -12,14 +12,16 @@ import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Sort
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.ThumbUp
+import androidx.compose.material.icons.outlined.ThumbUp
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -38,6 +40,7 @@ fun SongsScreen(
 ) {
     val songs by viewModel.allSongs.collectAsState()
     val isScanning by viewModel.isScanning.collectAsState()
+    val scanNotification by viewModel.scanNotification.collectAsState()
     val currentSong by viewModel.currentSong.collectAsState()
     val playlists by viewModel.allPlaylists.collectAsState()
 
@@ -74,7 +77,7 @@ fun SongsScreen(
         if (songs.isEmpty()) {
             if (isScanning) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 }
             } else {
                 EmptyPlaceholder(
@@ -87,6 +90,50 @@ fun SongsScreen(
             }
         } else {
             Column(modifier = Modifier.fillMaxSize()) {
+                // Subtle silent background scan progress bar
+                if (isScanning) {
+                    LinearProgressIndicator(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(2.dp),
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                }
+
+                // Non-distracting floating scan status pill
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = scanNotification != null,
+                    enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.slideInVertically(),
+                    exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.slideOutVertically()
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        shadowElevation = 2.dp,
+                        modifier = Modifier
+                            .padding(horizontal = 16.dp, vertical = 6.dp)
+                            .align(Alignment.CenterHorizontally)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = scanNotification ?: "",
+                                style = MaterialTheme.typography.labelMedium
+                            )
+                        }
+                    }
+                }
                 // Header action row
                 if (inSelectionMode) {
                     Row(
@@ -229,10 +276,10 @@ fun SongsScreen(
                         }
                     )
                     ListItem(
-                        headlineContent = { Text(if (songToManage!!.isFavorite) "Remove from Favorites" else "Add to Favorites") },
+                        headlineContent = { Text(if (songToManage!!.isFavorite) "Remove from Liked Songs" else "Add to Liked Songs") },
                         leadingContent = { 
                             Icon(
-                                imageVector = if (songToManage!!.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder, 
+                                imageVector = if (songToManage!!.isFavorite) Icons.Default.ThumbUp else Icons.Outlined.ThumbUp, 
                                 contentDescription = null, 
                                 tint = if (songToManage!!.isFavorite) MaterialTheme.colorScheme.primary else LocalContentColor.current
                             ) 

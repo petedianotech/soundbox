@@ -40,7 +40,6 @@ fun SettingsScreen(
     val songs by viewModel.allSongs.collectAsState()
     val isScanning by viewModel.isScanning.collectAsState()
     val sleepTimerLeft by viewModel.sleepTimerMillis.collectAsState()
-    val speed by viewModel.playbackSpeed.collectAsState()
     val currentTheme by viewModel.settingsManager.themeFlow.collectAsState()
     val visibleTabs by viewModel.settingsManager.visibleTabsFlow.collectAsState()
 
@@ -51,6 +50,7 @@ fun SettingsScreen(
     val keepScreenOn by viewModel.settingsManager.keepScreenOn.collectAsState()
     val hapticFeedback by viewModel.settingsManager.hapticFeedback.collectAsState()
     val visualizerStyle by viewModel.settingsManager.visualizerStyle.collectAsState()
+    val visualizerEnabled by viewModel.settingsManager.visualizerEnabled.collectAsState()
     val eqEnabled by viewModel.equalizerEnabled.collectAsState()
 
     var showTimerDialog by remember { mutableStateOf(false) }
@@ -59,7 +59,6 @@ fun SettingsScreen(
     var showCrossfadeDialog by remember { mutableStateOf(false) }
     var showReplayGainDialog by remember { mutableStateOf(false) }
     var showVisualizerDialog by remember { mutableStateOf(false) }
-    var showSpeedDialog by remember { mutableStateOf(false) }
 
     val colors = SoundboxTheme.colors
 
@@ -126,8 +125,8 @@ fun SettingsScreen(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(14.dp),
-                color = Color(0xFF0F1722),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1E2D42))
+                color = colors.surface,
+                border = androidx.compose.foundation.BorderStroke(1.dp, colors.border)
             ) {
                 Row(
                     modifier = Modifier
@@ -142,16 +141,16 @@ fun SettingsScreen(
                             .clip(CircleShape)
                             .background(
                                 Brush.radialGradient(
-                                    listOf(Poweramp_Cyan.copy(alpha = 0.3f), Color.Transparent)
+                                    listOf(colors.accentCyan.copy(alpha = 0.25f), Color.Transparent)
                                 )
                             )
-                            .border(1.5.dp, Poweramp_Cyan, CircleShape),
+                            .border(1.5.dp, colors.accentCyan, CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.GraphicEq,
                             contentDescription = null,
-                            tint = Poweramp_Cyan,
+                            tint = colors.accentCyan,
                             modifier = Modifier.size(24.dp)
                         )
                     }
@@ -163,7 +162,7 @@ fun SettingsScreen(
                                 fontWeight = FontWeight.Bold,
                                 letterSpacing = 0.3.sp
                             ),
-                            color = Color.White
+                            color = colors.textPrimary
                         )
                         Text(
                             text = "32-bit Float DSP • Direct Volume Control (DVC)",
@@ -171,7 +170,7 @@ fun SettingsScreen(
                                 fontSize = 11.sp,
                                 fontFamily = FontFamily.Monospace
                             ),
-                            color = Poweramp_Cyan.copy(alpha = 0.8f)
+                            color = colors.accentCyan.copy(alpha = 0.85f)
                         )
                     }
                 }
@@ -233,39 +232,34 @@ fun SettingsScreen(
                     badgeColor = Poweramp_Amber,
                     onClick = { showTimerDialog = true }
                 )
-                SettingsDivider()
-                SettingsCardRow(
-                    title = "Playback Speed & Tempo",
-                    subtitle = "Current Velocity: ${String.format("%.2fx", speed)}",
-                    icon = Icons.Default.Speed,
-                    onClick = { showSpeedDialog = true }
-                )
             }
 
             // 3. LOOK & FEEL (SKINS & VISUALIZER)
             SettingsSection(title = "LOOK & FEEL (SKIN & THEME)", sectionIcon = Icons.Default.Palette) {
                 SettingsCardRow(
                     title = "App Skin Theme",
-                    subtitle = when (currentTheme) {
-                        "MIDNIGHT" -> "Midnight Black (Obsidian)"
-                        "DARK" -> "Dark Titanium Pro"
-                        "LIGHT" -> "Clean Studio Light"
-                        else -> "System Default (Auto)"
-                    },
+                    subtitle = if (currentTheme == "LIGHT") "Light Theme" else "Dark Theme (Default)",
                     icon = Icons.Default.ColorLens,
                     onClick = { showThemeDialog = true }
                 )
                 SettingsDivider()
-                SettingsCardRow(
-                    title = "Audio Visualizer Renderer",
-                    subtitle = when (visualizerStyle) {
-                        "SPECTRUM" -> "32-Band Neon Spectrum"
-                        "OSCILLOSCOPE" -> "Oscilloscope Sine Wave"
-                        else -> "Real-time FFT Frequency Bars"
-                    },
-                    icon = Icons.Default.BarChart,
-                    onClick = { showVisualizerDialog = true }
+                SettingsToggleRow(
+                    title = "Audio Visualizer",
+                    subtitle = if (visualizerEnabled) "Dynamic real-time audio spectrum enabled" else "Visualizer turned off",
+                    icon = Icons.Default.GraphicEq,
+                    checked = visualizerEnabled,
+                    onCheckedChange = { viewModel.settingsManager.setVisualizerEnabled(it) }
                 )
+                if (visualizerEnabled) {
+                    SettingsDivider()
+                    SettingsCardRow(
+                        title = "Visualizer Spectrum Style",
+                        subtitle = com.example.ui.components.VisualizerStyle.fromId(visualizerStyle).title,
+                        icon = Icons.Default.BarChart,
+                        badge = "10 STYLES",
+                        onClick = { showVisualizerDialog = true }
+                    )
+                }
                 SettingsDivider()
                 SettingsToggleRow(
                     title = "Haptic Knob Feedback",
@@ -487,32 +481,44 @@ fun SettingsScreen(
             titleContentColor = colors.textPrimary,
             textContentColor = colors.textSecondary,
             onDismissRequest = { showVisualizerDialog = false },
-            title = { Text("Visualizer Style", fontWeight = FontWeight.Bold) },
+            title = { Text("Visualizer Style (10 Modes)", fontWeight = FontWeight.Bold) },
             text = {
-                Column {
-                    listOf(
-                        "WAVEFORM" to "Real-time FFT Frequency Bars",
-                        "SPECTRUM" to "32-Band Neon Spectrum",
-                        "OSCILLOSCOPE" to "Smooth Oscilloscope Sine Wave"
-                    ).forEach { (style, label) ->
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    com.example.ui.components.VisualizerStyle.entries.forEach { style ->
+                        val isSelected = visualizerStyle == style.id
                         Row(
                             Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(8.dp))
                                 .clickable {
-                                    viewModel.settingsManager.setVisualizerStyle(style)
+                                    viewModel.settingsManager.setVisualizerStyle(style.id)
                                     showVisualizerDialog = false
                                 }
-                                .padding(12.dp),
+                                .padding(vertical = 8.dp, horizontal = 4.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             RadioButton(
-                                selected = visualizerStyle == style,
+                                selected = isSelected,
                                 onClick = null,
                                 colors = RadioButtonDefaults.colors(selectedColor = colors.accentCyan)
                             )
-                            Spacer(Modifier.width(12.dp))
-                            Text(label, color = if (visualizerStyle == style) colors.accentCyan else colors.textPrimary)
+                            Spacer(Modifier.width(10.dp))
+                            Column {
+                                Text(
+                                    text = style.title,
+                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal),
+                                    color = if (isSelected) colors.accentCyan else colors.textPrimary
+                                )
+                                Text(
+                                    text = style.subtitle,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = colors.textMuted
+                                )
+                            }
                         }
                     }
                 }
@@ -528,91 +534,18 @@ fun SettingsScreen(
         )
     }
 
-    if (showSpeedDialog) {
-        AlertDialog(
-            containerColor = colors.dialogBackground,
-            titleContentColor = colors.textPrimary,
-            textContentColor = colors.textSecondary,
-            onDismissRequest = { showSpeedDialog = false },
-            title = { Text("Playback Speed & Tempo", fontWeight = FontWeight.Bold) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    Text("Select velocity multiplier or reset to standard pitch:")
-                    Column {
-                        listOf(
-                            0.5f to "0.5x (Slow Motion)",
-                            0.75f to "0.75x (Relaxed)",
-                            0.9f to "0.9x (Subtle Slow)",
-                            1.0f to "1.0x (Standard Normal)",
-                            1.1f to "1.1x (Brisk)",
-                            1.25f to "1.25x (Upbeat)",
-                            1.5f to "1.5x (Fast)",
-                            2.0f to "2.0x (Double Speed)"
-                        ).forEach { (rate, label) ->
-                            val isSelected = Math.abs(speed - rate) < 0.04f
-                            Row(
-                                Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .clickable {
-                                        viewModel.setPlaybackRate(rate, 1.0f)
-                                        showSpeedDialog = false
-                                    }
-                                    .padding(horizontal = 10.dp, vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                RadioButton(
-                                    selected = isSelected,
-                                    onClick = null,
-                                    colors = RadioButtonDefaults.colors(selectedColor = colors.accentCyan)
-                                )
-                                Spacer(Modifier.width(12.dp))
-                                Text(
-                                    label,
-                                    color = if (isSelected) colors.accentCyan else colors.textPrimary,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                                )
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.setPlaybackRate(1.0f, 1.0f)
-                        showSpeedDialog = false
-                    },
-                    colors = ButtonDefaults.textButtonColors(contentColor = colors.accentAmber)
-                ) {
-                    Text("Reset 1.0x")
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = { showSpeedDialog = false },
-                    colors = ButtonDefaults.textButtonColors(contentColor = colors.textPrimary)
-                ) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
-
     if (showThemeDialog) {
         AlertDialog(
             containerColor = colors.dialogBackground,
             titleContentColor = colors.textPrimary,
             textContentColor = colors.textSecondary,
             onDismissRequest = { showThemeDialog = false },
-            title = { Text("Select App Skin Theme", fontWeight = FontWeight.Bold) },
+            title = { Text("Select App Theme", fontWeight = FontWeight.Bold) },
             text = {
                 Column {
                     listOf(
-                        "MIDNIGHT" to "Midnight Black (Obsidian AMOLED)",
-                        "DARK" to "Dark Titanium Pro (Default)",
-                        "LIGHT" to "Clean Studio Light",
-                        "SYSTEM" to "System Auto"
+                        "DARK" to "Dark Theme (Default)",
+                        "LIGHT" to "Light Theme"
                     ).forEach { (id, name) ->
                         Row(
                             Modifier

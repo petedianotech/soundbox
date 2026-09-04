@@ -62,7 +62,13 @@ fun PowerampRotaryKnob(
         label = "knobAngle"
     )
 
-    var accumulatedDragY by remember { mutableFloatStateOf(0f) }
+    val currentOnValueChange by rememberUpdatedState(onValueChange)
+    val currentValueRange by rememberUpdatedState(valueRange)
+    var activeDragNorm by remember { mutableFloatStateOf(normalizedValue) }
+
+    LaunchedEffect(normalizedValue) {
+        activeDragNorm = normalizedValue
+    }
 
     Column(
         modifier = modifier,
@@ -84,19 +90,18 @@ fun PowerampRotaryKnob(
         Box(
             modifier = Modifier
                 .size(knobSize)
-                .pointerInput(valueRange) {
+                .pointerInput(currentValueRange) {
                     detectDragGestures(
                         onDragStart = {
-                            accumulatedDragY = 0f
+                            activeDragNorm = normalizedValue
                         },
                         onDrag = { change, dragAmount ->
                             change.consume()
-                            // Poweramp intuitive vertical drag + touch delta
+                            // Vertical upward drag increases, downward decreases smoothly
                             val sensitivity = 0.005f
-                            accumulatedDragY -= dragAmount.y * sensitivity
-                            val newNormalized = (normalizedValue - (dragAmount.y * sensitivity)).coerceIn(0f, 1f)
-                            val computed = valueRange.start + newNormalized * (valueRange.endInclusive - valueRange.start)
-                            onValueChange(computed)
+                            activeDragNorm = (activeDragNorm - dragAmount.y * sensitivity).coerceIn(0f, 1f)
+                            val computed = currentValueRange.start + activeDragNorm * (currentValueRange.endInclusive - currentValueRange.start)
+                            currentOnValueChange(computed)
                         }
                     )
                 },

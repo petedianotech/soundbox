@@ -364,7 +364,9 @@ object LyricsManager {
         val isArtistUnknown = rawArtist.isBlank() ||
                 rawArtist.equals("<unknown>", ignoreCase = true) ||
                 rawArtist.equals("unknown", ignoreCase = true) ||
-                rawArtist.equals("unknown artist", ignoreCase = true)
+                rawArtist.equals("unknown artist", ignoreCase = true) ||
+                rawArtist.equals("audio", ignoreCase = true) ||
+                rawArtist.equals("track", ignoreCase = true)
 
         // Try using the title or the raw audio filename if title looks like a filename
         var candidate = rawTitle
@@ -376,13 +378,13 @@ object LyricsManager {
                 } else ""
             } catch (e: Exception) { "" }
 
-            if (fileCandidate.isNotBlank() && fileCandidate.length > candidate.length) {
+            if (fileCandidate.isNotBlank() && (candidate.isBlank() || fileCandidate.length > candidate.length)) {
                 candidate = fileCandidate
             }
         }
 
         // Clean out file extension if still present
-        candidate = candidate.replace("(?i)\\.(mp3|m4a|flac|wav|ogg|aac|opus|webm)$".toRegex(), "")
+        candidate = candidate.replace("(?i)\\.(mp3|m4a|flac|wav|ogg|aac|opus|webm|mp4|3gp|wma)$".toRegex(), "")
 
         // Clean URL encodings like %20, %28, etc.
         try {
@@ -392,11 +394,13 @@ object LyricsManager {
         } catch (e: Exception) { }
 
         // Strip leading track numbers like "01. ", "01 - ", "12 ", "[01] "
-        candidate = candidate.replace("^\\s*(\\[?\\d{1,3}\\]?[-._ ]+)+".toRegex(), "")
+        candidate = candidate.replace("^\\s*(Track\\s*\\d{1,3}\\s*[-._ ]*|\\[?\\d{1,3}\\]?[-._ ]+)+".toRegex(), "")
 
         // Remove web download prefixes/suffixes (e.g. "[SPOTIDL]", "[Y2Mate]", "www.SongsPK.com - ", "ytmp3.mobi - ")
-        candidate = candidate.replace("(?i)^\\[?(y2mate|spotidl|ytmp3|ssyoutube|ringtone|mp3skull|songspk|pagalworld|tubidy|savefrom)[^\\]]*\\]?[-_ ]*".toRegex(), "")
-        candidate = candidate.replace("(?i)[-_ ]*\\[?(y2mate|spotidl|ytmp3|ssyoutube|ringtone|mp3skull|songspk|pagalworld|tubidy|savefrom)[^\\]]*\\]?$".toRegex(), "")
+        val ripperPrefixRegex = "(?i)^\\[?(y2mate(\\.[a-z]+)?|yt1s(\\.[a-z]+)?|ytmp3(\\.[a-z]+)?|spotidl|ssyoutube|ringtone|mp3skull|songspk|pagalworld|tubidy|savefrom|savetube|snaptube|vidmate|djpunjab|djmaza)[^\\]]*\\]?[-_ ]*".toRegex()
+        candidate = candidate.replace(ripperPrefixRegex, "")
+        val ripperSuffixRegex = "(?i)[-_ ]*\\[?(y2mate(\\.[a-z]+)?|yt1s(\\.[a-z]+)?|ytmp3(\\.[a-z]+)?|spotidl|ssyoutube|ringtone|mp3skull|songspk|pagalworld|tubidy|savefrom|savetube|snaptube|vidmate|djpunjab|djmaza)[^\\]]*\\]?$".toRegex()
+        candidate = candidate.replace(ripperSuffixRegex, "")
 
         // If artist was already known and valid, check if title also redundantly duplicates the artist
         if (!isArtistUnknown && rawArtist.length >= 2) {
@@ -484,11 +488,13 @@ object LyricsManager {
         s = s.replace("\\s*\\([^)]*\\)".toRegex(), "")
         s = s.replace("\\s*\\[[^]]*\\]".toRegex(), "")
 
-        // 2. Remove common video converter tags and features (case-insensitive)
+        // 2. Remove common video converter tags, bitrates, audio flags (case-insensitive)
         val videoKeywords = listOf(
             "official video", "official music video", "music video", "official audio", "audio only",
             "lyrics video", "lyric video", "lyrics", "lyric", "video", "visualizer", "official lyric video",
-            "high quality", "hq", "hd", "1080p", "720p", "4k", "mp3", "mp4", "wav", "m4a", "clip officiel"
+            "high quality", "hq", "hd", "1080p", "720p", "480p", "4k", "mp3", "mp4", "wav", "m4a", "clip officiel",
+            "320kbps", "128kbps", "256kbps", "kbps", "full audio", "audio", "original mix", "official track",
+            "bass boosted", "slowed reverb", "slowed", "reverb", "extended version", "radio edit"
         )
         for (kw in videoKeywords) {
             s = s.replace("(?i)\\b$kw\\b".toRegex(), "")
@@ -496,7 +502,8 @@ object LyricsManager {
 
         // 3. Remove years commonly attached to video titles (e.g., 2026, 2025, etc.)
         s = s.replace("(?i)\\b202\\d\\b".toRegex(), "")
-        s = s.replace("(?i)\\b203\\d\\b".toRegex(), "")
+        s = s.replace("(?i)\\b201\\d\\b".toRegex(), "")
+        s = s.replace("(?i)\\b200\\d\\b".toRegex(), "")
 
         // 4. Clean up featuring artist markers
         if (isArtist) {
@@ -513,6 +520,9 @@ object LyricsManager {
 
         // 6. Replace punctuation noise with spaces
         s = s.replace("[_\\-,./|+=~#@$%^&*]".toRegex(), " ")
+
+        // 7. Condense multiple spaces
+        s = s.replace("\\s+".toRegex(), " ")
 
         return s.trim()
     }
@@ -554,7 +564,7 @@ object LyricsManager {
             }
         }
 
-        // 2. Second attempt: Search query with the combo string
+        // 2. Second attempt: Search query with the combo string (e.g. "Alan Walker Faded")
         val query = parsed.searchCombo.ifBlank { song.title }
         if (query.isNotBlank()) {
             val searchResult = queryLrclibSearch(query)
@@ -563,12 +573,21 @@ object LyricsManager {
             }
         }
 
-        // 3. Third attempt: Search with raw cleaned title
-        val cleanTitleOnly = cleanString(song.title, isArtist = false)
+        // 3. Third attempt: Search with clean title only if different
+        val cleanTitleOnly = cleanString(parsed.title, isArtist = false)
         if (cleanTitleOnly.isNotBlank() && cleanTitleOnly != query) {
             val fallbackSearch = queryLrclibSearch(cleanTitleOnly)
             if (!fallbackSearch.isNullOrBlank()) {
                 return@withContext fallbackSearch
+            }
+        }
+
+        // 4. Fourth attempt: If song has original raw title distinct from combo, search that
+        val rawTitleClean = cleanString(song.title, isArtist = false)
+        if (rawTitleClean.isNotBlank() && rawTitleClean != query && rawTitleClean != cleanTitleOnly) {
+            val rawSearch = queryLrclibSearch(rawTitleClean)
+            if (!rawSearch.isNullOrBlank()) {
+                return@withContext rawSearch
             }
         }
 

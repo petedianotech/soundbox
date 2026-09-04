@@ -46,6 +46,9 @@ interface SongDao {
     @Query("UPDATE songs SET playCount = playCount + 1, lastPlayedTime = :timestamp WHERE id = :id")
     suspend fun incrementPlayCount(id: String, timestamp: Long)
 
+    @Query("SELECT id FROM songs")
+    suspend fun getAllSongIds(): List<String>
+
     @Query("DELETE FROM songs")
     suspend fun clearAllSongs()
 
