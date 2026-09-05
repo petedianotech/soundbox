@@ -15,6 +15,11 @@ import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionResult
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.Futures
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import com.example.MainActivity
 import com.example.R
@@ -22,6 +27,7 @@ import com.example.R
 class PlaybackService : MediaSessionService() {
 
     private var mediaSession: MediaSession? = null
+    private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     companion object {
         const val CHANNEL_ID = "music_playback_channel"
@@ -35,7 +41,8 @@ class PlaybackService : MediaSessionService() {
         createNotificationChannel()
 
         // Bind to the single ExoPlayer instance in PlaybackManager
-        val sharedPlayer = PlaybackManager.getInstance(this).player
+        val pbManager = PlaybackManager.getInstance(this)
+        val sharedPlayer = pbManager.player
 
         // Create launch intent for notification click
         val launchIntent = Intent(this, MainActivity::class.java).apply {
@@ -52,11 +59,8 @@ class PlaybackService : MediaSessionService() {
         val customCommandRewind10 = SessionCommand(ACTION_REWIND_10, Bundle.EMPTY)
         val customCommandForward10 = SessionCommand(ACTION_FORWARD_10, Bundle.EMPTY)
 
-        val toggleFavoriteButton = CommandButton.Builder()
-            .setDisplayName("Favorite")
-            .setSessionCommand(customCommandToggleFavorite)
-            .setIconResId(R.drawable.ic_heart) 
-            .build()
+        val initialIsLiked = pbManager.currentSong.value?.isFavorite == true
+        val initialLikeButton = buildLikeButton(initialIsLiked)
 
         val rewindButton = CommandButton.Builder()
             .setDisplayName("Rewind 10s")
@@ -72,7 +76,7 @@ class PlaybackService : MediaSessionService() {
             
         mediaSession = MediaSession.Builder(this, sharedPlayer)
             .setSessionActivity(pendingIntent)
-            .setCustomLayout(listOf(rewindButton, toggleFavoriteButton, forwardButton))
+            .setCustomLayout(listOf(rewindButton, initialLikeButton, forwardButton))
             .setCallback(object : MediaSession.Callback {
                 override fun onConnect(
                     session: MediaSession,
@@ -96,13 +100,9 @@ class PlaybackService : MediaSessionService() {
                 ): ListenableFuture<SessionResult> {
                     when (customCommand.customAction) {
                         ACTION_TOGGLE_FAVORITE -> {
-                            val pbManager = PlaybackManager.getInstance(this@PlaybackService)
-                            val song = pbManager.currentSong.value
-                            if (song != null) {
-                                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-                                    com.example.data.repository.MusicRepository.getInstance(this@PlaybackService)
-                                        .toggleFavorite(song.id, song.isFavorite)
-                                }
+                            val currentSong = pbManager.currentSong.value
+                            if (currentSong != null) {
+                                pbManager.toggleFavorite(currentSong)
                             }
                         }
                         ACTION_FORWARD_10 -> {
@@ -122,6 +122,13 @@ class PlaybackService : MediaSessionService() {
             })
             .build()
             
+        // Observe current song in PlaybackManager to update notification Like button state
+        serviceScope.launch {
+            pbManager.currentSong.collectLatest { song ->
+                updateNotificationLayout(song?.isFavorite == true)
+            }
+        }
+
         // Use DefaultMediaNotificationProvider
         val notificationProvider = DefaultMediaNotificationProvider.Builder(this)
             .setChannelId(CHANNEL_ID)
@@ -129,6 +136,36 @@ class PlaybackService : MediaSessionService() {
             .build()
         notificationProvider.setSmallIcon(R.drawable.ic_music_note)
         setMediaNotificationProvider(notificationProvider)
+    }
+
+    private fun buildLikeButton(isLiked: Boolean): CommandButton {
+        val customCommandToggleFavorite = SessionCommand(ACTION_TOGGLE_FAVORITE, Bundle.EMPTY)
+        return CommandButton.Builder()
+            .setDisplayName(if (isLiked) "Liked" else "Like")
+            .setSessionCommand(customCommandToggleFavorite)
+            .setIconResId(if (isLiked) R.drawable.ic_thumb_up_filled else R.drawable.ic_thumb_up)
+            .build()
+    }
+
+    private fun updateNotificationLayout(isLiked: Boolean) {
+        val customCommandRewind10 = SessionCommand(ACTION_REWIND_10, Bundle.EMPTY)
+        val customCommandForward10 = SessionCommand(ACTION_FORWARD_10, Bundle.EMPTY)
+
+        val rewindButton = CommandButton.Builder()
+            .setDisplayName("Rewind 10s")
+            .setSessionCommand(customCommandRewind10)
+            .setIconResId(R.drawable.ic_replay_10)
+            .build()
+
+        val forwardButton = CommandButton.Builder()
+            .setDisplayName("Forward 10s")
+            .setSessionCommand(customCommandForward10)
+            .setIconResId(R.drawable.ic_forward_10)
+            .build()
+
+        val likeButton = buildLikeButton(isLiked)
+
+        mediaSession?.setCustomLayout(listOf(rewindButton, likeButton, forwardButton))
     }
 
     private fun createNotificationChannel() {
@@ -163,6 +200,7 @@ class PlaybackService : MediaSessionService() {
     }
 
     override fun onDestroy() {
+        serviceScope.cancel()
         mediaSession?.run {
             release()
             mediaSession = null

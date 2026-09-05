@@ -232,6 +232,11 @@ class PlaybackManager private constructor(private val context: Context) {
                 if (isCrossfading) return
                 val mediaId = mediaItem?.mediaId
                 if (mediaId != null) {
+                    val inMemorySong = _queue.value.find { it.id == mediaId }
+                    if (inMemorySong != null) {
+                        _currentSong.value = inMemorySong
+                        _duration.value = inMemorySong.duration
+                    }
                     scope.launch {
                         val song = repository.getSongById(mediaId)
                         if (song != null) {
@@ -529,16 +534,16 @@ class PlaybackManager private constructor(private val context: Context) {
                     listOf(buildMediaItem(nextSong))
                 }
 
-                player.setMediaItems(mediaItems)
-                player.seekTo(nextIndex, 0L)
-                player.volume = 0f
-                player.prepare()
-                player.play()
-
                 _currentSong.value = nextSong
                 _duration.value = nextSong.duration
                 repository.incrementPlayCount(nextSong.id)
                 saveCurrentState(nextSong.id, 0L)
+
+                player.setMediaItems(mediaItems, nextIndex, 0L)
+                player.volume = 0f
+                player.prepare()
+                player.play()
+
                 startPlaybackService()
 
                 // 3. True Equal-Power Crossfade (Poweramp signature: cosine fade-out, sine fade-in)
@@ -581,16 +586,15 @@ class PlaybackManager private constructor(private val context: Context) {
         val currentList = if (customQueue.isNotEmpty()) customQueue else listOf(song)
         _queue.value = currentList
 
-        val mediaItems = currentList.map { songItem -> buildMediaItem(songItem) }
-
-        player.setMediaItems(mediaItems)
-        val index = currentList.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
-        player.seekTo(index, 0L)
-        player.prepare()
-        player.play()
-
         _currentSong.value = song
         _duration.value = song.duration
+
+        val mediaItems = currentList.map { songItem -> buildMediaItem(songItem) }
+        val index = currentList.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
+
+        player.setMediaItems(mediaItems, index, 0L)
+        player.prepare()
+        player.play()
 
         saveCurrentState(song.id, 0L)
         startPlaybackService()
@@ -965,6 +969,22 @@ class PlaybackManager private constructor(private val context: Context) {
                     player.prepare()
                 }
             }
+        }
+    }
+
+    fun toggleFavorite(song: Song) {
+        val targetFav = !song.isFavorite
+        if (_currentSong.value?.id == song.id) {
+            _currentSong.value = _currentSong.value?.copy(isFavorite = targetFav)
+        }
+        val currentQueue = _queue.value
+        if (currentQueue.any { it.id == song.id }) {
+            _queue.value = currentQueue.map {
+                if (it.id == song.id) it.copy(isFavorite = targetFav) else it
+            }
+        }
+        scope.launch(Dispatchers.IO) {
+            repository.toggleFavorite(song.id, song.isFavorite)
         }
     }
 

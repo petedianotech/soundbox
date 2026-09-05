@@ -122,7 +122,11 @@ class SettingsManager(context: Context) {
     }
 
     private fun getVisibleTabs(): Set<String> {
-        val defaultTabs = setOf("SONGS", "ALBUMS", "ARTISTS", "GENRES", "FOLDERS", "PLAYLISTS")
+        val defaultTabs = setOf("SONGS", "ALBUMS", "ARTISTS", "GENRES", "PLAYLISTS")
+        if (!prefs.contains("visible_tabs_v2")) {
+            prefs.edit().putStringSet("visible_tabs", defaultTabs).putBoolean("visible_tabs_v2", true).apply()
+            return defaultTabs
+        }
         return prefs.getStringSet("visible_tabs", defaultTabs) ?: defaultTabs
     }
 

@@ -548,9 +548,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     fun stopSleepTimer() = playbackManager.stopSleepTimer()
 
     fun toggleFavorite(song: Song) {
-        viewModelScope.launch {
-            repository.toggleFavorite(song.id, song.isFavorite)
-        }
+        playbackManager.toggleFavorite(song)
     }
 
     fun updateSongRating(song: Song, rating: Int) {
