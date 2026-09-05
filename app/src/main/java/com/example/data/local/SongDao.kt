@@ -43,6 +43,18 @@ interface SongDao {
     @Query("UPDATE songs SET isFavorite = :isFavorite WHERE id = :id")
     suspend fun updateFavoriteStatus(id: String, isFavorite: Boolean)
 
+    @Query("UPDATE songs SET rating = :rating WHERE id = :id")
+    suspend fun updateRating(id: String, rating: Int)
+
+    @Query("SELECT * FROM songs WHERE rating > 0 ORDER BY rating DESC, title ASC")
+    fun getTopRatedSongs(): Flow<List<Song>>
+
+    @Update
+    suspend fun updateSongs(songs: List<Song>)
+
+    @Query("DELETE FROM songs WHERE id IN (:ids)")
+    suspend fun deleteSongsByIds(ids: List<String>)
+
     @Query("UPDATE songs SET playCount = playCount + 1, lastPlayedTime = :timestamp WHERE id = :id")
     suspend fun incrementPlayCount(id: String, timestamp: Long)
 

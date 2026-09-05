@@ -251,6 +251,31 @@ fun TrackRow(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
+                    if (song.rating > 0) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(1.dp),
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(Color(0xFFFFD700).copy(alpha = 0.12f))
+                                .padding(horizontal = 4.dp, vertical = 1.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Star,
+                                contentDescription = null,
+                                tint = Color(0xFFFFD700),
+                                modifier = Modifier.size(10.dp)
+                            )
+                            Text(
+                                text = "${song.rating}★",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 8.sp
+                                ),
+                                color = Color(0xFFFFD700)
+                            )
+                        }
+                    }
                 }
             }
 
@@ -447,6 +472,51 @@ fun EmptyPlaceholder(
             Spacer(modifier = Modifier.height(24.dp))
             Button(onClick = onActionClick) {
                 Text(text = actionText, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+
+@Composable
+fun StarRatingBar(
+    rating: Int,
+    onRatingChanged: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+    maxStars: Int = 5,
+    starSize: Int = 28,
+    activeColor: Color = Color(0xFFFFD700),
+    inactiveColor: Color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+    readOnly: Boolean = false
+) {
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        for (i in 1..maxStars) {
+            val isFilled = i <= rating
+            val icon = if (isFilled) Icons.Default.Star else Icons.Default.StarOutline
+            val tint = if (isFilled) activeColor else inactiveColor
+            
+            IconButton(
+                onClick = {
+                    if (!readOnly) {
+                        if (rating == i) {
+                            onRatingChanged(0) // Toggle off to 0
+                        } else {
+                            onRatingChanged(i)
+                        }
+                    }
+                },
+                enabled = !readOnly,
+                modifier = Modifier.size((starSize + 12).dp)
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = "$i Star${if (i > 1) "s" else ""}",
+                    tint = tint,
+                    modifier = Modifier.size(starSize.dp)
+                )
             }
         }
     }

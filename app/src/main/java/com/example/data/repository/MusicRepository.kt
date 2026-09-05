@@ -24,6 +24,7 @@ class MusicRepository(private val context: Context) {
     val mostPlayedSongs: Flow<List<Song>> = songDao.getMostPlayedSongs()
     val recentlyPlayedSongs: Flow<List<Song>> = songDao.getRecentlyPlayedSongs()
     val recentlyAddedSongs: Flow<List<Song>> = songDao.getRecentlyAddedSongs()
+    val topRatedSongs: Flow<List<Song>> = songDao.getTopRatedSongs()
     val distinctGenres: Flow<List<String>> = songDao.getDistinctGenres()
     val allPlaylists: Flow<List<Playlist>> = playlistDao.getAllPlaylists()
 
@@ -48,6 +49,117 @@ class MusicRepository(private val context: Context) {
         }
     }
 
+    suspend fun updateRating(songId: String, rating: Int) {
+        withContext(Dispatchers.IO) {
+            songDao.updateRating(songId, rating.coerceIn(0, 5))
+        }
+    }
+
+    suspend fun updateSongMetadata(song: Song, newLyrics: String? = null) {
+        withContext(Dispatchers.IO) {
+            // 1. Write actual ID3v2 tags directly into the audio file & update MediaStore
+            com.example.util.AudioTagWriter.writeTags(
+                context = context,
+                song = song,
+                newTitle = song.title,
+                newArtist = song.artist,
+                newAlbum = song.album,
+                newGenre = song.genre,
+                newTrackNumber = song.trackNumber,
+                newLyrics = newLyrics
+            )
+            // 2. Persist in local Room database
+            songDao.updateSong(song)
+        }
+    }
+
+    suspend fun updateSongsBatch(songs: List<Song>) {
+        withContext(Dispatchers.IO) {
+            // Write physical audio tags for all updated songs
+            songs.forEach { song ->
+                com.example.util.AudioTagWriter.writeTags(
+                    context = context,
+                    song = song,
+                    newTitle = song.title,
+                    newArtist = song.artist,
+                    newAlbum = song.album,
+                    newGenre = song.genre
+                )
+            }
+            songDao.updateSongs(songs)
+        }
+    }
+
+    /**
+     * Completely deletes audio files from device physical storage, deletes companion .lrc
+     * lyrics, removes records from Android MediaStore, and removes from Room database.
+     */
+    suspend fun deleteSongCompletely(song: Song): Boolean {
+        return withContext(Dispatchers.IO) {
+            var physicalDeleted = false
+            try {
+                // 1. Delete physical audio file
+                if (song.path.startsWith("/") && !song.path.contains("://")) {
+                    val file = File(song.path)
+                    if (file.exists()) {
+                        physicalDeleted = file.delete()
+                        Log.d(TAG, "Physical file deletion: ${file.absolutePath}, success=$physicalDeleted")
+                    }
+                }
+
+                // 2. Delete companion .lrc lyrics files
+                com.example.player.LyricsManager.deleteLyrics(context, song)
+
+                // 3. Delete from Android MediaStore
+                try {
+                    val uri = ContentUris.withAppendedId(
+                        MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                        song.id.toLongOrNull() ?: 0L
+                    )
+                    context.contentResolver.delete(uri, null, null)
+                } catch (e: Exception) {
+                    try {
+                        context.contentResolver.delete(
+                            MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                            "${MediaStore.Audio.Media.DATA} = ?",
+                            arrayOf(song.path)
+                        )
+                    } catch (ignored: Exception) {}
+                }
+
+                // 4. Force MediaScanner refresh
+                try {
+                    android.media.MediaScannerConnection.scanFile(
+                        context.applicationContext,
+                        arrayOf(song.path),
+                        null,
+                        null
+                    )
+                } catch (ignored: Exception) {}
+            } catch (e: Exception) {
+                Log.e(TAG, "Error during complete file deletion: ${e.message}", e)
+            }
+
+            // 5. Delete from Room database
+            songDao.deleteSongsByIds(listOf(song.id))
+            true
+        }
+    }
+
+    suspend fun deleteSongsBatch(songIds: List<String>) {
+        withContext(Dispatchers.IO) {
+            songDao.deleteSongsByIds(songIds)
+        }
+    }
+
+    suspend fun deleteSongsBatchCompletely(songs: List<Song>) {
+        withContext(Dispatchers.IO) {
+            songs.forEach { song ->
+                deleteSongCompletely(song)
+            }
+        }
+    }
+
     suspend fun incrementPlayCount(songId: String) {
         withContext(Dispatchers.IO) {
             songDao.incrementPlayCount(songId, System.currentTimeMillis())
@@ -57,12 +169,6 @@ class MusicRepository(private val context: Context) {
     suspend fun getSongById(songId: String): Song? {
         return withContext(Dispatchers.IO) {
             songDao.getSongById(songId)
-        }
-    }
-
-    suspend fun updateSongMetadata(song: Song) {
-        withContext(Dispatchers.IO) {
-            songDao.updateSong(song)
         }
     }
 

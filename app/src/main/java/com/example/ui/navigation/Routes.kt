@@ -15,4 +15,6 @@ object Routes {
     const val EQUALIZER = "equalizer"
     const val ABOUT = "about"
     const val LYRICS_CREATOR = "lyrics_creator"
+    const val INSIGHTS = "insights"
+    const val CLEANER = "cleaner"
 }

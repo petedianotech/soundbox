@@ -214,6 +214,7 @@ class PlaybackManager private constructor(private val context: Context) {
             override fun onIsPlayingChanged(isPlayingChanged: Boolean) {
                 _isPlaying.value = isPlayingChanged
                 _duration.value = player.duration.coerceAtLeast(0L)
+                com.example.widget.SoundboxAppWidget.updateAllWidgets(context)
             }
 
             override fun onPlaybackStateChanged(playbackState: Int) {
@@ -224,6 +225,7 @@ class PlaybackManager private constructor(private val context: Context) {
                         initAudioEffects(sid)
                     }
                 }
+                com.example.widget.SoundboxAppWidget.updateAllWidgets(context)
             }
 
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
@@ -237,6 +239,7 @@ class PlaybackManager private constructor(private val context: Context) {
                             _duration.value = song.duration
                             repository.incrementPlayCount(song.id)
                             saveCurrentState(song.id, player.currentPosition)
+                            com.example.widget.SoundboxAppWidget.updateAllWidgets(context)
                         }
                     }
                 }

@@ -13,6 +13,8 @@ import com.example.ui.screens.search.SearchScreen
 import com.example.ui.screens.settings.SettingsScreen
 import com.example.ui.screens.splash.SplashScreen
 import com.example.ui.screens.lyrics.LyricsSyncEditorScreen
+import com.example.ui.screens.insights.SoundboxInsightsScreen
+import com.example.ui.screens.cleaner.LibraryCleanerScreen
 import com.example.ui.viewmodel.MusicViewModel
 
 @Composable
@@ -35,7 +37,9 @@ fun SoundboxNavGraph(viewModel: MusicViewModel) {
                 onNavigateToSearch = { navController.navigate(Routes.SEARCH) },
                 onNavigateToSettings = { navController.navigate(Routes.SETTINGS) },
                 onNavigateToNowPlaying = { navController.navigate(Routes.NOW_PLAYING) },
-                onNavigateToEqualizer = { navController.navigate(Routes.EQUALIZER) }
+                onNavigateToEqualizer = { navController.navigate(Routes.EQUALIZER) },
+                onNavigateToInsights = { navController.navigate(Routes.INSIGHTS) },
+                onNavigateToCleaner = { navController.navigate(Routes.CLEANER) }
             )
         }
         composable(Routes.NOW_PLAYING) {
@@ -69,7 +73,22 @@ fun SoundboxNavGraph(viewModel: MusicViewModel) {
             SettingsScreen(
                 viewModel = viewModel,
                 onNavigateBack = { navController.popBackStack() },
-                onNavigateToAbout = { navController.navigate(Routes.ABOUT) }
+                onNavigateToAbout = { navController.navigate(Routes.ABOUT) },
+                onNavigateToEqualizer = { navController.navigate(Routes.EQUALIZER) },
+                onNavigateToInsights = { navController.navigate(Routes.INSIGHTS) },
+                onNavigateToCleaner = { navController.navigate(Routes.CLEANER) }
+            )
+        }
+        composable(Routes.INSIGHTS) {
+            SoundboxInsightsScreen(
+                viewModel = viewModel,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        composable(Routes.CLEANER) {
+            LibraryCleanerScreen(
+                viewModel = viewModel,
+                onNavigateBack = { navController.popBackStack() }
             )
         }
         composable(Routes.ABOUT) {

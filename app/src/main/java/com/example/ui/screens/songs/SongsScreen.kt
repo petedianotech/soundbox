@@ -30,7 +30,18 @@ import androidx.compose.ui.unit.dp
 import com.example.data.model.Song
 import com.example.ui.components.EmptyPlaceholder
 import com.example.ui.components.TrackRow
+import com.example.ui.components.StarRatingBar
 import com.example.ui.viewmodel.MusicViewModel
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DeleteForever
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.ui.platform.LocalContext
+import android.widget.Toast
+import com.example.util.ShareHelper
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,6 +49,7 @@ fun SongsScreen(
     viewModel: MusicViewModel,
     onSongSelected: (Song) -> Unit
 ) {
+    val context = LocalContext.current
     val songs by viewModel.allSongs.collectAsState()
     val isScanning by viewModel.isScanning.collectAsState()
     val scanNotification by viewModel.scanNotification.collectAsState()
@@ -45,16 +57,20 @@ fun SongsScreen(
     val playlists by viewModel.allPlaylists.collectAsState()
 
     var songToManage by remember { mutableStateOf<Song?>(null) }
+    var songToDelete by remember { mutableStateOf<Song?>(null) }
+    var showBatchDeleteConfirm by remember { mutableStateOf(false) }
     var showPlaylistDialog by remember { mutableStateOf(false) }
     var showActionSheet by remember { mutableStateOf(false) }
     var showDetailsDialog by remember { mutableStateOf(false) }
     var showSortMenu by remember { mutableStateOf(false) }
     var showTagEditor by remember { mutableStateOf(false) }
+    var showBatchTagEditor by remember { mutableStateOf(false) }
 
     var editTitle by remember { mutableStateOf("") }
     var editArtist by remember { mutableStateOf("") }
     var editAlbum by remember { mutableStateOf("") }
     var editGenre by remember { mutableStateOf("") }
+    var editRating by remember { mutableIntStateOf(0) }
 
     val genreMap by viewModel.genreList.collectAsState()
     val existingGenres = remember(genreMap) {
@@ -67,6 +83,7 @@ fun SongsScreen(
             editArtist = songToManage!!.artist
             editAlbum = songToManage!!.album
             editGenre = songToManage!!.genre
+            editRating = songToManage!!.rating
         }
     }
 
@@ -140,7 +157,7 @@ fun SongsScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .background(MaterialTheme.colorScheme.primaryContainer)
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                            .padding(horizontal = 16.dp, vertical = 6.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -149,7 +166,14 @@ fun SongsScreen(
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
-                        Row {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onClick = { showBatchTagEditor = true }) {
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = "Batch Edit Tags",
+                                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
                             IconButton(onClick = {
                                 selectedSongIds.forEach { id ->
                                     val songToAdd = songs.find { s -> s.id == id }
@@ -157,10 +181,23 @@ fun SongsScreen(
                                 }
                                 selectedSongIds = emptySet()
                             }) {
-                                Icon(Icons.Default.PlaylistAdd, contentDescription = "Add all to Queue")
+                                Icon(
+                                    imageVector = Icons.Default.PlaylistAdd,
+                                    contentDescription = "Add all to Queue",
+                                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
                             }
-                            IconButton(onClick = { selectedSongIds = emptySet() }) {
-                                Text("Clear")
+                            IconButton(onClick = {
+                                showBatchDeleteConfirm = true
+                            }) {
+                                Icon(
+                                    imageVector = Icons.Default.DeleteForever,
+                                    contentDescription = "Delete Selected from Device",
+                                    tint = MaterialTheme.colorScheme.error
+                                )
+                            }
+                            TextButton(onClick = { selectedSongIds = emptySet() }) {
+                                Text("Done", color = MaterialTheme.colorScheme.onPrimaryContainer)
                             }
                         }
                     }
@@ -187,16 +224,24 @@ fun SongsScreen(
                                     onDismissRequest = { showSortMenu = false }
                                 ) {
                                     DropdownMenuItem(
+                                        text = { Text("Highest Rated (5★)") },
+                                        onClick = { viewModel.setSortOrder(MusicViewModel.SortOrder.RATING); showSortMenu = false }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Most Played") },
+                                        onClick = { viewModel.setSortOrder(MusicViewModel.SortOrder.MOST_PLAYED); showSortMenu = false }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Date Added") },
+                                        onClick = { viewModel.setSortOrder(MusicViewModel.SortOrder.DATE_ADDED); showSortMenu = false }
+                                    )
+                                    DropdownMenuItem(
                                         text = { Text("A to Z") },
                                         onClick = { viewModel.setSortOrder(MusicViewModel.SortOrder.A_TO_Z); showSortMenu = false }
                                     )
                                     DropdownMenuItem(
                                         text = { Text("Z to A") },
                                         onClick = { viewModel.setSortOrder(MusicViewModel.SortOrder.Z_TO_A); showSortMenu = false }
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text("Date Added") },
-                                        onClick = { viewModel.setSortOrder(MusicViewModel.SortOrder.DATE_ADDED); showSortMenu = false }
                                     )
                                     DropdownMenuItem(
                                         text = { Text("Duration") },
@@ -261,14 +306,40 @@ fun SongsScreen(
                 }
             ) {
                 Column(modifier = Modifier.padding(bottom = 24.dp)) {
-                    Text(
-                        text = songToManage!!.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.padding(16.dp)
-                    )
+                    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                        Text(
+                            text = songToManage!!.title,
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                        )
+                        Text(
+                            text = "${songToManage!!.artist} • ${songToManage!!.album}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "Track Rating:",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            StarRatingBar(
+                                rating = songToManage!!.rating,
+                                onRatingChanged = { newRating ->
+                                    viewModel.updateSongRating(songToManage!!, newRating)
+                                    songToManage = songToManage!!.copy(rating = newRating)
+                                },
+                                starSize = 24
+                            )
+                        }
+                    }
                     Divider()
                     ListItem(
-                        headlineContent = { Text("Song Info") },
+                        headlineContent = { Text("Song Info & Specs") },
                         leadingContent = { Icon(Icons.Default.Info, null) },
                         modifier = Modifier.clickable {
                             showActionSheet = false
@@ -324,8 +395,175 @@ fun SongsScreen(
                             showTagEditor = true
                         }
                     )
+                    ListItem(
+                        headlineContent = { Text("Share Track & .LRC Lyrics") },
+                        supportingContent = { Text("Bundles audio file with synced lyrics", fontSize = 11.sp) },
+                        leadingContent = { Icon(Icons.Default.Share, null, tint = MaterialTheme.colorScheme.primary) },
+                        modifier = Modifier.clickable {
+                            val song = songToManage
+                            showActionSheet = false
+                            songToManage = null
+                            if (song != null) {
+                                ShareHelper.shareSongWithLyrics(context, song)
+                            }
+                        }
+                    )
+                    Divider()
+                    ListItem(
+                        headlineContent = { 
+                            Text(
+                                "Delete from Device", 
+                                color = MaterialTheme.colorScheme.error,
+                                fontWeight = FontWeight.Bold
+                            ) 
+                        },
+                        supportingContent = { 
+                            Text(
+                                "Permanently erase file from phone storage", 
+                                color = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
+                                fontSize = 11.sp
+                            ) 
+                        },
+                        leadingContent = { 
+                            Icon(
+                                Icons.Default.DeleteForever, 
+                                null, 
+                                tint = MaterialTheme.colorScheme.error
+                            ) 
+                        },
+                        modifier = Modifier.clickable {
+                            val target = songToManage
+                            showActionSheet = false
+                            songToManage = null
+                            songToDelete = target
+                        }
+                    )
                 }
             }
+        }
+
+        // Single Song Permanent Delete Confirmation Dialog
+        if (songToDelete != null) {
+            val song = songToDelete!!
+            AlertDialog(
+                onDismissRequest = { songToDelete = null },
+                icon = {
+                    Icon(
+                        imageVector = Icons.Default.DeleteForever,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(32.dp)
+                    )
+                },
+                title = {
+                    Text(
+                        "Delete Song Permanently?",
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+                    )
+                },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = "Are you sure you want to delete \"${song.title}\" by ${song.artist}?",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.4f)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "⚠️ This will permanently remove the audio file and its matching .lrc lyrics file from your device storage. This action cannot be undone.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.padding(10.dp)
+                            )
+                        }
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            val target = songToDelete!!
+                            songToDelete = null
+                            viewModel.deleteSongFromDevice(target) {
+                                Toast.makeText(context, "Song permanently deleted from storage", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                    ) {
+                        Text("Delete Permanently", color = MaterialTheme.colorScheme.onError)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { songToDelete = null }) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
+
+        // Batch Delete Confirmation Dialog
+        if (showBatchDeleteConfirm && inSelectionMode) {
+            val selectedSongs = songs.filter { selectedSongIds.contains(it.id) }
+            AlertDialog(
+                onDismissRequest = { showBatchDeleteConfirm = false },
+                icon = {
+                    Icon(
+                        imageVector = Icons.Default.DeleteForever,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(32.dp)
+                    )
+                },
+                title = {
+                    Text(
+                        "Delete ${selectedSongs.size} Songs Permanently?",
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+                    )
+                },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = "You are about to permanently delete ${selectedSongs.size} selected songs from device storage.",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.4f)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "⚠️ All audio files and companion .lrc lyrics files will be permanently erased from your storage. This action cannot be undone.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.padding(10.dp)
+                            )
+                        }
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            showBatchDeleteConfirm = false
+                            selectedSongIds = emptySet()
+                            viewModel.deleteSongsBatchFromDevice(selectedSongs) {
+                                Toast.makeText(context, "${selectedSongs.size} songs permanently deleted from storage", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                    ) {
+                        Text("Delete All Permanently", color = MaterialTheme.colorScheme.onError)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showBatchDeleteConfirm = false }) {
+                        Text("Cancel")
+                    }
+                }
+            )
         }
 
         // Playlist associations popup dialog
@@ -387,14 +625,14 @@ fun SongsScreen(
             )
         }
 
-        // Tag Editor Dialog
+        // Single Tag Editor Dialog
         if (showTagEditor && songToManage != null) {
             AlertDialog(
                 onDismissRequest = {
                     showTagEditor = false
                     songToManage = null
                 },
-                title = { Text("Edit Song Info") },
+                title = { Text("Edit Song Info & Rating") },
                 text = {
                     Column(
                         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -402,6 +640,20 @@ fun SongsScreen(
                             .fillMaxWidth()
                             .verticalScroll(rememberScrollState())
                     ) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "💾 Physical Tagging: Changes are written directly to audio ID3v2 tags on storage and synced with .lrc lyrics, so modified details stay intact when sent to others.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.padding(10.dp)
+                            )
+                        }
+
                         OutlinedTextField(
                             value = editTitle,
                             onValueChange = { editTitle = it },
@@ -433,6 +685,23 @@ fun SongsScreen(
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth()
                         )
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "Score (1-5 Stars):",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            StarRatingBar(
+                                rating = editRating,
+                                onRatingChanged = { editRating = it },
+                                starSize = 24
+                            )
+                        }
 
                         if (existingGenres.isNotEmpty()) {
                             Text(
@@ -488,9 +757,11 @@ fun SongsScreen(
                                 title = editTitle,
                                 artist = editArtist,
                                 album = editAlbum,
-                                genre = editGenre
+                                genre = editGenre,
+                                rating = editRating
                             )
                             viewModel.updateSongMetadata(updatedSong)
+                            Toast.makeText(context, "ID3 tags and details saved permanently to file", Toast.LENGTH_SHORT).show()
                             showTagEditor = false
                             songToManage = null
                         }
@@ -505,6 +776,147 @@ fun SongsScreen(
                             songToManage = null
                         }
                     ) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
+
+        // Batch Tag Editor Dialog
+        if (showBatchTagEditor && inSelectionMode) {
+            val selectedSongs = songs.filter { selectedSongIds.contains(it.id) }
+            var batchArtist by remember { mutableStateOf("") }
+            var applyArtist by remember { mutableStateOf(false) }
+            var batchAlbum by remember { mutableStateOf("") }
+            var applyAlbum by remember { mutableStateOf(false) }
+            var batchGenre by remember { mutableStateOf("") }
+            var applyGenre by remember { mutableStateOf(false) }
+            var batchRating by remember { mutableIntStateOf(0) }
+            var applyRating by remember { mutableStateOf(false) }
+
+            AlertDialog(
+                onDismissRequest = { showBatchTagEditor = false },
+                title = { 
+                    Text(
+                        "Batch Tag Editor (${selectedSongs.size} Tracks)",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                    ) 
+                },
+                text = {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        Text(
+                            "Select the tags you want to update simultaneously across all ${selectedSongs.size} selected tracks.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        // Artist Row
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Checkbox(checked = applyArtist, onCheckedChange = { applyArtist = it })
+                            OutlinedTextField(
+                                value = batchArtist,
+                                onValueChange = { 
+                                    batchArtist = it
+                                    if (it.isNotEmpty()) applyArtist = true
+                                },
+                                label = { Text("Artist Name") },
+                                singleLine = true,
+                                modifier = Modifier.weight(1f),
+                                enabled = applyArtist
+                            )
+                        }
+
+                        // Album Row
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Checkbox(checked = applyAlbum, onCheckedChange = { applyAlbum = it })
+                            OutlinedTextField(
+                                value = batchAlbum,
+                                onValueChange = { 
+                                    batchAlbum = it
+                                    if (it.isNotEmpty()) applyAlbum = true
+                                },
+                                label = { Text("Album Title") },
+                                singleLine = true,
+                                modifier = Modifier.weight(1f),
+                                enabled = applyAlbum
+                            )
+                        }
+
+                        // Genre Row
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Checkbox(checked = applyGenre, onCheckedChange = { applyGenre = it })
+                            OutlinedTextField(
+                                value = batchGenre,
+                                onValueChange = { 
+                                    batchGenre = it
+                                    if (it.isNotEmpty()) applyGenre = true
+                                },
+                                label = { Text("Genre Tag") },
+                                singleLine = true,
+                                modifier = Modifier.weight(1f),
+                                enabled = applyGenre
+                            )
+                        }
+
+                        // 5-Star Rating Row
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Checkbox(checked = applyRating, onCheckedChange = { applyRating = it })
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    "Assign 5-Star Score",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = if (applyRating) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                StarRatingBar(
+                                    rating = batchRating,
+                                    onRatingChanged = { 
+                                        batchRating = it
+                                        applyRating = true
+                                    },
+                                    starSize = 22,
+                                    readOnly = !applyRating
+                                )
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            viewModel.batchUpdateMetadata(
+                                songsToUpdate = selectedSongs,
+                                artist = if (applyArtist && batchArtist.isNotBlank()) batchArtist else null,
+                                album = if (applyAlbum && batchAlbum.isNotBlank()) batchAlbum else null,
+                                genre = if (applyGenre && batchGenre.isNotBlank()) batchGenre else null,
+                                rating = if (applyRating) batchRating else null
+                            )
+                            Toast.makeText(context, "Tags updated permanently across ${selectedSongs.size} tracks on storage", Toast.LENGTH_SHORT).show()
+                            showBatchTagEditor = false
+                            selectedSongIds = emptySet()
+                        }
+                    ) {
+                        Text("Apply to All")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showBatchTagEditor = false }) {
                         Text("Cancel")
                     }
                 }
@@ -538,7 +950,7 @@ fun SongsScreen(
                 title = { Text("Track Specifications", style = MaterialTheme.typography.titleLarge) },
                 text = {
                     Column(
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp),
                         modifier = Modifier
                             .fillMaxWidth()
                             .verticalScroll(rememberScrollState())
@@ -547,6 +959,9 @@ fun SongsScreen(
                         DetailItem(label = "Artist", value = song.artist)
                         DetailItem(label = "Album", value = song.album)
                         DetailItem(label = "Genre", value = song.genre.ifBlank { "Unknown" })
+                        DetailItem(label = "Rating Score", value = if (song.rating > 0) "${song.rating} / 5 Stars" else "Unrated")
+                        DetailItem(label = "Audio Quality / Bitrate", value = "${song.bitrateKbps} kbps (Hi-Res Audio)")
+                        DetailItem(label = "Play Count", value = "${song.playCount} times")
                         DetailItem(label = "Duration", value = formattedDuration)
                         DetailItem(label = "File Size", value = formattedSize)
                         DetailItem(label = "Location Path", value = song.path, isCode = true)

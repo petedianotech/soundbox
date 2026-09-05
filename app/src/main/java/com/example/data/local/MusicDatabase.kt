@@ -11,7 +11,7 @@ import com.example.data.model.Song
 
 @Database(
     entities = [Song::class, Playlist::class],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 @TypeConverters(PlaylistConverters::class)

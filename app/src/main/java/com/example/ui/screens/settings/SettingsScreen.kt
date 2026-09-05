@@ -3,6 +3,7 @@ package com.example.ui.screens.settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -35,7 +36,9 @@ fun SettingsScreen(
     viewModel: MusicViewModel,
     onNavigateBack: () -> Unit,
     onNavigateToAbout: () -> Unit,
-    onNavigateToEqualizer: () -> Unit = {}
+    onNavigateToEqualizer: () -> Unit = {},
+    onNavigateToInsights: () -> Unit = {},
+    onNavigateToCleaner: () -> Unit = {}
 ) {
     val songs by viewModel.allSongs.collectAsState()
     val isScanning by viewModel.isScanning.collectAsState()
@@ -51,6 +54,9 @@ fun SettingsScreen(
     val hapticFeedback by viewModel.settingsManager.hapticFeedback.collectAsState()
     val visualizerStyle by viewModel.settingsManager.visualizerStyle.collectAsState()
     val visualizerEnabled by viewModel.settingsManager.visualizerEnabled.collectAsState()
+    val autoPauseHeadphone by viewModel.settingsManager.autoPauseOnHeadphoneUnplug.collectAsState()
+    val autoResumeHeadphone by viewModel.settingsManager.autoResumeOnHeadphonePlug.collectAsState()
+    val dynamicTheme by viewModel.settingsManager.dynamicThemeFromAlbumArt.collectAsState()
     val eqEnabled by viewModel.equalizerEnabled.collectAsState()
 
     var showTimerDialog by remember { mutableStateOf(false) }
@@ -244,6 +250,14 @@ fun SettingsScreen(
                 )
                 SettingsDivider()
                 SettingsToggleRow(
+                    title = "Album Art Dynamic Glow Theme",
+                    subtitle = "Extract ambient accent colors from active album artwork",
+                    icon = Icons.Default.AutoAwesome,
+                    checked = dynamicTheme,
+                    onCheckedChange = { viewModel.settingsManager.setDynamicThemeFromAlbumArt(it) }
+                )
+                SettingsDivider()
+                SettingsToggleRow(
                     title = "Audio Visualizer",
                     subtitle = if (visualizerEnabled) "Dynamic real-time audio spectrum enabled" else "Visualizer turned off",
                     icon = Icons.Default.GraphicEq,
@@ -278,6 +292,34 @@ fun SettingsScreen(
                 )
             }
 
+            // 4. HEADPHONE & AUTOMATION SECTION
+            SettingsSection(title = "HEADSET & AUTOMATION", sectionIcon = Icons.Default.Headphones) {
+                SettingsToggleRow(
+                    title = "Auto-Pause on Unplug",
+                    subtitle = "Pause playback automatically when headphones or Bluetooth disconnect",
+                    icon = Icons.Default.HeadsetOff,
+                    checked = autoPauseHeadphone,
+                    onCheckedChange = { viewModel.settingsManager.setAutoPauseOnHeadphoneUnplug(it) }
+                )
+                SettingsDivider()
+                SettingsToggleRow(
+                    title = "Auto-Resume on Plug",
+                    subtitle = "Resume playback when connecting headphones or Bluetooth device",
+                    icon = Icons.Default.Headset,
+                    checked = autoResumeHeadphone,
+                    onCheckedChange = { viewModel.settingsManager.setAutoResumeOnHeadphonePlug(it) }
+                )
+                SettingsDivider()
+                SettingsCardRow(
+                    title = "Home Screen Widget Active",
+                    subtitle = "Soundbox 4x2 interactive media widget installed & synced",
+                    icon = Icons.Default.Widgets,
+                    badge = "ACTIVE",
+                    badgeColor = Poweramp_Lime,
+                    onClick = {}
+                )
+            }
+
             // 4. NAVIGATION TABS
             SettingsSection(title = "NAVIGATION BAR", sectionIcon = Icons.Default.ViewCompact) {
                 SettingsCardRow(
@@ -288,7 +330,35 @@ fun SettingsScreen(
                 )
             }
 
-            // 5. LIBRARY SCANNER
+            // 5. SMART LIBRARY & ANALYTICS
+            SettingsSection(title = "SMART LIBRARY & ANALYTICS", sectionIcon = Icons.Default.Insights) {
+                SettingsCardRow(
+                    title = "Soundbox Insights & Stats",
+                    subtitle = "Playtime analytics, top artists, genres & audiophile badges",
+                    icon = Icons.Default.BarChart,
+                    badge = "ANALYTICS",
+                    badgeColor = Poweramp_Cyan,
+                    onClick = onNavigateToInsights
+                )
+                SettingsDivider()
+                SettingsCardRow(
+                    title = "Duplicate & Low-Bitrate Cleaner",
+                    subtitle = "Automated scanner to reclaim storage & clean low-quality audio",
+                    icon = Icons.Default.CleaningServices,
+                    badge = "CLEANER",
+                    badgeColor = Poweramp_Amber,
+                    onClick = onNavigateToCleaner
+                )
+                SettingsDivider()
+                SettingsCardRow(
+                    title = "Smart Dynamic Playlists",
+                    subtitle = "Auto-generated collections: Top 25, 5-Star Rated, Forgotten Gems",
+                    icon = Icons.Default.AutoAwesome,
+                    onClick = {}
+                )
+            }
+
+            // 6. LIBRARY SCANNER
             SettingsSection(title = "MUSIC LIBRARY & STORAGE", sectionIcon = Icons.Default.FolderOpen) {
                 SettingsCardRow(
                     title = "Rescan Device Storage",
@@ -307,7 +377,7 @@ fun SettingsScreen(
                 )
             }
 
-            // 6. ABOUT
+            // 7. ABOUT
             SettingsSection(title = "ABOUT SOUNDBOX", sectionIcon = Icons.Default.Info) {
                 SettingsCardRow(
                     title = "Developer & Credits",
@@ -386,43 +456,149 @@ fun SettingsScreen(
     }
 
     if (showCrossfadeDialog) {
+        var tempSec by remember(crossfadeSec) { mutableFloatStateOf(crossfadeSec.toFloat()) }
         AlertDialog(
             containerColor = colors.dialogBackground,
             titleContentColor = colors.textPrimary,
             textContentColor = colors.textSecondary,
             onDismissRequest = { showCrossfadeDialog = false },
-            title = { Text("Crossfade Duration", fontWeight = FontWeight.Bold) },
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Crossfade (0–10s)", fontWeight = FontWeight.Bold)
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = if (tempSec > 0f) colors.accentCyan.copy(alpha = 0.2f) else colors.surfaceVariant,
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp, 
+                            if (tempSec > 0f) colors.accentCyan else colors.border
+                        )
+                    ) {
+                        Text(
+                            text = if (tempSec > 0f) "${tempSec.toInt()}s Fade" else "Off (0s)",
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                            color = if (tempSec > 0f) colors.accentCyan else colors.textMuted,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                        )
+                    }
+                }
+            },
             text = {
-                Column {
-                    listOf(0 to "Instant Cut (0s - Off)", 2 to "2 Seconds", 4 to "4 Seconds", 6 to "6 Seconds", 8 to "8 Seconds").forEach { (sec, label) ->
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .clickable {
-                                    viewModel.settingsManager.setCrossfadeSeconds(sec)
-                                    showCrossfadeDialog = false
-                                }
-                                .padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(
-                                selected = crossfadeSec == sec,
-                                onClick = null,
-                                colors = RadioButtonDefaults.colors(selectedColor = colors.accentCyan)
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Text(
+                        text = "Gradually crossfades outgoing audio into the incoming song without sudden pauses.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.textSecondary
+                    )
+
+                    // Quick Toggle Switch
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(colors.surface)
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Enable Crossfade",
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                                color = colors.textPrimary
                             )
-                            Spacer(Modifier.width(12.dp))
-                            Text(label, color = if (crossfadeSec == sec) colors.accentCyan else colors.textPrimary)
+                            Text(
+                                text = if (tempSec > 0f) "Crossfade active (${tempSec.toInt()}s)" else "Instant cut / Gapless mode",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = colors.textMuted
+                            )
+                        }
+                        Switch(
+                            checked = tempSec > 0f,
+                            onCheckedChange = { isChecked ->
+                                tempSec = if (isChecked) (if (crossfadeSec > 0) crossfadeSec.toFloat() else 3f) else 0f
+                            },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = colors.accentCyan,
+                                checkedTrackColor = colors.accentCyan.copy(alpha = 0.35f)
+                            )
+                        )
+                    }
+
+                    // Interactive Slider (0 to 10 seconds)
+                    Column {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("0s (Off)", style = MaterialTheme.typography.labelSmall, color = colors.textMuted)
+                            Text("5s", style = MaterialTheme.typography.labelSmall, color = colors.textMuted)
+                            Text("10s (DJ Max)", style = MaterialTheme.typography.labelSmall, color = colors.textMuted)
+                        }
+                        Slider(
+                            value = tempSec,
+                            onValueChange = { tempSec = it },
+                            valueRange = 0f..10f,
+                            steps = 9,
+                            colors = SliderDefaults.colors(
+                                thumbColor = colors.accentCyan,
+                                activeTrackColor = colors.accentCyan,
+                                inactiveTrackColor = colors.surfaceVariant
+                            )
+                        )
+                    }
+
+                    // Preset Quick-Select Chips
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        listOf(0 to "Off", 2 to "2s", 4 to "4s", 6 to "6s", 8 to "8s", 10 to "10s").forEach { (sec, label) ->
+                            val isSelected = tempSec.toInt() == sec
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (isSelected) colors.accentCyan.copy(alpha = 0.22f) else colors.surfaceVariant,
+                                border = androidx.compose.foundation.BorderStroke(
+                                    1.dp,
+                                    if (isSelected) colors.accentCyan else colors.border
+                                ),
+                                modifier = Modifier.clickable { tempSec = sec.toFloat() }
+                            ) {
+                                Text(
+                                    text = label,
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                    ),
+                                    color = if (isSelected) colors.accentCyan else colors.textPrimary,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                )
+                            }
                         }
                     }
                 }
             },
             confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.settingsManager.setCrossfadeSeconds(tempSec.toInt())
+                        showCrossfadeDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = colors.accentCyan)
+                ) {
+                    Text("Apply (${tempSec.toInt()}s)", color = if (colors.isDark) Color.Black else Color.White)
+                }
+            },
+            dismissButton = {
                 TextButton(
                     onClick = { showCrossfadeDialog = false },
-                    colors = ButtonDefaults.textButtonColors(contentColor = colors.accentCyan)
+                    colors = ButtonDefaults.textButtonColors(contentColor = colors.textSecondary)
                 ) {
-                    Text("Done")
+                    Text("Cancel")
                 }
             }
         )

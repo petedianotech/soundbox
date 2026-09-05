@@ -48,7 +48,9 @@ fun HomeScreen(
     onNavigateToSearch: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToNowPlaying: () -> Unit,
-    onNavigateToEqualizer: () -> Unit = {}
+    onNavigateToEqualizer: () -> Unit = {},
+    onNavigateToInsights: () -> Unit = {},
+    onNavigateToCleaner: () -> Unit = {}
 ) {
     var selectedTab by remember { mutableStateOf(HomeTab.SONGS) }
     val currentSong by viewModel.currentSong.collectAsState()
@@ -95,6 +97,14 @@ fun HomeScreen(
                 },
                 actions = {
                     val colors = SoundboxTheme.colors
+                    // Insights quick launch
+                    IconButton(onClick = onNavigateToInsights) {
+                        Icon(
+                            Icons.Default.Insights,
+                            contentDescription = "Soundbox Insights",
+                            tint = colors.accentCyan
+                        )
+                    }
                     // Equalizer quick launch with live LED
                     IconButton(onClick = onNavigateToEqualizer) {
                         Box(contentAlignment = Alignment.TopEnd) {

@@ -10,6 +10,8 @@ enum class SmartPlaylistType {
     MOST_PLAYED,
     RECENTLY_PLAYED,
     FAVORITES,
+    TOP_25_FAVORITES,
+    TOP_RATED,
     GENRE,
     LONG_TRACKS,
     SHORT_TRACKS,

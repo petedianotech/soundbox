@@ -20,7 +20,9 @@ data class Song(
     val isFavorite: Boolean = false,
     val playCount: Int = 0,
     val lastPlayedTime: Long = 0L,
-    val dateAdded: Long = System.currentTimeMillis()
+    val dateAdded: Long = System.currentTimeMillis(),
+    val rating: Int = 0, // 0 to 5 stars
+    val bitrateKbps: Int = 320 // Audio bitrate in kbps
 ) {
     // Utility representation of file structure
     fun getParentFolderName(): String {

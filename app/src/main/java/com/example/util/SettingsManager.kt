@@ -41,6 +41,30 @@ class SettingsManager(context: Context) {
     private val _visualizerEnabled = MutableStateFlow(prefs.getBoolean("visualizer_enabled", true))
     val visualizerEnabled: StateFlow<Boolean> = _visualizerEnabled
 
+    private val _autoPauseOnHeadphoneUnplug = MutableStateFlow(prefs.getBoolean("auto_pause_headphone", true))
+    val autoPauseOnHeadphoneUnplug: StateFlow<Boolean> = _autoPauseOnHeadphoneUnplug
+
+    private val _autoResumeOnHeadphonePlug = MutableStateFlow(prefs.getBoolean("auto_resume_headphone", false))
+    val autoResumeOnHeadphonePlug: StateFlow<Boolean> = _autoResumeOnHeadphonePlug
+
+    private val _dynamicThemeFromAlbumArt = MutableStateFlow(prefs.getBoolean("dynamic_album_art_theme", true))
+    val dynamicThemeFromAlbumArt: StateFlow<Boolean> = _dynamicThemeFromAlbumArt
+
+    fun setAutoPauseOnHeadphoneUnplug(enabled: Boolean) {
+        prefs.edit().putBoolean("auto_pause_headphone", enabled).apply()
+        _autoPauseOnHeadphoneUnplug.value = enabled
+    }
+
+    fun setAutoResumeOnHeadphonePlug(enabled: Boolean) {
+        prefs.edit().putBoolean("auto_resume_headphone", enabled).apply()
+        _autoResumeOnHeadphonePlug.value = enabled
+    }
+
+    fun setDynamicThemeFromAlbumArt(enabled: Boolean) {
+        prefs.edit().putBoolean("dynamic_album_art_theme", enabled).apply()
+        _dynamicThemeFromAlbumArt.value = enabled
+    }
+
     fun setCrossfadeSeconds(seconds: Int) {
         prefs.edit().putInt("crossfade_sec", seconds).apply()
         _crossfadeSeconds.value = seconds
@@ -130,4 +154,16 @@ class SettingsManager(context: Context) {
         prefs.edit().remove("search_history").apply()
         _searchHistoryFlow.value = emptyList()
     }
+
+    companion object {
+        @Volatile
+        private var INSTANCE: SettingsManager? = null
+
+        fun getInstance(context: Context): SettingsManager {
+            return INSTANCE ?: synchronized(this) {
+                INSTANCE ?: SettingsManager(context.applicationContext).also { INSTANCE = it }
+            }
+        }
+    }
 }
+
