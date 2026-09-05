@@ -73,6 +73,33 @@ class MusicRepository(private val context: Context) {
         }
     }
 
+    /**
+     * Cuts audio file from startMs to endMs, replaces physical file on storage,
+     * adjusts companion .lrc lyrics, updates MediaStore and Room database.
+     */
+    suspend fun cutAndReplaceSong(
+        song: Song,
+        startMs: Long,
+        endMs: Long
+    ): com.example.util.AudioCutter.CutResult {
+        return withContext(Dispatchers.IO) {
+            val result = com.example.util.AudioCutter.cutAndReplaceSong(
+                context = context,
+                song = song,
+                startMs = startMs,
+                endMs = endMs
+            )
+            if (result.success) {
+                val updatedSong = song.copy(
+                    duration = result.newDurationMs,
+                    size = result.newSizeBytes
+                )
+                songDao.updateSong(updatedSong)
+            }
+            result
+        }
+    }
+
     suspend fun updateSongsBatch(songs: List<Song>) {
         withContext(Dispatchers.IO) {
             // Write physical audio tags for all updated songs

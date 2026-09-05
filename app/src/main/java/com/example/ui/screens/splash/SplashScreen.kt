@@ -81,12 +81,12 @@ fun SplashScreen(onNavigateToHome: () -> Unit) {
                 )
 
                 Image(
-                    painter = painterResource(id = R.drawable.soundbox_cyber_icon_1788447025162),
+                    painter = painterResource(id = R.drawable.img_app_music_note_icon_1788602653610),
                     contentDescription = "Soundbox App Icon",
                     modifier = Modifier
                         .size(115.dp)
-                        .clip(RoundedCornerShape(28.dp))
-                        .border(1.5.dp, Poweramp_Cyan.copy(alpha = 0.6f), RoundedCornerShape(28.dp))
+                        .clip(RoundedCornerShape(26.dp))
+                        .border(1.5.dp, Poweramp_Cyan.copy(alpha = 0.5f), RoundedCornerShape(26.dp))
                 )
             }
 

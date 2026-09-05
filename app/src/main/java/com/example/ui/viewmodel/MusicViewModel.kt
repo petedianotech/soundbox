@@ -569,6 +569,27 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun cutAndReplaceSong(
+        song: Song,
+        startMs: Long,
+        endMs: Long,
+        onResult: (Boolean, String?) -> Unit
+    ) {
+        viewModelScope.launch {
+            val result = repository.cutAndReplaceSong(song, startMs, endMs)
+            if (result.success) {
+                val updatedSong = song.copy(
+                    duration = result.newDurationMs,
+                    size = result.newSizeBytes
+                )
+                playbackManager.onSongTrimmed(updatedSong)
+                onResult(true, null)
+            } else {
+                onResult(false, result.errorMessage ?: "Failed to cut song")
+            }
+        }
+    }
+
     fun batchUpdateMetadata(
         songsToUpdate: List<Song>,
         artist: String?,

@@ -1001,6 +1001,23 @@ class PlaybackManager private constructor(private val context: Context) {
         }
     }
 
+    fun onSongTrimmed(updatedSong: Song) {
+        refreshCurrentSongMetadata(updatedSong)
+        if (_currentSong.value?.id == updatedSong.id) {
+            _duration.value = updatedSong.duration
+            _currentPosition.value = 0L
+            val isCurrentlyPlaying = _isPlaying.value
+            val currentList = _queue.value
+            val mediaItems = currentList.map { songItem -> buildMediaItem(songItem) }
+            val index = currentList.indexOfFirst { it.id == updatedSong.id }.coerceAtLeast(0)
+            player.setMediaItems(mediaItems, index, 0L)
+            player.prepare()
+            if (isCurrentlyPlaying) {
+                player.play()
+            }
+        }
+    }
+
     companion object {
         @Volatile
         private var INSTANCE: PlaybackManager? = null

@@ -57,6 +57,7 @@ import com.example.ui.components.EmptyPlaceholder
 import com.example.ui.components.RealtimeAudioVisualizer
 import com.example.ui.components.VisualizerStyle
 import com.example.ui.components.SongImagePlaceholder
+import com.example.ui.components.SoundCutterDialog
 import com.example.ui.components.TrackRow
 import com.example.ui.components.poweramp.PowerampHiResBanner
 import com.example.ui.components.poweramp.PowerampRotaryKnob
@@ -105,6 +106,7 @@ fun NowPlayingScreen(
     // View & Overlay states
     var isLyricsViewActive by remember { mutableStateOf(false) }
     var showTimerDialog by remember { mutableStateOf(false) }
+    var showSoundCutterDialog by remember { mutableStateOf(false) }
     var showEffectsSheet by remember { mutableStateOf(false) }
     var showQueueSheet by remember { mutableStateOf(false) }
     var showLyricsOptionsSheet by remember { mutableStateOf(false) }
@@ -1048,6 +1050,88 @@ fun NowPlayingScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                // 2.5 SOUND CUTTER / AUDIO TOOLS
+                Text(
+                    text = "AUDIO TOOLS & EDITING",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 1.sp,
+                        fontFamily = FontFamily.Monospace
+                    ),
+                    color = accentColor
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = accentColor.copy(alpha = 0.12f),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, accentColor.copy(alpha = 0.4f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            showLyricsOptionsSheet = false
+                            showSoundCutterDialog = true
+                        }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = accentColor,
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.ContentCut,
+                                    contentDescription = null,
+                                    tint = Color.Black,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text(
+                                    text = "Sound Cutter",
+                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Surface(
+                                    shape = RoundedCornerShape(4.dp),
+                                    color = colors.accentLime.copy(alpha = 0.2f)
+                                ) {
+                                    Text(
+                                        text = "TRIM & REPLACE",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Black,
+                                            fontFamily = FontFamily.Monospace
+                                        ),
+                                        color = colors.accentLime,
+                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Trim video intro or ending noise & replace original audio file",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Icon(
+                            imageVector = Icons.Default.ChevronRight,
+                            contentDescription = null,
+                            tint = accentColor
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
                 // 3. LYRICS OPTIONS & SYNCHRONIZATION
                 Text(
                     text = "LYRICS & SYNCHRONIZATION",
@@ -1498,6 +1582,16 @@ fun NowPlayingScreen(
                     }
                 }
             }
+        )
+    }
+
+    // SOUND CUTTER DIALOG
+    if (showSoundCutterDialog) {
+        SoundCutterDialog(
+            song = song,
+            currentPlaybackPosition = position,
+            viewModel = viewModel,
+            onDismiss = { showSoundCutterDialog = false }
         )
     }
 
