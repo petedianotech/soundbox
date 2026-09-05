@@ -1,6 +1,7 @@
 package com.example.ui.screens.splash
 
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -16,6 +17,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -74,20 +76,28 @@ fun SplashScreen(onNavigateToHome: () -> Unit) {
                         .size(150.dp)
                         .background(
                             Brush.radialGradient(
-                                listOf(Poweramp_Cyan.copy(alpha = 0.22f), Color.Transparent)
+                                listOf(Poweramp_Cyan.copy(alpha = 0.25f), Color.Transparent)
                             ),
                             shape = CircleShape
                         )
                 )
 
-                Image(
-                    painter = painterResource(id = R.drawable.img_app_music_note_icon_1788602653610),
-                    contentDescription = "Soundbox App Icon",
-                    modifier = Modifier
-                        .size(115.dp)
-                        .clip(RoundedCornerShape(26.dp))
-                        .border(1.5.dp, Poweramp_Cyan.copy(alpha = 0.5f), RoundedCornerShape(26.dp))
-                )
+                Surface(
+                    shape = RoundedCornerShape(26.dp),
+                    color = Color(0xFF0A111A),
+                    border = BorderStroke(1.5.dp, Poweramp_Cyan.copy(alpha = 0.65f)),
+                    shadowElevation = 12.dp,
+                    modifier = Modifier.size(115.dp)
+                ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.img_app_music_note_icon_1788602653610),
+                        contentDescription = "Soundbox App Icon",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(RoundedCornerShape(26.dp))
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(28.dp))

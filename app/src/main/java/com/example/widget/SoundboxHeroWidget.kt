@@ -12,7 +12,7 @@ import com.example.R
 import com.example.player.PlaybackManager
 import com.example.util.AlbumArtHelper
 
-class SoundboxAppWidget : AppWidgetProvider() {
+class SoundboxHeroWidget : AppWidgetProvider() {
 
     override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
         for (appWidgetId in appWidgetIds) {
@@ -31,14 +31,14 @@ class SoundboxAppWidget : AppWidgetProvider() {
                 ACTION_PREV -> playbackManager.skipPrevious()
                 ACTION_WIDGET_UPDATE -> {
                     val appWidgetManager = AppWidgetManager.getInstance(context)
-                    val thisWidget = ComponentName(context, SoundboxAppWidget::class.java)
+                    val thisWidget = ComponentName(context, SoundboxHeroWidget::class.java)
                     val ids = appWidgetManager.getAppWidgetIds(thisWidget)
                     onUpdate(context, appWidgetManager, ids)
                 }
             }
-            // Trigger UI update across all widgets
+            // Trigger UI update across all instances
             val appWidgetManager = AppWidgetManager.getInstance(context)
-            val thisWidget = ComponentName(context, SoundboxAppWidget::class.java)
+            val thisWidget = ComponentName(context, SoundboxHeroWidget::class.java)
             val ids = appWidgetManager.getAppWidgetIds(thisWidget)
             for (id in ids) {
                 updateAppWidget(context, appWidgetManager, id)
@@ -47,56 +47,60 @@ class SoundboxAppWidget : AppWidgetProvider() {
     }
 
     companion object {
-        const val ACTION_PLAY_PAUSE = "com.example.ACTION_WIDGET_PLAY_PAUSE"
-        const val ACTION_NEXT = "com.example.ACTION_WIDGET_NEXT"
-        const val ACTION_PREV = "com.example.ACTION_WIDGET_PREV"
-        const val ACTION_WIDGET_UPDATE = "com.example.ACTION_WIDGET_UPDATE"
+        const val ACTION_PLAY_PAUSE = "com.example.ACTION_HERO_PLAY_PAUSE"
+        const val ACTION_NEXT = "com.example.ACTION_HERO_NEXT"
+        const val ACTION_PREV = "com.example.ACTION_HERO_PREV"
+        const val ACTION_WIDGET_UPDATE = "com.example.ACTION_HERO_WIDGET_UPDATE"
 
         fun updateAppWidget(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int) {
-            val views = RemoteViews(context.packageName, R.layout.soundbox_app_widget)
+            val views = RemoteViews(context.packageName, R.layout.soundbox_hero_widget)
             val playbackManager = PlaybackManager.getInstance(context.applicationContext)
             val currentSong = playbackManager.currentSong.value
             val isPlaying = playbackManager.isPlaying.value
 
             if (currentSong != null) {
-                views.setTextViewText(R.id.widget_song_title, currentSong.title)
-                views.setTextViewText(R.id.widget_song_artist, currentSong.artist)
-                val bitmap = AlbumArtHelper.getWidgetArtworkBitmap(context, currentSong, 140)
+                views.setTextViewText(R.id.widget_hero_title, currentSong.title)
+                views.setTextViewText(R.id.widget_hero_artist, "${currentSong.artist} • ${currentSong.album}")
+                views.setTextViewText(R.id.widget_hero_badge, "SOUNDBOX • HI-RES DSP")
+
+                val bitmap = AlbumArtHelper.getWidgetArtworkBitmap(context, currentSong, 200)
                 if (bitmap != null) {
-                    views.setImageViewBitmap(R.id.widget_album_art, bitmap)
+                    views.setImageViewBitmap(R.id.widget_hero_album_art, bitmap)
                 } else {
-                    views.setImageViewResource(R.id.widget_album_art, R.drawable.ic_music_note)
+                    views.setImageViewResource(R.id.widget_hero_album_art, R.drawable.ic_music_note)
                 }
             } else {
-                views.setTextViewText(R.id.widget_song_title, "Soundbox Audio")
-                views.setTextViewText(R.id.widget_song_artist, "Tap play to start")
-                views.setImageViewResource(R.id.widget_album_art, R.drawable.ic_music_note)
+                views.setTextViewText(R.id.widget_hero_title, "Soundbox Audio")
+                views.setTextViewText(R.id.widget_hero_artist, "Poweramp-Grade Audio Engine")
+                views.setTextViewText(R.id.widget_hero_badge, "SOUNDBOX • READY")
+                views.setImageViewResource(R.id.widget_hero_album_art, R.drawable.ic_music_note)
             }
 
             views.setImageViewResource(
-                R.id.widget_btn_play_pause,
+                R.id.widget_hero_btn_play_pause,
                 if (isPlaying) R.drawable.ic_pause_widget else R.drawable.ic_play_widget
             )
 
             // Pending Intents for Controls
-            views.setOnClickPendingIntent(R.id.widget_btn_play_pause, getPendingIntent(context, ACTION_PLAY_PAUSE))
-            views.setOnClickPendingIntent(R.id.widget_btn_next, getPendingIntent(context, ACTION_NEXT))
-            views.setOnClickPendingIntent(R.id.widget_btn_prev, getPendingIntent(context, ACTION_PREV))
+            views.setOnClickPendingIntent(R.id.widget_hero_btn_play_pause, getPendingIntent(context, ACTION_PLAY_PAUSE))
+            views.setOnClickPendingIntent(R.id.widget_hero_btn_next, getPendingIntent(context, ACTION_NEXT))
+            views.setOnClickPendingIntent(R.id.widget_hero_btn_prev, getPendingIntent(context, ACTION_PREV))
 
             // Open Main App on clicking container or album art
             val mainIntent = Intent(context, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             }
             val mainPendingIntent = PendingIntent.getActivity(
-                context, 0, mainIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                context, 202, mainIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
-            views.setOnClickPendingIntent(R.id.widget_container, mainPendingIntent)
+            views.setOnClickPendingIntent(R.id.widget_hero_container, mainPendingIntent)
+            views.setOnClickPendingIntent(R.id.widget_hero_album_art, mainPendingIntent)
 
             appWidgetManager.updateAppWidget(appWidgetId, views)
         }
 
         private fun getPendingIntent(context: Context, action: String): PendingIntent {
-            val intent = Intent(context, SoundboxAppWidget::class.java).apply {
+            val intent = Intent(context, SoundboxHeroWidget::class.java).apply {
                 this.action = action
             }
             return PendingIntent.getBroadcast(
@@ -105,14 +109,10 @@ class SoundboxAppWidget : AppWidgetProvider() {
         }
 
         fun updateAllWidgets(context: Context) {
-            val intent = Intent(context, SoundboxAppWidget::class.java).apply {
+            val intent = Intent(context, SoundboxHeroWidget::class.java).apply {
                 action = ACTION_WIDGET_UPDATE
             }
             context.sendBroadcast(intent)
-
-            // Also broadcast to other widgets
-            SoundboxSquareWidget.updateAllWidgets(context)
-            SoundboxHeroWidget.updateAllWidgets(context)
         }
     }
 }

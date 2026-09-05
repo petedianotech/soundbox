@@ -355,7 +355,8 @@ object LyricsManager {
      * - "Post Malone feat 21 Savage - Rockstar (Audio)"
      *
      * This combo extractor detects separators, cleans out video tags/bitrates/track numbers,
-     * and splits the Artist and Title accurately.
+     * strips all redundant filler terms ("official", "music", "video", "feature", "audio", etc.),
+     * and produces clean, short, targeted Artist and Title.
      */
     fun extractArtistAndTitle(song: Song): ParsedMetadata {
         val rawArtist = song.artist.trim()
@@ -366,7 +367,9 @@ object LyricsManager {
                 rawArtist.equals("unknown", ignoreCase = true) ||
                 rawArtist.equals("unknown artist", ignoreCase = true) ||
                 rawArtist.equals("audio", ignoreCase = true) ||
-                rawArtist.equals("track", ignoreCase = true)
+                rawArtist.equals("track", ignoreCase = true) ||
+                rawArtist.equals("music", ignoreCase = true) ||
+                rawArtist.equals("video", ignoreCase = true)
 
         // Try using the title or the raw audio filename if title looks like a filename
         var candidate = rawTitle
@@ -410,10 +413,11 @@ object LyricsManager {
             }
             val cleanedT = cleanString(candidate, isArtist = false)
             val cleanedA = cleanString(rawArtist, isArtist = true)
+            val combo = if (cleanedA.isNotBlank() && cleanedT.isNotBlank()) "$cleanedA $cleanedT" else cleanedT.ifBlank { cleanedA }
             return ParsedMetadata(
                 artist = cleanedA,
                 title = cleanedT,
-                searchCombo = "$cleanedA $cleanedT"
+                searchCombo = combo
             )
         }
 
@@ -461,7 +465,7 @@ object LyricsManager {
         val fallbackTitle = cleanString(candidate, isArtist = false)
         val fallbackArtist = if (!isArtistUnknown) cleanString(rawArtist, isArtist = true) else ""
 
-        val combo = if (fallbackArtist.isNotBlank()) "$fallbackArtist $fallbackTitle" else fallbackTitle
+        val combo = if (fallbackArtist.isNotBlank() && fallbackTitle.isNotBlank()) "$fallbackArtist $fallbackTitle" else fallbackTitle.ifBlank { fallbackArtist }
         return ParsedMetadata(
             artist = fallbackArtist,
             title = fallbackTitle,
@@ -470,47 +474,71 @@ object LyricsManager {
     }
 
     /**
-     * Builds standard search query for Google search or lyrics search APIs
-     * Automatically applies the combo extractor to resolve artist + music title
-     * even for raw video downloads or untagged MP3 files!
+     * Builds short, clean standard search query optimized for Google search and lyrics APIs.
+     * Removes all junk noise words ("official", "music", "video", "feature", "audio", bitrates, tags)
+     * so search engines return the exact lyrics one-box directly.
      */
     fun buildSearchQuery(song: Song): String {
         val parsed = extractArtistAndTitle(song)
-        val query = "${parsed.searchCombo} lyrics".replace("\\s+".toRegex(), " ").trim()
-        Log.d(TAG, "Constructed smart lyrics query: '$query' (original artist='${song.artist}', title='${song.title}')")
+        val query = if (parsed.artist.isNotBlank() && parsed.title.isNotBlank()) {
+            "${parsed.artist} ${parsed.title} lyrics"
+        } else if (parsed.searchCombo.isNotBlank()) {
+            "${parsed.searchCombo} lyrics"
+        } else {
+            "${cleanString(song.title, isArtist = false)} lyrics"
+        }.replace("\\s+".toRegex(), " ").trim()
+
+        Log.d(TAG, "Constructed clean lyrics query: '$query' (original artist='${song.artist}', title='${song.title}')")
         return query
     }
 
-    private fun cleanString(input: String, isArtist: Boolean): String {
+    /**
+     * Cleans titles and artists by aggressively stripping video noise, converter artifacts,
+     * featuring artist suffixes, and non-music noise words.
+     */
+    fun cleanString(input: String, isArtist: Boolean): String {
         var s = input
 
-        // 1. Remove anything in parentheses (e.g., "(Official Video)") and brackets (e.g., "[Official Audio]")
-        s = s.replace("\\s*\\([^)]*\\)".toRegex(), "")
-        s = s.replace("\\s*\\[[^]]*\\]".toRegex(), "")
+        // 1. Remove anything in parentheses (...), brackets [...], braces {...}, or chevron tags <...>
+        s = s.replace("\\s*\\([^)]*\\)".toRegex(), " ")
+        s = s.replace("\\s*\\[[^]]*\\]".toRegex(), " ")
+        s = s.replace("\\s*\\{[^}]*\\}".toRegex(), " ")
+        s = s.replace("\\s*<[^>]*>".toRegex(), " ")
 
-        // 2. Remove common video converter tags, bitrates, audio flags (case-insensitive)
-        val videoKeywords = listOf(
-            "official video", "official music video", "music video", "official audio", "audio only",
-            "lyrics video", "lyric video", "lyrics", "lyric", "video", "visualizer", "official lyric video",
-            "high quality", "hq", "hd", "1080p", "720p", "480p", "4k", "mp3", "mp4", "wav", "m4a", "clip officiel",
-            "320kbps", "128kbps", "256kbps", "kbps", "full audio", "audio", "original mix", "official track",
-            "bass boosted", "slowed reverb", "slowed", "reverb", "extended version", "radio edit"
+        // 2. Remove video converter tags, bitrates, video keywords, and common download noise (case-insensitive)
+        val noiseKeywords = listOf(
+            "official video", "official music video", "music video", "official audio", "official lyric video",
+            "official visualizer", "official track", "official release", "official music", "official hd",
+            "official 4k", "official clip", "official version", "official",
+            "video clip", "clip officiel", "lyric video", "lyrics video", "visualizer", "audio only",
+            "full audio", "full video", "full song", "full track", "performance video", "dance practice",
+            "music", "video", "audio", "song", "track", "lyrics", "lyric", "clip",
+            "featuring", "feature", "feat", "ft",
+            "high quality", "ultra hd", "uhd", "hq", "hd", "1080p", "720p", "480p", "4k", "8k",
+            "320kbps", "256kbps", "192kbps", "128kbps", "64kbps", "kbps", "mp3", "mp4", "wav", "m4a", "flac", "aac", "ogg", "opus",
+            "bass boosted", "slowed reverb", "slowed + reverb", "slowed", "reverb", "nightcore",
+            "remastered", "remaster", "extended version", "extended mix", "original mix", "radio edit",
+            "clean version", "explicit version", "deluxe edition", "bonus track", "acoustic version",
+            "unplugged", "instrumental", "karaoke", "live performance", "live at", "live in",
+            "prod by", "produced by", "directed by"
         )
-        for (kw in videoKeywords) {
-            s = s.replace("(?i)\\b$kw\\b".toRegex(), "")
+        for (kw in noiseKeywords) {
+            s = s.replace("(?i)\\b$kw\\b".toRegex(), " ")
         }
 
-        // 3. Remove years commonly attached to video titles (e.g., 2026, 2025, etc.)
-        s = s.replace("(?i)\\b202\\d\\b".toRegex(), "")
-        s = s.replace("(?i)\\b201\\d\\b".toRegex(), "")
-        s = s.replace("(?i)\\b200\\d\\b".toRegex(), "")
+        // 3. Remove year numbers commonly attached to video titles (e.g., 2026, 2025, 2024, etc.)
+        s = s.replace("(?i)\\b202\\d\\b".toRegex(), " ")
+        s = s.replace("(?i)\\b201\\d\\b".toRegex(), " ")
+        s = s.replace("(?i)\\b200\\d\\b".toRegex(), " ")
+        s = s.replace("(?i)\\b199\\d\\b".toRegex(), " ")
+        s = s.replace("(?i)\\b198\\d\\b".toRegex(), " ")
 
         // 4. Clean up featuring artist markers
         if (isArtist) {
-            s = s.replace("(?i)\\b(ft|feat|featuring|with|and|&)\\s+.*".toRegex(), "")
+            s = s.replace("(?i)\\b(ft\\.?|feat\\.?|featuring|with|and|&|x)\\s+.*".toRegex(), " ")
         } else {
-            s = s.replace("(?i)\\b(ft|feat|featuring)\\s+[A-Za-z0-9'\\s]+(?=[_\\-])".toRegex(), "")
-            s = s.replace("(?i)\\b(ft|feat|featuring|with)\\s+.*".toRegex(), "")
+            s = s.replace("(?i)\\b(ft\\.?|feat\\.?|featuring)\\s+[A-Za-z0-9'\\s]+(?=[_\\-])".toRegex(), " ")
+            s = s.replace("(?i)\\b(ft\\.?|feat\\.?|featuring|with)\\s+.*".toRegex(), " ")
         }
 
         // 5. Clean common typos/names from video converters
@@ -518,10 +546,13 @@ object LyricsManager {
             s = s.replace("(?i)nakupeda".toRegex(), "nakupenda")
         }
 
-        // 6. Replace punctuation noise with spaces
-        s = s.replace("[_\\-,./|+=~#@$%^&*]".toRegex(), " ")
+        // 6. Replace punctuation noise, quotes, and symbols with spaces
+        s = s.replace("[\"'_\\-,./|+=~#@$%^&*`!?:\\[\\](){}]".toRegex(), " ")
 
-        // 7. Condense multiple spaces
+        // 7. Remove standalone single letters or digits left as artifacts
+        s = s.replace("\\b[0-9]{1,2}\\b".toRegex(), " ")
+
+        // 8. Condense multiple spaces and trim
         s = s.replace("\\s+".toRegex(), " ")
 
         return s.trim()

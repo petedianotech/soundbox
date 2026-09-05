@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
@@ -52,6 +53,7 @@ import androidx.media3.common.Player
 import com.example.data.model.Song
 import com.example.player.LyricLine
 import com.example.player.LyricsManager
+import com.example.util.AlbumArtHelper
 import com.example.ui.components.ArtworkThumbnail
 import com.example.ui.components.EmptyPlaceholder
 import com.example.ui.components.RealtimeAudioVisualizer
@@ -153,6 +155,28 @@ fun NowPlayingScreen(
         }
         onDispose {
             currentView.keepScreenOn = false
+        }
+    }
+
+    // Permanent Album Art State & Picker
+    var artRefreshTrigger by remember { mutableIntStateOf(0) }
+    val albumArtPickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri: Uri? ->
+        uri?.let { pickedUri ->
+            if (currentSong != null) {
+                try {
+                    context.contentResolver.openInputStream(pickedUri)?.use { stream ->
+                        val success = AlbumArtHelper.saveCustomArtwork(context, currentSong!!, stream)
+                        if (success) {
+                            artRefreshTrigger++
+                            Toast.makeText(context, "Permanent album art saved for this song", Toast.LENGTH_SHORT).show()
+                        } else {
+                            Toast.makeText(context, "Could not process selected image", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                } catch (e: Exception) {
+                    Toast.makeText(context, "Failed to load image: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
         }
     }
 
@@ -358,16 +382,18 @@ fun NowPlayingScreen(
                             )
                         } else {
                             // HERO ARTWORK & SONG DETAILS VIEW
-                            ArtworkMainStage(
-                                song = song,
-                                isPlaying = isPlaying,
-                                lyrics = lyrics,
-                                hasTimestamps = hasTimestamps,
-                                activeVerseIndex = activeVerseIndex,
-                                onToggleLyrics = { isLyricsViewActive = !isLyricsViewActive },
-                                onToggleFavorite = { viewModel.toggleFavorite(song) },
-                                accentColor = accentColor
-                            )
+                            key(artRefreshTrigger, song.id) {
+                                ArtworkMainStage(
+                                    song = song,
+                                    isPlaying = isPlaying,
+                                    lyrics = lyrics,
+                                    hasTimestamps = hasTimestamps,
+                                    activeVerseIndex = activeVerseIndex,
+                                    onToggleLyrics = { isLyricsViewActive = !isLyricsViewActive },
+                                    onToggleFavorite = { viewModel.toggleFavorite(song) },
+                                    accentColor = accentColor
+                                )
+                            }
                         }
                     }
                 }
@@ -1132,6 +1158,159 @@ fun NowPlayingScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                // 2.8 PERMANENT ALBUM ARTWORK
+                Text(
+                    text = "ALBUM ARTWORK & COVER",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 1.sp,
+                        fontFamily = FontFamily.Monospace
+                    ),
+                    color = accentColor
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        val hasCustomArt = remember(song.id, artRefreshTrigger) {
+                            AlbumArtHelper.hasCustomArtwork(context, song.id)
+                        }
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .border(1.dp, accentColor.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
+                            ) {
+                                key(artRefreshTrigger, song.id) {
+                                    ArtworkThumbnail(
+                                        songId = song.id,
+                                        title = song.title,
+                                        artist = song.artist,
+                                        genre = song.genre,
+                                        path = song.path,
+                                        size = 48f
+                                    )
+                                }
+                            }
+
+                            Column(modifier = Modifier.weight(1f)) {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Text(
+                                        text = "Permanent Cover Art",
+                                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Surface(
+                                        shape = RoundedCornerShape(4.dp),
+                                        color = if (hasCustomArt) colors.accentLime.copy(alpha = 0.2f) else accentColor.copy(alpha = 0.15f)
+                                    ) {
+                                        Text(
+                                            text = if (hasCustomArt) "SAVED" else "AUTO-LOCKED",
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.Black,
+                                                fontFamily = FontFamily.Monospace
+                                            ),
+                                            color = if (hasCustomArt) colors.accentLime else accentColor,
+                                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = if (hasCustomArt) "Custom cover permanently saved for this track" else "Artwork is permanently assigned across all views",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Button(
+                                onClick = {
+                                    albumArtPickerLauncher.launch(
+                                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                    )
+                                },
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.buttonColors(containerColor = accentColor, contentColor = Color.Black)
+                            ) {
+                                Icon(Icons.Default.PhotoLibrary, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Choose Photo", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold))
+                            }
+
+                            if (hasCustomArt) {
+                                OutlinedButton(
+                                    onClick = {
+                                        val customFile = AlbumArtHelper.getArtworkFile(context, song.id)
+                                        if (customFile.exists()) customFile.delete()
+                                        artRefreshTrigger++
+                                        Toast.makeText(context, "Reverted to permanent studio theme", Toast.LENGTH_SHORT).show()
+                                    },
+                                    modifier = Modifier.weight(0.7f)
+                                ) {
+                                    Icon(Icons.Default.Restore, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Reset")
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = "Or choose studio audiophile theme:",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            val themes = listOf(
+                                "Jazz / Soul" to AlbumArtHelper.ALBUM_ARTS[0],
+                                "Acoustic" to AlbumArtHelper.ALBUM_ARTS[1],
+                                "Classical" to AlbumArtHelper.ALBUM_ARTS[2],
+                                "Studio / EDM" to AlbumArtHelper.ALBUM_ARTS[3]
+                            )
+
+                            themes.forEach { (label, resId) ->
+                                OutlinedButton(
+                                    onClick = {
+                                        AlbumArtHelper.assignStudioThemeToSong(context, song, resId)
+                                        artRefreshTrigger++
+                                        Toast.makeText(context, "Permanently applied $label theme", Toast.LENGTH_SHORT).show()
+                                    },
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                                ) {
+                                    Text(label, style = MaterialTheme.typography.labelSmall)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
                 // 3. LYRICS OPTIONS & SYNCHRONIZATION
                 Text(
                     text = "LYRICS & SYNCHRONIZATION",
@@ -1519,69 +1698,9 @@ fun NowPlayingScreen(
 
     // SLEEP TIMER DIALOG
     if (showTimerDialog) {
-        AlertDialog(
-            onDismissRequest = { showTimerDialog = false },
-            title = { Text("Sleep Timer") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Text("Turn off audio playback automatically after:")
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        listOf(15, 30, 45, 60).forEach { mins ->
-                            FilledTonalButton(
-                                onClick = {
-                                    viewModel.startSleepTimer(mins)
-                                    showTimerDialog = false
-                                },
-                                modifier = Modifier.weight(1f),
-                                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)
-                            ) {
-                                Text("${mins}m", fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        listOf(5, 90, 120).forEach { mins ->
-                            OutlinedButton(
-                                onClick = {
-                                    viewModel.startSleepTimer(mins)
-                                    showTimerDialog = false
-                                },
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Text("${mins}m")
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = {},
-            dismissButton = {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    if (sleepTimerLeft > 0) {
-                        TextButton(
-                            onClick = {
-                                viewModel.stopSleepTimer()
-                                showTimerDialog = false
-                            },
-                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                        ) {
-                            Text("Turn Off Timer")
-                        }
-                    }
-                    TextButton(onClick = { showTimerDialog = false }) {
-                        Text("Cancel")
-                    }
-                }
-            }
+        com.example.ui.components.SleepTimerDialog(
+            viewModel = viewModel,
+            onDismiss = { showTimerDialog = false }
         )
     }
 
@@ -1781,6 +1900,7 @@ private fun ArtworkMainStage(
                     title = song.title,
                     artist = song.artist,
                     genre = song.genre,
+                    path = song.path,
                     modifier = Modifier.fillMaxSize(),
                     size = 280f
                 )

@@ -400,58 +400,9 @@ fun SettingsScreen(
 
     // MODAL DIALOGS
     if (showTimerDialog) {
-        AlertDialog(
-            containerColor = colors.dialogBackground,
-            titleContentColor = colors.textPrimary,
-            textContentColor = colors.textSecondary,
-            onDismissRequest = { showTimerDialog = false },
-            title = { Text("Set Sleep Timer", fontWeight = FontWeight.Bold) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Text("Select a countdown duration to smoothly fade out and pause playback.")
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ) {
-                        listOf(5, 15, 30, 45, 60).forEach { mins ->
-                            Button(
-                                onClick = {
-                                    viewModel.startSleepTimer(mins)
-                                    showTimerDialog = false
-                                },
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = colors.surfaceVariant,
-                                    contentColor = colors.accentCyan
-                                ),
-                                shape = RoundedCornerShape(10.dp)
-                            ) {
-                                Text("${mins}m", fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = {},
-            dismissButton = {
-                if (sleepTimerLeft > 0) {
-                    TextButton(
-                        onClick = {
-                            viewModel.stopSleepTimer()
-                            showTimerDialog = false
-                        },
-                        colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFFF5252))
-                    ) {
-                        Text("Disable Timer")
-                    }
-                } else {
-                    TextButton(
-                        onClick = { showTimerDialog = false },
-                        colors = ButtonDefaults.textButtonColors(contentColor = colors.textPrimary)
-                    ) {
-                        Text("Cancel")
-                    }
-                }
-            }
+        com.example.ui.components.SleepTimerDialog(
+            viewModel = viewModel,
+            onDismiss = { showTimerDialog = false }
         )
     }
 

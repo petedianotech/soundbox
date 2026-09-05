@@ -37,16 +37,18 @@ fun SongImagePlaceholder(
     modifier: Modifier = Modifier,
     size: Float = 48f,
     artist: String = "",
-    genre: String = ""
+    genre: String = "",
+    songId: String? = null
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val cornerRadius = when {
         size >= 120f -> 24.dp
         size >= 72f -> 16.dp
         else -> 12.dp
     }
     val shape = RoundedCornerShape(cornerRadius)
-    val fallbackArtResId = remember(title, artist, genre) {
-        AlbumArtHelper.getAlbumArtResId(title, artist, genre)
+    val fallbackArtResId = remember(title, artist, genre, songId) {
+        AlbumArtHelper.getAlbumArtResId(title, artist, genre, songId, context)
     }
 
     Surface(
@@ -94,14 +96,12 @@ fun ArtworkThumbnail(
     size: Float = 48f,
     isCircle: Boolean = false,
     artist: String = "",
-    genre: String = ""
+    genre: String = "",
+    path: String = ""
 ) {
-    val artworkUri = remember(songId) {
-        if (!songId.isNullOrEmpty()) {
-            android.net.Uri.parse("content://media/external/audio/media/${songId}/albumart")
-        } else {
-            null
-        }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val artworkModel = remember(songId, title, artist, genre, path) {
+        AlbumArtHelper.getArtworkModel(context, songId, title, artist, genre, path)
     }
 
     val cornerRadius = when {
@@ -124,22 +124,32 @@ fun ArtworkThumbnail(
         color = Color(0xFF0D121B)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            if (artworkUri != null) {
-                coil.compose.SubcomposeAsyncImage(
-                    model = artworkUri,
-                    contentDescription = "Song artwork",
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop,
-                    loading = {
-                        SongImagePlaceholder(title = title, artist = artist, genre = genre, modifier = Modifier.fillMaxSize(), size = size)
-                    },
-                    error = {
-                        SongImagePlaceholder(title = title, artist = artist, genre = genre, modifier = Modifier.fillMaxSize(), size = size)
-                    }
-                )
-            } else {
-                SongImagePlaceholder(title = title, artist = artist, genre = genre, modifier = Modifier.fillMaxSize(), size = size)
-            }
+            coil.compose.SubcomposeAsyncImage(
+                model = artworkModel,
+                contentDescription = "Song artwork",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+                loading = {
+                    SongImagePlaceholder(
+                        title = title,
+                        artist = artist,
+                        genre = genre,
+                        songId = songId,
+                        modifier = Modifier.fillMaxSize(),
+                        size = size
+                    )
+                },
+                error = {
+                    SongImagePlaceholder(
+                        title = title,
+                        artist = artist,
+                        genre = genre,
+                        songId = songId,
+                        modifier = Modifier.fillMaxSize(),
+                        size = size
+                    )
+                }
+            )
 
             // Subtle studio vignette to give deep, luxurious vinyl black levels
             Box(
@@ -199,6 +209,7 @@ fun TrackRow(
                 title = song.title,
                 artist = song.artist,
                 genre = song.genre,
+                path = song.path,
                 size = 48f
             )
 
@@ -351,6 +362,7 @@ fun MiniPlayer(
                             title = song.title,
                             artist = song.artist,
                             genre = song.genre,
+                            path = song.path,
                             size = 46f,
                             isCircle = false
                         )

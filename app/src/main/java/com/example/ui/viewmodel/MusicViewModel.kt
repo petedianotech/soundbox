@@ -544,7 +544,10 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     ) = playbackManager.applyPowerampPreset(presetName, bandGains, bassBoost, treble, virtualizer, reverb)
     fun resetEqualizerToFlat() = playbackManager.resetEqualizerToFlat()
 
-    fun startSleepTimer(minutes: Int) = playbackManager.startSleepTimer(minutes)
+    fun startSleepTimer(minutes: Int, fadeOutAtEnd: Boolean = true) = playbackManager.startSleepTimer(minutes, fadeOutAtEnd)
+    fun startSleepTimerSeconds(seconds: Int, fadeOutAtEnd: Boolean = true) = playbackManager.startSleepTimerSeconds(seconds, fadeOutAtEnd)
+    fun startSleepTimerEndOfTrack(fadeOutAtEnd: Boolean = true) = playbackManager.startSleepTimerEndOfTrack(fadeOutAtEnd)
+    fun extendSleepTimer(minutes: Int = 5) = playbackManager.extendSleepTimer(minutes)
     fun stopSleepTimer() = playbackManager.stopSleepTimer()
 
     fun toggleFavorite(song: Song) {

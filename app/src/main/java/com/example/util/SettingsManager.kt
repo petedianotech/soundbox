@@ -44,7 +44,7 @@ class SettingsManager(context: Context) {
     private val _autoPauseOnHeadphoneUnplug = MutableStateFlow(prefs.getBoolean("auto_pause_headphone", true))
     val autoPauseOnHeadphoneUnplug: StateFlow<Boolean> = _autoPauseOnHeadphoneUnplug
 
-    private val _autoResumeOnHeadphonePlug = MutableStateFlow(prefs.getBoolean("auto_resume_headphone", false))
+    private val _autoResumeOnHeadphonePlug = MutableStateFlow(prefs.getBoolean("auto_resume_headphone", true))
     val autoResumeOnHeadphonePlug: StateFlow<Boolean> = _autoResumeOnHeadphonePlug
 
     private val _dynamicThemeFromAlbumArt = MutableStateFlow(prefs.getBoolean("dynamic_album_art_theme", true))
