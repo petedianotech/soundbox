@@ -51,6 +51,7 @@ fun SongsScreen(
 ) {
     val context = LocalContext.current
     val songs by viewModel.allSongs.collectAsState()
+    val currentSortOrder by viewModel.sortOrder.collectAsState()
     val isScanning by viewModel.isScanning.collectAsState()
     val scanNotification by viewModel.scanNotification.collectAsState()
     val currentSong by viewModel.currentSong.collectAsState()
@@ -223,30 +224,62 @@ fun SongsScreen(
                                     expanded = showSortMenu,
                                     onDismissRequest = { showSortMenu = false }
                                 ) {
-                                    DropdownMenuItem(
-                                        text = { Text("Highest Rated (5★)") },
-                                        onClick = { viewModel.setSortOrder(MusicViewModel.SortOrder.RATING); showSortMenu = false }
+                                    Text(
+                                        text = "SORT SONGS BY",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                                        ),
+                                        color = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                                     )
-                                    DropdownMenuItem(
-                                        text = { Text("Most Played") },
-                                        onClick = { viewModel.setSortOrder(MusicViewModel.SortOrder.MOST_PLAYED); showSortMenu = false }
+                                    HorizontalDivider()
+
+                                    val sortOptions = listOf(
+                                        MusicViewModel.SortOrder.NEWEST_FIRST to "Newest First (Date Added ↓)",
+                                        MusicViewModel.SortOrder.OLDEST_FIRST to "Oldest First (Date Added ↑)",
+                                        MusicViewModel.SortOrder.A_TO_Z to "Title (A to Z)",
+                                        MusicViewModel.SortOrder.Z_TO_A to "Title (Z to A)",
+                                        MusicViewModel.SortOrder.ARTIST_AZ to "Artist (A to Z)",
+                                        MusicViewModel.SortOrder.ARTIST_ZA to "Artist (Z to A)",
+                                        MusicViewModel.SortOrder.ALBUM_AZ to "Album (A to Z)",
+                                        MusicViewModel.SortOrder.DURATION to "Duration (Longest First)",
+                                        MusicViewModel.SortOrder.DURATION_ASC to "Duration (Shortest First)",
+                                        MusicViewModel.SortOrder.SIZE_DESC to "File Size (Largest First)",
+                                        MusicViewModel.SortOrder.MOST_PLAYED to "Most Played",
+                                        MusicViewModel.SortOrder.RATING to "Highest Rated (5★)"
                                     )
-                                    DropdownMenuItem(
-                                        text = { Text("Date Added") },
-                                        onClick = { viewModel.setSortOrder(MusicViewModel.SortOrder.DATE_ADDED); showSortMenu = false }
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text("A to Z") },
-                                        onClick = { viewModel.setSortOrder(MusicViewModel.SortOrder.A_TO_Z); showSortMenu = false }
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text("Z to A") },
-                                        onClick = { viewModel.setSortOrder(MusicViewModel.SortOrder.Z_TO_A); showSortMenu = false }
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text("Duration") },
-                                        onClick = { viewModel.setSortOrder(MusicViewModel.SortOrder.DURATION); showSortMenu = false }
-                                    )
+
+                                    sortOptions.forEach { (order, label) ->
+                                        val isCurrent = currentSortOrder == order || (order == MusicViewModel.SortOrder.NEWEST_FIRST && currentSortOrder == MusicViewModel.SortOrder.DATE_ADDED)
+                                        DropdownMenuItem(
+                                            text = {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    modifier = Modifier.fillMaxWidth()
+                                                ) {
+                                                    Text(
+                                                        text = label,
+                                                        fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
+                                                        color = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                                    )
+                                                    if (isCurrent) {
+                                                        Icon(
+                                                            imageVector = Icons.Default.CheckCircle,
+                                                            contentDescription = "Selected",
+                                                            tint = MaterialTheme.colorScheme.primary,
+                                                            modifier = Modifier.size(16.dp)
+                                                        )
+                                                    }
+                                                }
+                                            },
+                                            onClick = {
+                                                viewModel.setSortOrder(order)
+                                                showSortMenu = false
+                                            }
+                                        )
+                                    }
                                 }
                             }
                             IconButton(onClick = { viewModel.scanStorage() }) {

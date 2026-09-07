@@ -17,6 +17,9 @@ class SettingsManager(context: Context) {
     private val _searchHistoryFlow = MutableStateFlow(getSearchHistory())
     val searchHistoryFlow: StateFlow<List<String>> = _searchHistoryFlow
 
+    private val _crossfadeEnabled = MutableStateFlow(prefs.getBoolean("crossfade_enabled", false))
+    val crossfadeEnabled: StateFlow<Boolean> = _crossfadeEnabled
+
     private val _crossfadeSeconds = MutableStateFlow(prefs.getInt("crossfade_sec", 3))
     val crossfadeSeconds: StateFlow<Int> = _crossfadeSeconds
 
@@ -50,6 +53,14 @@ class SettingsManager(context: Context) {
     private val _dynamicThemeFromAlbumArt = MutableStateFlow(prefs.getBoolean("dynamic_album_art_theme", true))
     val dynamicThemeFromAlbumArt: StateFlow<Boolean> = _dynamicThemeFromAlbumArt
 
+    private val _songSortOrderFlow = MutableStateFlow(prefs.getString("song_sort_order", "NEWEST_FIRST") ?: "NEWEST_FIRST")
+    val songSortOrderFlow: StateFlow<String> = _songSortOrderFlow
+
+    fun setSongSortOrder(order: String) {
+        prefs.edit().putString("song_sort_order", order).apply()
+        _songSortOrderFlow.value = order
+    }
+
     fun setAutoPauseOnHeadphoneUnplug(enabled: Boolean) {
         prefs.edit().putBoolean("auto_pause_headphone", enabled).apply()
         _autoPauseOnHeadphoneUnplug.value = enabled
@@ -63,6 +74,11 @@ class SettingsManager(context: Context) {
     fun setDynamicThemeFromAlbumArt(enabled: Boolean) {
         prefs.edit().putBoolean("dynamic_album_art_theme", enabled).apply()
         _dynamicThemeFromAlbumArt.value = enabled
+    }
+
+    fun setCrossfadeEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean("crossfade_enabled", enabled).apply()
+        _crossfadeEnabled.value = enabled
     }
 
     fun setCrossfadeSeconds(seconds: Int) {

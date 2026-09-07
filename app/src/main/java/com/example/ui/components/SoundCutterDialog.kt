@@ -1,6 +1,9 @@
 package com.example.ui.components
 
+import android.content.ContentUris
 import android.media.MediaPlayer
+import android.net.Uri
+import android.provider.MediaStore
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
@@ -60,6 +63,8 @@ fun SoundCutterDialog(
     var startMs by remember { mutableLongStateOf(0L) }
     var endMs by remember { mutableLongStateOf(totalDurationMs) }
     var isProcessing by remember { mutableStateOf(false) }
+    var targetTitle by remember { mutableStateOf("${song.title} (Trimmed)") }
+    var selectedSaveMode by remember { mutableStateOf(com.example.util.AudioCutter.SaveMode.NEW_TRACK) }
 
     // Preview Player State
     var isPreviewPlaying by remember { mutableStateOf(false) }
@@ -67,12 +72,27 @@ fun SoundCutterDialog(
     var mediaPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
     val coroutineScope = rememberCoroutineScope()
 
-    // Initialize MediaPlayer for preview
+    // Initialize MediaPlayer for preview with content URI & file fallback
     fun setupPreviewPlayer() {
         try {
             mediaPlayer?.release()
             mediaPlayer = MediaPlayer().apply {
-                setDataSource(song.path)
+                if (song.path.startsWith("content://")) {
+                    setDataSource(context, Uri.parse(song.path))
+                } else {
+                    val file = File(song.path)
+                    if (file.exists() && file.canRead()) {
+                        setDataSource(song.path)
+                    } else {
+                        val longId = song.id.toLongOrNull()
+                        if (longId != null && longId > 0) {
+                            val uri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, longId)
+                            setDataSource(context, uri)
+                        } else {
+                            setDataSource(song.path)
+                        }
+                    }
+                }
                 prepare()
                 seekTo(startMs.toInt())
                 setOnCompletionListener {
@@ -632,6 +652,53 @@ fun SoundCutterDialog(
                             }
                         }
                     }
+
+                    // 5. SAVE MODE SELECTOR & TITLE
+                    Text(
+                        text = "SAVE OPTIONS",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp,
+                            fontFamily = FontFamily.Monospace
+                        ),
+                        color = colors.textSecondary
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf(
+                            com.example.util.AudioCutter.SaveMode.NEW_TRACK to "New Track",
+                            com.example.util.AudioCutter.SaveMode.RINGTONE to "Ringtone",
+                            com.example.util.AudioCutter.SaveMode.REPLACE_ORIGINAL to "Replace File"
+                        ).forEach { (mode, label) ->
+                            FilterChip(
+                                selected = selectedSaveMode == mode,
+                                onClick = { selectedSaveMode = mode },
+                                label = { Text(label, fontSize = 12.sp) },
+                                modifier = Modifier.weight(1f),
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = colors.accentCyan.copy(alpha = 0.25f),
+                                    selectedLabelColor = colors.accentCyan
+                                )
+                            )
+                        }
+                    }
+
+                    if (selectedSaveMode != com.example.util.AudioCutter.SaveMode.REPLACE_ORIGINAL) {
+                        OutlinedTextField(
+                            value = targetTitle,
+                            onValueChange = { targetTitle = it },
+                            label = { Text("Trimmed Track Title") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = colors.accentCyan,
+                                unfocusedBorderColor = colors.border
+                            )
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -668,18 +735,21 @@ fun SoundCutterDialog(
                                 mediaPlayer = null
                             } catch (ignored: Exception) {}
 
-                            viewModel.cutAndReplaceSong(
+                            viewModel.cutSong(
                                 song = song,
                                 startMs = startMs,
-                                endMs = endMs
+                                endMs = endMs,
+                                targetTitle = targetTitle,
+                                saveMode = selectedSaveMode
                             ) { success, errorMsg ->
                                 isProcessing = false
                                 if (success) {
-                                    Toast.makeText(
-                                        context,
-                                        "Track trimmed successfully! File updated.",
-                                        Toast.LENGTH_LONG
-                                    ).show()
+                                    val msg = when (selectedSaveMode) {
+                                        com.example.util.AudioCutter.SaveMode.RINGTONE -> "Ringtone saved to device ringtones!"
+                                        com.example.util.AudioCutter.SaveMode.NEW_TRACK -> "New trimmed song added to library!"
+                                        com.example.util.AudioCutter.SaveMode.REPLACE_ORIGINAL -> "Track trimmed and original file updated!"
+                                    }
+                                    Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
                                     onDismiss()
                                 } else {
                                     Toast.makeText(
@@ -701,7 +771,7 @@ fun SoundCutterDialog(
                                 strokeWidth = 2.dp
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Replacing Audio...", color = if (colors.isDark) Color.Black else Color.White)
+                            Text("Processing Audio...", color = if (colors.isDark) Color.Black else Color.White)
                         } else {
                             Icon(
                                 imageVector = Icons.Default.Save,
@@ -710,7 +780,14 @@ fun SoundCutterDialog(
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Replace & Save", color = if (colors.isDark) Color.Black else Color.White)
+                            Text(
+                                when (selectedSaveMode) {
+                                    com.example.util.AudioCutter.SaveMode.NEW_TRACK -> "Save New Song"
+                                    com.example.util.AudioCutter.SaveMode.RINGTONE -> "Save Ringtone"
+                                    com.example.util.AudioCutter.SaveMode.REPLACE_ORIGINAL -> "Replace & Save"
+                                },
+                                color = if (colors.isDark) Color.Black else Color.White
+                            )
                         }
                     }
                 }

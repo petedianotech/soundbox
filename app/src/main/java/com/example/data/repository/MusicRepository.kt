@@ -2,6 +2,9 @@ package com.example.data.repository
 
 import android.content.ContentUris
 import android.content.Context
+import android.content.IntentSender
+import android.net.Uri
+import android.os.Build
 import android.provider.MediaStore
 import android.util.Log
 import com.example.data.local.MusicDatabase
@@ -82,19 +85,41 @@ class MusicRepository(private val context: Context) {
         startMs: Long,
         endMs: Long
     ): com.example.util.AudioCutter.CutResult {
+        return cutSong(
+            song = song,
+            startMs = startMs,
+            endMs = endMs,
+            targetTitle = "${song.title} (Trimmed)",
+            saveMode = com.example.util.AudioCutter.SaveMode.REPLACE_ORIGINAL
+        )
+    }
+
+    suspend fun cutSong(
+        song: Song,
+        startMs: Long,
+        endMs: Long,
+        targetTitle: String,
+        saveMode: com.example.util.AudioCutter.SaveMode
+    ): com.example.util.AudioCutter.CutResult {
         return withContext(Dispatchers.IO) {
-            val result = com.example.util.AudioCutter.cutAndReplaceSong(
+            val result = com.example.util.AudioCutter.cutSong(
                 context = context,
                 song = song,
                 startMs = startMs,
-                endMs = endMs
+                endMs = endMs,
+                targetTitle = targetTitle,
+                saveMode = saveMode
             )
             if (result.success) {
-                val updatedSong = song.copy(
-                    duration = result.newDurationMs,
-                    size = result.newSizeBytes
-                )
-                songDao.updateSong(updatedSong)
+                if (result.savedSong != null) {
+                    songDao.insertSongs(listOf(result.savedSong))
+                } else if (saveMode == com.example.util.AudioCutter.SaveMode.REPLACE_ORIGINAL) {
+                    val updatedSong = song.copy(
+                        duration = result.newDurationMs,
+                        size = result.newSizeBytes
+                    )
+                    songDao.updateSong(updatedSong)
+                }
             }
             result
         }
@@ -117,44 +142,90 @@ class MusicRepository(private val context: Context) {
         }
     }
 
+    data class DeleteResult(
+        val success: Boolean,
+        val intentSender: IntentSender? = null,
+        val deletedSongIds: List<String> = emptyList(),
+        val pendingSongIds: List<String> = emptyList()
+    )
+
     /**
-     * Completely deletes audio files from device physical storage, deletes companion .lrc
-     * lyrics, removes records from Android MediaStore, and removes from Room database.
+     * Completely and permanently deletes audio files from device physical storage,
+     * deletes companion .lrc lyrics, removes records from Android MediaStore,
+     * and removes entries from the local Room database.
+     *
+     * On Android 10+ / 11+ (API 30+), if the files require Scoped Storage user authorization,
+     * this returns an IntentSender so the Android system deletion confirmation dialog
+     * can be displayed to permanently purge the files from physical disk.
      */
-    suspend fun deleteSongCompletely(song: Song): Boolean {
+    suspend fun deleteSongsPermanently(songs: List<Song>): DeleteResult {
         return withContext(Dispatchers.IO) {
-            var physicalDeleted = false
-            try {
-                // 1. Delete physical audio file
-                if (song.path.startsWith("/") && !song.path.contains("://")) {
-                    val file = File(song.path)
-                    if (file.exists()) {
-                        physicalDeleted = file.delete()
-                        Log.d(TAG, "Physical file deletion: ${file.absolutePath}, success=$physicalDeleted")
-                    }
-                }
+            val successfullyDeletedIds = mutableListOf<String>()
+            val urisRequiringConsent = mutableListOf<Uri>()
+            val songsRequiringConsent = mutableListOf<Song>()
 
-                // 2. Delete companion .lrc lyrics files
-                com.example.player.LyricsManager.deleteLyrics(context, song)
+            for (song in songs) {
+                var physicalDeleted = false
+                val file = if (song.path.startsWith("/") && !song.path.contains("://")) File(song.path) else null
 
-                // 3. Delete from Android MediaStore
-                try {
-                    val uri = ContentUris.withAppendedId(
-                        MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
-                        song.id.toLongOrNull() ?: 0L
-                    )
-                    context.contentResolver.delete(uri, null, null)
-                } catch (e: Exception) {
+                // 1. Direct POSIX file deletion
+                if (file != null && file.exists()) {
                     try {
-                        context.contentResolver.delete(
-                            MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
-                            "${MediaStore.Audio.Media.DATA} = ?",
-                            arrayOf(song.path)
-                        )
+                        physicalDeleted = file.delete()
+                        if (!physicalDeleted && file.canWrite()) {
+                            try {
+                                java.io.RandomAccessFile(file, "rw").setLength(0)
+                                physicalDeleted = file.delete()
+                            } catch (ignored: Exception) {}
+                        }
                     } catch (ignored: Exception) {}
                 }
 
-                // 4. Force MediaScanner refresh
+                // 2. Delete companion .lrc lyrics files
+                try {
+                    com.example.player.LyricsManager.deleteLyrics(context, song)
+                } catch (ignored: Exception) {}
+
+                // 3. Delete from Android MediaStore
+                val uri = when {
+                    song.path.startsWith("content://") -> Uri.parse(song.path)
+                    else -> {
+                        val longId = song.id.toLongOrNull()
+                        if (longId != null && longId > 0) {
+                            ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, longId)
+                        } else null
+                    }
+                }
+
+                if (uri != null) {
+                    try {
+                        val rows = context.contentResolver.delete(uri, null, null)
+                        if (rows > 0) physicalDeleted = true
+                    } catch (secEx: SecurityException) {
+                        if (Build.VERSION.SDK_INT == Build.VERSION_CODES.Q && secEx is android.app.RecoverableSecurityException) {
+                            return@withContext DeleteResult(
+                                success = false,
+                                intentSender = secEx.userAction.actionIntent.intentSender,
+                                deletedSongIds = successfullyDeletedIds,
+                                pendingSongIds = listOf(song.id)
+                            )
+                        } else {
+                            urisRequiringConsent.add(uri)
+                            songsRequiringConsent.add(song)
+                        }
+                    } catch (ignored: Exception) {}
+                }
+
+                // Try query DATA delete
+                try {
+                    context.contentResolver.delete(
+                        MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                        "${MediaStore.Audio.Media.DATA} = ?",
+                        arrayOf(song.path)
+                    )
+                } catch (ignored: Exception) {}
+
+                // Scan file to inform Android OS
                 try {
                     android.media.MediaScannerConnection.scanFile(
                         context.applicationContext,
@@ -163,28 +234,67 @@ class MusicRepository(private val context: Context) {
                         null
                     )
                 } catch (ignored: Exception) {}
-            } catch (e: Exception) {
-                Log.e(TAG, "Error during complete file deletion: ${e.message}", e)
+
+                if (physicalDeleted || (file != null && !file.exists())) {
+                    successfullyDeletedIds.add(song.id)
+                }
             }
 
-            // 5. Delete from Room database
-            songDao.deleteSongsByIds(listOf(song.id))
-            true
+            // Android 11+ (API 30+) Scoped Storage consent request
+            if (urisRequiringConsent.isNotEmpty() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                try {
+                    val pendingIntent = MediaStore.createDeleteRequest(context.contentResolver, urisRequiringConsent)
+                    if (successfullyDeletedIds.isNotEmpty()) {
+                        songDao.deleteSongsByIds(successfullyDeletedIds)
+                    }
+                    return@withContext DeleteResult(
+                        success = false,
+                        intentSender = pendingIntent.intentSender,
+                        deletedSongIds = successfullyDeletedIds,
+                        pendingSongIds = songsRequiringConsent.map { it.id }
+                    )
+                } catch (e: Exception) {
+                    Log.w(TAG, "createDeleteRequest error: ${e.message}")
+                }
+            }
+
+            // Remove all processed songs from Room
+            val allToDelete = songs.map { it.id }
+            if (allToDelete.isNotEmpty()) {
+                songDao.deleteSongsByIds(allToDelete)
+            }
+
+            DeleteResult(
+                success = true,
+                deletedSongIds = allToDelete
+            )
         }
     }
 
-    suspend fun deleteSongsBatch(songIds: List<String>) {
+    suspend fun deleteSongsFromDatabase(songIds: List<String>) {
         withContext(Dispatchers.IO) {
             songDao.deleteSongsByIds(songIds)
         }
     }
 
-    suspend fun deleteSongsBatchCompletely(songs: List<Song>) {
+    suspend fun deleteSongCompletely(song: Song): Boolean {
+        val result = deleteSongsPermanently(listOf(song))
+        return result.success
+    }
+
+    suspend fun deleteSongsBatch(songIds: List<String>) {
         withContext(Dispatchers.IO) {
-            songs.forEach { song ->
-                deleteSongCompletely(song)
+            val songs = songDao.getSongsByIds(songIds)
+            if (songs.isNotEmpty()) {
+                deleteSongsPermanently(songs)
+            } else {
+                songDao.deleteSongsByIds(songIds)
             }
         }
+    }
+
+    suspend fun deleteSongsBatchCompletely(songs: List<Song>): DeleteResult {
+        return deleteSongsPermanently(songs)
     }
 
     suspend fun incrementPlayCount(songId: String) {

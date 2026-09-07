@@ -52,6 +52,9 @@ fun HomeScreen(
     onNavigateToInsights: () -> Unit = {},
     onNavigateToCleaner: () -> Unit = {}
 ) {
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+
     var selectedTab by remember { mutableStateOf(HomeTab.SONGS) }
     val currentSong by viewModel.currentSong.collectAsState()
     val isPlaying by viewModel.isPlaying.collectAsState()
@@ -75,150 +78,278 @@ fun HomeScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    val colors = SoundboxTheme.colors
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    val colors = SoundboxTheme.colors
+
+    if (isLandscape) {
+        // Landscape Split: NavigationRail on the left, Content & MiniPlayer on the right
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(colors.background)
+        ) {
+            NavigationRail(
+                containerColor = colors.surface,
+                header = {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.padding(top = 12.dp, bottom = 8.dp)
                     ) {
                         Text(
-                            text = "SOUNDBOX",
-                            style = MaterialTheme.typography.titleMedium.copy(
+                            text = "SBOX",
+                            style = MaterialTheme.typography.titleSmall.copy(
                                 fontWeight = FontWeight.Black,
                                 letterSpacing = 2.sp,
                                 fontFamily = FontFamily.Monospace
                             ),
-                            color = colors.textPrimary
+                            color = colors.accentCyan
                         )
                     }
                 },
-                actions = {
-                    val colors = SoundboxTheme.colors
-                    // Insights quick launch
-                    IconButton(onClick = onNavigateToInsights) {
-                        Icon(
-                            Icons.Default.Insights,
-                            contentDescription = "Soundbox Insights",
-                            tint = colors.accentCyan
-                        )
-                    }
-                    // Equalizer quick launch with live LED
-                    IconButton(onClick = onNavigateToEqualizer) {
-                        Box(contentAlignment = Alignment.TopEnd) {
-                            Icon(
-                                Icons.Default.Equalizer,
-                                contentDescription = "Equalizer",
-                                tint = if (equalizerEnabled) colors.accentCyan else colors.textSecondary
-                            )
-                            if (equalizerEnabled) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(6.dp)
-                                        .clip(CircleShape)
-                                        .background(colors.accentLime)
+                modifier = Modifier.widthIn(min = 72.dp)
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxHeight(),
+                    verticalArrangement = Arrangement.SpaceBetween,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        visibleTabs.forEach { tab ->
+                            val selected = selectedTab == tab
+                            NavigationRailItem(
+                                selected = selected,
+                                onClick = { selectedTab = tab },
+                                icon = {
+                                    Icon(
+                                        imageVector = tab.icon,
+                                        contentDescription = tab.title
+                                    )
+                                },
+                                label = {
+                                    Text(
+                                        text = tab.title,
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontSize = 9.sp,
+                                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+                                        ),
+                                        maxLines = 1
+                                    )
+                                },
+                                colors = NavigationRailItemDefaults.colors(
+                                    selectedIconColor = if (colors.isDark) Color.Black else Color.White,
+                                    selectedTextColor = colors.accentCyan,
+                                    indicatorColor = colors.accentCyan,
+                                    unselectedIconColor = colors.textMuted,
+                                    unselectedTextColor = colors.textMuted
                                 )
-                            }
+                            )
                         }
                     }
-                    IconButton(onClick = onNavigateToSearch) {
-                        Icon(Icons.Default.Search, contentDescription = "Search songs", tint = MaterialTheme.colorScheme.onSurface)
-                    }
-                    IconButton(onClick = onNavigateToSettings) {
-                        Icon(Icons.Default.Settings, contentDescription = "Settings", tint = MaterialTheme.colorScheme.onSurface)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = SoundboxTheme.colors.topBarBackground
-                )
-            )
-        },
-        bottomBar = {
-            val colors = SoundboxTheme.colors
-            NavigationBar(
-                containerColor = colors.surface,
-                tonalElevation = 6.dp
-            ) {
-                visibleTabs.forEach { tab ->
-                    val selected = selectedTab == tab
-                    NavigationBarItem(
-                        selected = selected,
-                        onClick = { selectedTab = tab },
-                        icon = {
-                            Icon(
-                                imageVector = tab.icon,
-                                contentDescription = tab.title
-                            )
-                        },
-                        label = {
-                            Text(
-                                text = tab.title.uppercase(),
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontWeight = if (selected) FontWeight.Black else FontWeight.Medium,
-                                    letterSpacing = 0.5.sp,
-                                    fontFamily = FontFamily.Monospace
+
+                    // Action Icons at the bottom of the rail
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    ) {
+                        IconButton(onClick = onNavigateToInsights) {
+                            Icon(Icons.Default.Insights, contentDescription = "Insights", tint = colors.accentCyan)
+                        }
+                        IconButton(onClick = onNavigateToEqualizer) {
+                            Box(contentAlignment = Alignment.TopEnd) {
+                                Icon(
+                                    Icons.Default.Equalizer,
+                                    contentDescription = "Equalizer",
+                                    tint = if (equalizerEnabled) colors.accentCyan else colors.textSecondary
                                 )
-                            )
-                        },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = if (colors.isDark) Color.Black else Color.White,
-                            selectedTextColor = colors.accentCyan,
-                            indicatorColor = colors.accentCyan,
-                            unselectedIconColor = colors.textMuted,
-                            unselectedTextColor = colors.textMuted
-                        )
-                    )
+                                if (equalizerEnabled) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(6.dp)
+                                            .clip(CircleShape)
+                                            .background(colors.accentLime)
+                                    )
+                                }
+                            }
+                        }
+                        IconButton(onClick = onNavigateToSearch) {
+                            Icon(Icons.Default.Search, contentDescription = "Search", tint = colors.textPrimary)
+                        }
+                        IconButton(onClick = onNavigateToSettings) {
+                            Icon(Icons.Default.Settings, contentDescription = "Settings", tint = colors.textPrimary)
+                        }
+                    }
                 }
             }
-        }
-    ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .padding(innerPadding)
-                .fillMaxSize()
-                .background(SoundboxTheme.colors.background)
-        ) {
-            when (selectedTab) {
-                HomeTab.SONGS -> SongsScreen(
-                    viewModel = viewModel,
-                    onSongSelected = { }
-                )
-                HomeTab.ALBUMS -> AlbumsScreen(
-                    viewModel = viewModel,
-                    onSongSelected = { }
-                )
-                HomeTab.ARTISTS -> ArtistsScreen(
-                    viewModel = viewModel,
-                    onSongSelected = { }
-                )
-                HomeTab.GENRES -> GenresScreen(
-                    viewModel = viewModel,
-                    onSongSelected = { }
-                )
-                HomeTab.FOLDERS -> FoldersScreen(
-                    viewModel = viewModel,
-                    onSongSelected = { }
-                )
-                HomeTab.PLAYLISTS -> PlaylistsScreen(
-                    viewModel = viewModel,
-                    onSongSelected = { }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .weight(1f)
+                    .background(colors.background)
+            ) {
+                when (selectedTab) {
+                    HomeTab.SONGS -> SongsScreen(viewModel = viewModel, onSongSelected = { })
+                    HomeTab.ALBUMS -> AlbumsScreen(viewModel = viewModel, onSongSelected = { })
+                    HomeTab.ARTISTS -> ArtistsScreen(viewModel = viewModel, onSongSelected = { })
+                    HomeTab.GENRES -> GenresScreen(viewModel = viewModel, onSongSelected = { })
+                    HomeTab.FOLDERS -> FoldersScreen(viewModel = viewModel, onSongSelected = { })
+                    HomeTab.PLAYLISTS -> PlaylistsScreen(viewModel = viewModel, onSongSelected = { })
+                }
+
+                MiniPlayer(
+                    currentSong = currentSong,
+                    isPlaying = isPlaying,
+                    onPlayPause = { viewModel.playPause() },
+                    onSkipNext = { viewModel.skipNext() },
+                    onOpenNowPlaying = onNavigateToNowPlaying,
+                    progress = progress,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.BottomCenter)
                 )
             }
-            
-            // Persistent Poweramp MiniPlayer
-            MiniPlayer(
-                currentSong = currentSong,
-                isPlaying = isPlaying,
-                onPlayPause = { viewModel.playPause() },
-                onSkipNext = { viewModel.skipNext() },
-                onOpenNowPlaying = onNavigateToNowPlaying,
-                progress = progress,
+        }
+    } else {
+        // Portrait Layout with TopAppBar and Bottom NavigationBar
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "SOUNDBOX",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Black,
+                                    letterSpacing = 2.sp,
+                                    fontFamily = FontFamily.Monospace
+                                ),
+                                color = colors.textPrimary
+                            )
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = onNavigateToInsights) {
+                            Icon(
+                                Icons.Default.Insights,
+                                contentDescription = "Soundbox Insights",
+                                tint = colors.accentCyan
+                            )
+                        }
+                        IconButton(onClick = onNavigateToEqualizer) {
+                            Box(contentAlignment = Alignment.TopEnd) {
+                                Icon(
+                                    Icons.Default.Equalizer,
+                                    contentDescription = "Equalizer",
+                                    tint = if (equalizerEnabled) colors.accentCyan else colors.textSecondary
+                                )
+                                if (equalizerEnabled) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(6.dp)
+                                            .clip(CircleShape)
+                                            .background(colors.accentLime)
+                                    )
+                                }
+                            }
+                        }
+                        IconButton(onClick = onNavigateToSearch) {
+                            Icon(Icons.Default.Search, contentDescription = "Search songs", tint = MaterialTheme.colorScheme.onSurface)
+                        }
+                        IconButton(onClick = onNavigateToSettings) {
+                            Icon(Icons.Default.Settings, contentDescription = "Settings", tint = MaterialTheme.colorScheme.onSurface)
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = SoundboxTheme.colors.topBarBackground
+                    )
+                )
+            },
+            bottomBar = {
+                NavigationBar(
+                    containerColor = colors.surface,
+                    tonalElevation = 6.dp
+                ) {
+                    visibleTabs.forEach { tab ->
+                        val selected = selectedTab == tab
+                        NavigationBarItem(
+                            selected = selected,
+                            onClick = { selectedTab = tab },
+                            icon = {
+                                Icon(
+                                    imageVector = tab.icon,
+                                    contentDescription = tab.title
+                                )
+                            },
+                            label = {
+                                Text(
+                                    text = tab.title.uppercase(),
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = if (selected) FontWeight.Black else FontWeight.Medium,
+                                        letterSpacing = 0.5.sp,
+                                        fontFamily = FontFamily.Monospace
+                                    )
+                                )
+                            },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = if (colors.isDark) Color.Black else Color.White,
+                                selectedTextColor = colors.accentCyan,
+                                indicatorColor = colors.accentCyan,
+                                unselectedIconColor = colors.textMuted,
+                                unselectedTextColor = colors.textMuted
+                            )
+                        )
+                    }
+                }
+            }
+        ) { innerPadding ->
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.BottomCenter)
-            )
+                    .padding(innerPadding)
+                    .fillMaxSize()
+                    .background(SoundboxTheme.colors.background)
+            ) {
+                when (selectedTab) {
+                    HomeTab.SONGS -> SongsScreen(
+                        viewModel = viewModel,
+                        onSongSelected = { }
+                    )
+                    HomeTab.ALBUMS -> AlbumsScreen(
+                        viewModel = viewModel,
+                        onSongSelected = { }
+                    )
+                    HomeTab.ARTISTS -> ArtistsScreen(
+                        viewModel = viewModel,
+                        onSongSelected = { }
+                    )
+                    HomeTab.GENRES -> GenresScreen(
+                        viewModel = viewModel,
+                        onSongSelected = { }
+                    )
+                    HomeTab.FOLDERS -> FoldersScreen(
+                        viewModel = viewModel,
+                        onSongSelected = { }
+                    )
+                    HomeTab.PLAYLISTS -> PlaylistsScreen(
+                        viewModel = viewModel,
+                        onSongSelected = { }
+                    )
+                }
+                
+                // Persistent Poweramp MiniPlayer
+                MiniPlayer(
+                    currentSong = currentSong,
+                    isPlaying = isPlaying,
+                    onPlayPause = { viewModel.playPause() },
+                    onSkipNext = { viewModel.skipNext() },
+                    onOpenNowPlaying = onNavigateToNowPlaying,
+                    progress = progress,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.BottomCenter)
+                )
+            }
         }
     }
 }

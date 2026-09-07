@@ -70,8 +70,13 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     val equalizerStatus: StateFlow<String> = playbackManager.equalizerStatus
 
     // Crossfade & Gapless Playback
+    val crossfadeEnabled: StateFlow<Boolean> = settingsManager.crossfadeEnabled
     val crossfadeSeconds: StateFlow<Int> = settingsManager.crossfadeSeconds
     val gaplessPlayback: StateFlow<Boolean> = settingsManager.gaplessPlayback
+
+    fun setCrossfadeEnabled(enabled: Boolean) {
+        settingsManager.setCrossfadeEnabled(enabled)
+    }
 
     fun setCrossfadeSeconds(seconds: Int) {
         settingsManager.setCrossfadeSeconds(seconds.coerceIn(0, 10))
@@ -82,12 +87,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun toggleCrossfade(enabled: Boolean) {
-        if (enabled) {
-            val current = settingsManager.crossfadeSeconds.value
-            settingsManager.setCrossfadeSeconds(if (current > 0) current else 3)
-        } else {
-            settingsManager.setCrossfadeSeconds(0)
-        }
+        settingsManager.setCrossfadeEnabled(enabled)
     }
 
     // Scanning states & silent notification
@@ -101,24 +101,56 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         _scanNotification.value = null
     }
 
-    enum class SortOrder {
-        A_TO_Z, Z_TO_A, DATE_ADDED, DURATION, RATING, MOST_PLAYED
+    enum class SortOrder(val displayName: String) {
+        NEWEST_FIRST("Newest First (Date Added ↓)"),
+        OLDEST_FIRST("Oldest First (Date Added ↑)"),
+        A_TO_Z("Title (A to Z)"),
+        Z_TO_A("Title (Z to A)"),
+        ARTIST_AZ("Artist (A to Z)"),
+        ARTIST_ZA("Artist (Z to A)"),
+        ALBUM_AZ("Album (A to Z)"),
+        DURATION("Duration (Longest First)"),
+        DURATION_ASC("Duration (Shortest First)"),
+        SIZE_DESC("File Size (Largest First)"),
+        MOST_PLAYED("Most Played"),
+        RATING("Highest Rated (5★)"),
+        DATE_ADDED("Newest First");
+
+        companion object {
+            fun fromString(value: String?): SortOrder {
+                return try {
+                    if (value == null) NEWEST_FIRST
+                    else valueOf(value)
+                } catch (e: Exception) {
+                    NEWEST_FIRST
+                }
+            }
+        }
     }
 
-    private val _sortOrder = MutableStateFlow(SortOrder.DATE_ADDED)
+    private val _sortOrder = MutableStateFlow(
+        SortOrder.fromString(settingsManager.songSortOrderFlow.value)
+    )
     val sortOrder: StateFlow<SortOrder> = _sortOrder.asStateFlow()
 
     fun setSortOrder(order: SortOrder) {
         _sortOrder.value = order
+        settingsManager.setSongSortOrder(order.name)
     }
 
     // Core dataset flows (using Lazily so songs are never wiped/reset when backgrounding the app)
     val allSongs: StateFlow<List<Song>> = combine(repository.allSongs, _sortOrder) { songs, order ->
         when (order) {
+            SortOrder.NEWEST_FIRST, SortOrder.DATE_ADDED -> songs.sortedByDescending { it.dateAdded }
+            SortOrder.OLDEST_FIRST -> songs.sortedBy { it.dateAdded }
             SortOrder.A_TO_Z -> songs.sortedBy { it.title.lowercase() }
             SortOrder.Z_TO_A -> songs.sortedByDescending { it.title.lowercase() }
-            SortOrder.DATE_ADDED -> songs.sortedByDescending { it.dateAdded }
+            SortOrder.ARTIST_AZ -> songs.sortedWith(compareBy({ it.artist.lowercase() }, { it.title.lowercase() }))
+            SortOrder.ARTIST_ZA -> songs.sortedWith(compareByDescending<Song> { it.artist.lowercase() }.thenBy { it.title.lowercase() })
+            SortOrder.ALBUM_AZ -> songs.sortedWith(compareBy({ it.album.lowercase() }, { it.trackNumber }, { it.title.lowercase() }))
             SortOrder.DURATION -> songs.sortedByDescending { it.duration }
+            SortOrder.DURATION_ASC -> songs.sortedBy { it.duration }
+            SortOrder.SIZE_DESC -> songs.sortedByDescending { it.size }
             SortOrder.RATING -> songs.sortedByDescending { it.rating }
             SortOrder.MOST_PLAYED -> songs.sortedByDescending { it.playCount }
         }
@@ -578,14 +610,34 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         endMs: Long,
         onResult: (Boolean, String?) -> Unit
     ) {
+        cutSong(
+            song = song,
+            startMs = startMs,
+            endMs = endMs,
+            targetTitle = "${song.title} (Trimmed)",
+            saveMode = com.example.util.AudioCutter.SaveMode.REPLACE_ORIGINAL,
+            onResult = onResult
+        )
+    }
+
+    fun cutSong(
+        song: Song,
+        startMs: Long,
+        endMs: Long,
+        targetTitle: String = "${song.title} (Trimmed)",
+        saveMode: com.example.util.AudioCutter.SaveMode = com.example.util.AudioCutter.SaveMode.NEW_TRACK,
+        onResult: (Boolean, String?) -> Unit
+    ) {
         viewModelScope.launch {
-            val result = repository.cutAndReplaceSong(song, startMs, endMs)
+            val result = repository.cutSong(song, startMs, endMs, targetTitle, saveMode)
             if (result.success) {
-                val updatedSong = song.copy(
-                    duration = result.newDurationMs,
-                    size = result.newSizeBytes
-                )
-                playbackManager.onSongTrimmed(updatedSong)
+                if (saveMode == com.example.util.AudioCutter.SaveMode.REPLACE_ORIGINAL) {
+                    val updatedSong = song.copy(
+                        duration = result.newDurationMs,
+                        size = result.newSizeBytes
+                    )
+                    playbackManager.onSongTrimmed(updatedSong)
+                }
                 onResult(true, null)
             } else {
                 onResult(false, result.errorMessage ?: "Failed to cut song")

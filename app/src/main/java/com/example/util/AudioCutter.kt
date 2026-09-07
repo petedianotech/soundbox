@@ -11,6 +11,7 @@ import android.media.MediaMuxer
 import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Build
+import android.os.Environment
 import android.provider.MediaStore
 import android.util.Log
 import com.example.data.model.Song
@@ -24,22 +25,212 @@ import java.nio.ByteBuffer
 /**
  * Advanced audio cutter and trimmer engine for Android.
  * Performs fast, sample-accurate, lossless trimming on MP3, M4A, AAC, and standard audio files.
- * Atomically replaces the source audio file with the trimmed version, updates ID3v2 metadata,
- * shifts companion .lrc synchronized lyrics timestamps so they stay in perfect sync,
- * updates MediaStore records, and triggers system media scanners.
+ * Supports Scoped Storage natively on Android 10, 11, 12, 13, 14, 15+ by reading source streams
+ * directly or via ContentResolver, and exporting to MediaStore (Music or Ringtones) or direct storage.
  */
 object AudioCutter {
     private const val TAG = "AudioCutter"
+
+    enum class SaveMode {
+        NEW_TRACK,
+        RINGTONE,
+        REPLACE_ORIGINAL
+    }
 
     data class CutResult(
         val success: Boolean,
         val newDurationMs: Long,
         val newSizeBytes: Long,
+        val outputPath: String? = null,
+        val savedSong: Song? = null,
         val errorMessage: String? = null
     )
 
     /**
-     * Cuts [song] from [startMs] to [endMs] and replaces the original physical file on storage.
+     * Resolves a readable source file for [song]. If direct file access is available, uses it.
+     * Otherwise streams bytes from ContentResolver to a temporary cache file.
+     */
+    private fun resolveReadableSource(context: Context, song: Song, ext: String): Pair<File?, Boolean> {
+        if (song.path.isNotBlank() && !song.path.contains("://") && song.path.startsWith("/")) {
+            val f = File(song.path)
+            if (f.exists() && f.canRead() && f.length() > 0L) {
+                return Pair(f, false)
+            }
+        }
+
+        return try {
+            val uri = when {
+                song.path.startsWith("content://") -> Uri.parse(song.path)
+                else -> {
+                    val longId = song.id.toLongOrNull()
+                    if (longId != null && longId > 0) {
+                        ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, longId)
+                    } else null
+                }
+            }
+
+            if (uri != null) {
+                val tempSrc = File(context.cacheDir, "src_cut_${System.currentTimeMillis()}.$ext")
+                context.contentResolver.openInputStream(uri)?.use { inStream ->
+                    FileOutputStream(tempSrc).use { outStream ->
+                        inStream.copyTo(outStream)
+                    }
+                }
+                if (tempSrc.exists() && tempSrc.length() > 0L) {
+                    Pair(tempSrc, true)
+                } else {
+                    tempSrc.delete()
+                    Pair(null, false)
+                }
+            } else {
+                Pair(null, false)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error opening source audio stream for ${song.title}: ${e.message}", e)
+            Pair(null, false)
+        }
+    }
+
+    /**
+     * Main audio cutting engine with support for custom title and SaveMode.
+     */
+    fun cutSong(
+        context: Context,
+        song: Song,
+        startMs: Long,
+        endMs: Long,
+        targetTitle: String = "${song.title} (Trimmed)",
+        saveMode: SaveMode = SaveMode.NEW_TRACK
+    ): CutResult {
+        val ext = if (song.path.contains(".")) {
+            song.path.substringAfterLast(".").lowercase().take(5)
+        } else "mp3"
+
+        val (sourceFile, isTempSource) = resolveReadableSource(context, song, ext)
+        if (sourceFile == null || !sourceFile.exists() || sourceFile.length() <= 0L) {
+            return CutResult(false, 0L, 0L, errorMessage = "Cannot open source audio stream for ${song.title}")
+        }
+
+        val validStartMs = startMs.coerceAtLeast(0L)
+        val validEndMs = endMs.coerceAtMost(song.duration.coerceAtLeast(validStartMs + 1000L))
+        if (validEndMs <= validStartMs) {
+            if (isTempSource) sourceFile.delete()
+            return CutResult(false, 0L, 0L, errorMessage = "Start point must be earlier than End point")
+        }
+
+        val targetDurationMs = validEndMs - validStartMs
+        val tempTrimmedFile = File(context.cacheDir, "trimmed_${System.currentTimeMillis()}.$ext")
+
+        try {
+            var cutSucceeded = false
+
+            if (ext == "mp3") {
+                cutSucceeded = cutMp3Lossless(sourceFile, tempTrimmedFile, validStartMs, validEndMs)
+                if (!cutSucceeded) {
+                    cutSucceeded = cutWithMediaMuxer(sourceFile, tempTrimmedFile, validStartMs, validEndMs)
+                }
+            } else if (ext in listOf("m4a", "aac", "mp4", "3gp", "ogg")) {
+                cutSucceeded = cutWithMediaMuxer(sourceFile, tempTrimmedFile, validStartMs, validEndMs)
+            } else if (ext == "wav") {
+                cutSucceeded = cutWavFile(sourceFile, tempTrimmedFile, validStartMs, validEndMs)
+            } else {
+                cutSucceeded = cutWithMediaMuxer(sourceFile, tempTrimmedFile, validStartMs, validEndMs)
+            }
+
+            if (!cutSucceeded || !tempTrimmedFile.exists() || tempTrimmedFile.length() <= 0L) {
+                tempTrimmedFile.delete()
+                return CutResult(false, 0L, 0L, errorMessage = "Audio cutting processor could not extract audio frames")
+            }
+
+            val finalDurationMs = detectActualDurationMs(tempTrimmedFile.absolutePath, targetDurationMs)
+            val newSizeBytes = tempTrimmedFile.length()
+
+            // Save according to selected SaveMode
+            val cleanTitle = targetTitle.trim().ifBlank { "${song.title} (Trimmed)" }
+
+            if (saveMode == SaveMode.REPLACE_ORIGINAL) {
+                val origFile = File(song.path)
+                var directOverwrite = false
+                if (origFile.exists() && origFile.canWrite()) {
+                    try {
+                        FileInputStream(tempTrimmedFile).use { inStream ->
+                            FileOutputStream(origFile).use { outStream ->
+                                inStream.copyTo(outStream)
+                            }
+                        }
+                        directOverwrite = true
+                    } catch (ignored: Exception) {}
+                }
+
+                if (directOverwrite) {
+                    updateMediaStoreDurationAndSize(context, song, finalDurationMs, origFile.length())
+                    try {
+                        shiftCompanionLyrics(context, song, -validStartMs)
+                    } catch (ignored: Exception) {}
+                    MediaScannerConnection.scanFile(
+                        context.applicationContext,
+                        arrayOf(origFile.absolutePath),
+                        arrayOf("audio/*"),
+                        null
+                    )
+                    return CutResult(
+                        success = true,
+                        newDurationMs = finalDurationMs,
+                        newSizeBytes = origFile.length(),
+                        outputPath = origFile.absolutePath
+                    )
+                }
+            }
+
+            // For NEW_TRACK, RINGTONE, or fallback when REPLACE_ORIGINAL cannot overwrite directly:
+            val isRingtone = saveMode == SaveMode.RINGTONE
+            val (savedUri, savedPath) = saveTrimmedToStorage(
+                context = context,
+                trimmedFile = tempTrimmedFile,
+                title = cleanTitle,
+                artist = song.artist,
+                album = song.album,
+                extension = ext,
+                isRingtone = isRingtone
+            )
+
+            if (savedUri == null && savedPath == null) {
+                return CutResult(false, 0L, 0L, errorMessage = "Could not save trimmed audio to device storage")
+            }
+
+            val finalPath = savedPath ?: savedUri.toString()
+            val newSong = Song(
+                id = savedUri?.lastPathSegment ?: "trim_${System.currentTimeMillis()}",
+                title = cleanTitle,
+                artist = song.artist,
+                album = if (isRingtone) "Ringtones" else song.album,
+                duration = finalDurationMs,
+                path = finalPath,
+                size = newSizeBytes,
+                folderPath = if (isRingtone) "Ringtones" else "Music/Soundbox",
+                folderName = if (isRingtone) "Ringtones" else "Soundbox",
+                genre = if (isRingtone) "Ringtone" else song.genre,
+                dateAdded = System.currentTimeMillis() / 1000L
+            )
+
+            return CutResult(
+                success = true,
+                newDurationMs = finalDurationMs,
+                newSizeBytes = newSizeBytes,
+                outputPath = finalPath,
+                savedSong = newSong
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Fatal error in sound cutter: ${e.message}", e)
+            return CutResult(false, 0L, 0L, errorMessage = e.message)
+        } finally {
+            if (isTempSource) sourceFile.delete()
+            if (tempTrimmedFile.exists()) tempTrimmedFile.delete()
+        }
+    }
+
+    /**
+     * Backward-compatible helper method.
      */
     fun cutAndReplaceSong(
         context: Context,
@@ -47,116 +238,119 @@ object AudioCutter {
         startMs: Long,
         endMs: Long
     ): CutResult {
-        val originalPath = song.path
-        if (originalPath.isBlank() || originalPath.contains("://") || !originalPath.startsWith("/")) {
-            return CutResult(false, 0L, 0L, "File path is not a local storage file: $originalPath")
+        return cutSong(
+            context = context,
+            song = song,
+            startMs = startMs,
+            endMs = endMs,
+            targetTitle = "${song.title} (Trimmed)",
+            saveMode = SaveMode.REPLACE_ORIGINAL
+        )
+    }
+
+    /**
+     * Reliably writes trimmed audio to device storage (MediaStore / public storage).
+     */
+    private fun saveTrimmedToStorage(
+        context: Context,
+        trimmedFile: File,
+        title: String,
+        artist: String,
+        album: String,
+        extension: String,
+        isRingtone: Boolean
+    ): Pair<Uri?, String?> {
+        val mimeType = when (extension.lowercase()) {
+            "mp3" -> "audio/mpeg"
+            "m4a", "aac" -> "audio/mp4"
+            "ogg" -> "audio/ogg"
+            "wav" -> "audio/wav"
+            "flac" -> "audio/flac"
+            else -> "audio/*"
         }
 
-        val originalFile = File(originalPath)
-        if (!originalFile.exists() || !originalFile.canWrite()) {
-            return CutResult(false, 0L, 0L, "File is not writable or does not exist: $originalPath")
+        val relativePath = if (isRingtone) {
+            "${Environment.DIRECTORY_RINGTONES}/Soundbox"
+        } else {
+            "${Environment.DIRECTORY_MUSIC}/Soundbox"
         }
-
-        val validStartMs = startMs.coerceAtLeast(0L)
-        val validEndMs = endMs.coerceAtMost(song.duration.coerceAtLeast(validStartMs + 1000L))
-        if (validEndMs <= validStartMs) {
-            return CutResult(false, 0L, 0L, "Invalid cut points: Start must be less than End")
-        }
-
-        val targetDurationMs = validEndMs - validStartMs
-        val parentDir = originalFile.parentFile ?: context.cacheDir
-        val tempTrimmedFile = File(parentDir, ".tmp_trim_${System.currentTimeMillis()}_${originalFile.name}")
 
         try {
-            val extension = originalFile.extension.lowercase()
-            var cutSucceeded = false
-
-            if (extension == "mp3") {
-                // Try MP3 lossless frame-accurate cutter first
-                cutSucceeded = cutMp3Lossless(originalFile, tempTrimmedFile, validStartMs, validEndMs)
-                if (!cutSucceeded) {
-                    // Fallback to MediaExtractor/MediaMuxer
-                    cutSucceeded = cutWithMediaMuxer(originalFile, tempTrimmedFile, validStartMs, validEndMs)
+            val values = ContentValues().apply {
+                put(MediaStore.Audio.Media.DISPLAY_NAME, "$title.$extension")
+                put(MediaStore.Audio.Media.TITLE, title)
+                put(MediaStore.Audio.Media.ARTIST, artist)
+                put(MediaStore.Audio.Media.ALBUM, album)
+                put(MediaStore.Audio.Media.MIME_TYPE, mimeType)
+                if (isRingtone) {
+                    put(MediaStore.Audio.Media.IS_RINGTONE, 1)
                 }
-            } else if (extension in listOf("m4a", "aac", "mp4", "3gp", "ogg")) {
-                cutSucceeded = cutWithMediaMuxer(originalFile, tempTrimmedFile, validStartMs, validEndMs)
-            } else if (extension == "wav") {
-                cutSucceeded = cutWavFile(originalFile, tempTrimmedFile, validStartMs, validEndMs)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    put(MediaStore.Audio.Media.RELATIVE_PATH, relativePath)
+                    put(MediaStore.Audio.Media.IS_PENDING, 1)
+                }
+            }
+
+            val collection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
             } else {
-                cutSucceeded = cutWithMediaMuxer(originalFile, tempTrimmedFile, validStartMs, validEndMs)
+                MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
             }
 
-            if (!cutSucceeded || !tempTrimmedFile.exists() || tempTrimmedFile.length() <= 0L) {
-                tempTrimmedFile.delete()
-                return CutResult(false, 0L, 0L, "Audio trimming failed for ${originalFile.name}")
-            }
+            val itemUri = context.contentResolver.insert(collection, values)
+            if (itemUri != null) {
+                context.contentResolver.openOutputStream(itemUri)?.use { out ->
+                    FileInputStream(trimmedFile).use { inStream ->
+                        inStream.copyTo(out)
+                    }
+                }
 
-            // Write / preserve ID3v2 tags on the new trimmed file if MP3
-            if (extension == "mp3") {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    values.clear()
+                    values.put(MediaStore.Audio.Media.IS_PENDING, 0)
+                    context.contentResolver.update(itemUri, values, null, null)
+                }
+
+                var actualPath: String? = null
                 try {
-                    AudioTagWriter.writeTags(
-                        context = context,
-                        song = song.copy(duration = targetDurationMs),
-                        newTitle = song.title,
-                        newArtist = song.artist,
-                        newAlbum = song.album,
-                        newGenre = song.genre,
-                        newTrackNumber = song.trackNumber
-                    )
-                } catch (e: Exception) {
-                    Log.w(TAG, "Failed updating ID3 tags on cut file: ${e.message}")
+                    val projection = arrayOf(MediaStore.Audio.Media.DATA)
+                    context.contentResolver.query(itemUri, projection, null, null, null)?.use { cursor ->
+                        if (cursor.moveToFirst()) {
+                            val idx = cursor.getColumnIndex(MediaStore.Audio.Media.DATA)
+                            if (idx != -1) actualPath = cursor.getString(idx)
+                        }
+                    }
+                } catch (ignored: Exception) {}
+
+                if (actualPath != null) {
+                    MediaScannerConnection.scanFile(context, arrayOf(actualPath), arrayOf(mimeType), null)
                 }
+
+                return Pair(itemUri, actualPath ?: itemUri.toString())
             }
-
-            // Synchronize .lrc lyrics by shifting timestamps by -startMs
-            try {
-                shiftCompanionLyrics(context, song, -validStartMs)
-            } catch (e: Exception) {
-                Log.w(TAG, "Failed shifting companion lyrics: ${e.message}")
-            }
-
-            // Atomically replace original file
-            val backupFile = File(parentDir, ".bak_cut_${originalFile.name}")
-            if (backupFile.exists()) backupFile.delete()
-
-            if (originalFile.renameTo(backupFile)) {
-                if (tempTrimmedFile.renameTo(originalFile)) {
-                    backupFile.delete()
-                } else {
-                    backupFile.renameTo(originalFile)
-                    tempTrimmedFile.delete()
-                    return CutResult(false, 0L, 0L, "Could not overwrite original file with trimmed file")
-                }
-            } else {
-                tempTrimmedFile.delete()
-                return CutResult(false, 0L, 0L, "Could not backup original file for replacement")
-            }
-
-            val newSizeBytes = originalFile.length()
-            val finalDurationMs = detectActualDurationMs(originalFile.absolutePath, targetDurationMs)
-
-            // Update MediaStore entry
-            updateMediaStoreDurationAndSize(context, song, finalDurationMs, newSizeBytes)
-
-            // Rescan file
-            try {
-                MediaScannerConnection.scanFile(
-                    context.applicationContext,
-                    arrayOf(originalFile.absolutePath),
-                    arrayOf("audio/*"),
-                    null
-                )
-            } catch (ignored: Exception) {}
-
-            return CutResult(
-                success = true,
-                newDurationMs = finalDurationMs,
-                newSizeBytes = newSizeBytes
-            )
         } catch (e: Exception) {
-            Log.e(TAG, "Fatal error during sound cutting: ${e.message}", e)
-            if (tempTrimmedFile.exists()) tempTrimmedFile.delete()
-            return CutResult(false, 0L, 0L, "Error: ${e.message}")
+            Log.w(TAG, "MediaStore insert failed: ${e.message}, attempting direct storage fallback...")
+        }
+
+        // Direct storage fallback
+        return try {
+            val baseDir = Environment.getExternalStoragePublicDirectory(
+                if (isRingtone) Environment.DIRECTORY_RINGTONES else Environment.DIRECTORY_MUSIC
+            )
+            val subDir = File(baseDir, "Soundbox")
+            if (!subDir.exists()) subDir.mkdirs()
+
+            val targetFile = File(subDir, "$title.$extension")
+            FileInputStream(trimmedFile).use { inStream ->
+                FileOutputStream(targetFile).use { outStream ->
+                    inStream.copyTo(outStream)
+                }
+            }
+            MediaScannerConnection.scanFile(context, arrayOf(targetFile.absolutePath), arrayOf(mimeType), null)
+            Pair(Uri.fromFile(targetFile), targetFile.absolutePath)
+        } catch (e: Exception) {
+            Log.e(TAG, "Direct storage fallback also failed: ${e.message}", e)
+            Pair(null, null)
         }
     }
 

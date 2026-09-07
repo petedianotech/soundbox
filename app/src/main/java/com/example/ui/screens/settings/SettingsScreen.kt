@@ -47,6 +47,7 @@ fun SettingsScreen(
     val visibleTabs by viewModel.settingsManager.visibleTabsFlow.collectAsState()
 
     val crossfadeSec by viewModel.settingsManager.crossfadeSeconds.collectAsState()
+    val crossfadeEnabled by viewModel.settingsManager.crossfadeEnabled.collectAsState()
     val gaplessEnabled by viewModel.settingsManager.gaplessPlayback.collectAsState()
     val replayGain by viewModel.settingsManager.replayGainMode.collectAsState()
     val hiResEngine by viewModel.settingsManager.hiResAudioEngine.collectAsState()
@@ -216,18 +217,35 @@ fun SettingsScreen(
             // 2. PLAYBACK & TRANSITIONS SECTION
             SettingsSection(title = "PLAYBACK & TRANSITIONS", sectionIcon = Icons.Default.PlayCircle) {
                 SettingsToggleRow(
+                    title = "Crossfade Between Tracks",
+                    subtitle = if (crossfadeEnabled && crossfadeSec > 0) "Volume lowers smoothly while next track blends in ($crossfadeSec s)" else "Instant cut / Direct track change (Off)",
+                    icon = Icons.Default.LinearScale,
+                    checked = crossfadeEnabled,
+                    onCheckedChange = { isEnabled ->
+                        viewModel.settingsManager.setCrossfadeEnabled(isEnabled)
+                        if (isEnabled && crossfadeSec == 0) {
+                            viewModel.settingsManager.setCrossfadeSeconds(3)
+                        }
+                    }
+                )
+                if (crossfadeEnabled) {
+                    SettingsDivider()
+                    SettingsCardRow(
+                        title = "Crossfade Duration",
+                        subtitle = "$crossfadeSec seconds crossfade",
+                        icon = Icons.Default.Tune,
+                        badge = "${crossfadeSec}s",
+                        badgeColor = Poweramp_Cyan,
+                        onClick = { showCrossfadeDialog = true }
+                    )
+                }
+                SettingsDivider()
+                SettingsToggleRow(
                     title = "Gapless Playback",
                     subtitle = "Seamless track transition without acoustic pauses",
                     icon = Icons.Default.SyncAlt,
                     checked = gaplessEnabled,
                     onCheckedChange = { viewModel.settingsManager.setGaplessPlayback(it) }
-                )
-                SettingsDivider()
-                SettingsCardRow(
-                    title = "Crossfade Duration",
-                    subtitle = if (crossfadeSec > 0) "$crossfadeSec seconds crossfade" else "Instant Track Cut (Off)",
-                    icon = Icons.Default.LinearScale,
-                    onClick = { showCrossfadeDialog = true }
                 )
                 SettingsDivider()
                 SettingsCardRow(
@@ -536,7 +554,9 @@ fun SettingsScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        viewModel.settingsManager.setCrossfadeSeconds(tempSec.toInt())
+                        val sec = tempSec.toInt()
+                        viewModel.settingsManager.setCrossfadeSeconds(sec)
+                        viewModel.settingsManager.setCrossfadeEnabled(sec > 0)
                         showCrossfadeDialog = false
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = colors.accentCyan)

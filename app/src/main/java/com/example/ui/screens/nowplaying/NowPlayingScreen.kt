@@ -42,6 +42,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
+import android.content.res.Configuration
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -243,6 +245,9 @@ fun NowPlayingScreen(
     val accentColor = colors.accentCyan
     val secondaryColor = MaterialTheme.colorScheme.secondary
 
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -331,7 +336,271 @@ fun NowPlayingScreen(
                 )
                 .padding(innerPadding)
         ) {
-            Column(modifier = Modifier.fillMaxSize()) {
+            if (isLandscape) {
+                // High-End Studio 2-Pane Console for Landscape
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Left Pane: Artwork Stage
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .padding(vertical = 4.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        key(artRefreshTrigger, song.id) {
+                            ArtworkMainStage(
+                                song = song,
+                                isPlaying = isPlaying,
+                                lyrics = lyrics,
+                                hasTimestamps = hasTimestamps,
+                                activeVerseIndex = activeVerseIndex,
+                                onToggleLyrics = { isLyricsViewActive = !isLyricsViewActive },
+                                onToggleFavorite = { viewModel.toggleFavorite(song) },
+                                accentColor = accentColor
+                            )
+                        }
+                    }
+
+                    // Right Pane: Lyrics or Controls
+                    Box(
+                        modifier = Modifier
+                            .weight(1.15f)
+                            .fillMaxHeight()
+                            .padding(vertical = 4.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (isLyricsViewActive) {
+                            FullLyricsStage(
+                                song = song,
+                                lyrics = lyrics,
+                                hasTimestamps = hasTimestamps,
+                                activeVerseIndex = activeVerseIndex,
+                                lyricsListState = lyricsListState,
+                                userScrolledAway = userScrolledAway,
+                                fontSizeOption = lyricsFontSizeOption,
+                                isDownloadingOnline = isDownloadingLyricsOnline,
+                                onDownloadOnlineClick = { triggerDownloadLyricsOnline() },
+                                onSeekTo = { viewModel.seekTo(it) },
+                                onJumpToCurrent = {
+                                    userScrolledAway = false
+                                    if (activeVerseIndex >= 0 && lyrics.isNotEmpty()) {
+                                        coroutineScope.launch {
+                                            lyricsListState.animateScrollToItem(activeVerseIndex, scrollOffset = -180)
+                                        }
+                                    }
+                                },
+                                onAddLyricsClick = { showLyricsOptionsSheet = true },
+                                onSearchWebClick = { LyricsManager.searchLyricsWeb(context, song) },
+                                onPasteClick = {
+                                    pastedLyricsContent = ""
+                                    showPasteDialog = true
+                                },
+                                onPickFileClick = { fileLauncher.launch("*/*") },
+                                onCreateLyricsClick = onNavigateToLyricsCreator,
+                                onDismissClick = { isLyricsViewActive = false },
+                                accentColor = accentColor
+                            )
+                        } else {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .verticalScroll(rememberScrollState()),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                // Waveform seekbar
+                                PowerampWaveformBar(
+                                    currentPosition = position,
+                                    duration = duration,
+                                    isPlaying = isPlaying,
+                                    onSeek = { targetMs -> viewModel.seekTo(targetMs) },
+                                    accentColor = colors.accentCyan,
+                                    seedKey = song.id.toString(),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(38.dp)
+                                )
+
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 4.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = formatDuration(position),
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            fontFamily = FontFamily.Monospace
+                                        ),
+                                        color = colors.accentCyan
+                                    )
+                                    Text(
+                                        text = if (showRemainingTime) "-${formatDuration((duration - position).coerceAtLeast(0L))}" else formatDuration(duration),
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            fontFamily = FontFamily.Monospace
+                                        ),
+                                        color = colors.textSecondary,
+                                        modifier = Modifier.clickable { showRemainingTime = !showRemainingTime }
+                                    )
+                                }
+
+                                // Playback Controls Row
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceEvenly,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Surface(
+                                        onClick = { viewModel.setShuffleMode(!shuffleMode) },
+                                        shape = CircleShape,
+                                        color = if (shuffleMode) accentColor.copy(alpha = 0.16f) else Color.Transparent,
+                                        modifier = Modifier.size(42.dp)
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(
+                                                imageVector = Icons.Default.Shuffle,
+                                                contentDescription = "Shuffle",
+                                                tint = if (shuffleMode) accentColor else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+                                    }
+
+                                    Surface(
+                                        onClick = { viewModel.skipPrevious() },
+                                        shape = CircleShape,
+                                        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.85f),
+                                        modifier = Modifier.size(48.dp)
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(
+                                                imageVector = Icons.Default.SkipPrevious,
+                                                contentDescription = "Previous Song",
+                                                modifier = Modifier.size(26.dp),
+                                                tint = MaterialTheme.colorScheme.onSurface
+                                            )
+                                        }
+                                    }
+
+                                    Surface(
+                                        onClick = { viewModel.playPause() },
+                                        shape = CircleShape,
+                                        color = accentColor,
+                                        shadowElevation = 8.dp,
+                                        modifier = Modifier.size(60.dp)
+                                    ) {
+                                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                            Icon(
+                                                imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                                contentDescription = if (isPlaying) "Pause" else "Play",
+                                                tint = MaterialTheme.colorScheme.onPrimary,
+                                                modifier = Modifier.size(32.dp)
+                                            )
+                                        }
+                                    }
+
+                                    Surface(
+                                        onClick = { viewModel.skipNext() },
+                                        shape = CircleShape,
+                                        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.85f),
+                                        modifier = Modifier.size(48.dp)
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(
+                                                imageVector = Icons.Default.SkipNext,
+                                                contentDescription = "Next Song",
+                                                modifier = Modifier.size(26.dp),
+                                                tint = MaterialTheme.colorScheme.onSurface
+                                            )
+                                        }
+                                    }
+
+                                    Surface(
+                                        onClick = {
+                                            val nextMode = when (repeatMode) {
+                                                Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ALL
+                                                Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE
+                                                else -> Player.REPEAT_MODE_OFF
+                                            }
+                                            viewModel.setRepeatMode(nextMode)
+                                        },
+                                        shape = CircleShape,
+                                        color = if (repeatMode != Player.REPEAT_MODE_OFF) accentColor.copy(alpha = 0.16f) else Color.Transparent,
+                                        modifier = Modifier.size(42.dp)
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            val icon = when (repeatMode) {
+                                                Player.REPEAT_MODE_ONE -> Icons.Default.RepeatOne
+                                                else -> Icons.Default.Repeat
+                                            }
+                                            Icon(
+                                                imageVector = icon,
+                                                contentDescription = "Repeat Mode",
+                                                tint = if (repeatMode != Player.REPEAT_MODE_OFF) accentColor else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+                                    }
+                                }
+
+                                // Quick Action Dock
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    FilledTonalButton(
+                                        onClick = { isLyricsViewActive = !isLyricsViewActive },
+                                        shape = CircleShape,
+                                        colors = ButtonDefaults.filledTonalButtonColors(
+                                            containerColor = if (isLyricsViewActive) accentColor.copy(alpha = 0.22f) else MaterialTheme.colorScheme.surfaceContainerHigh
+                                        ),
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Icon(
+                                            imageVector = if (isLyricsViewActive) Icons.Filled.Lyrics else Icons.Outlined.Lyrics,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp),
+                                            tint = if (isLyricsViewActive) accentColor else MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("Lyrics", fontSize = 12.sp)
+                                    }
+
+                                    FilledTonalButton(
+                                        onClick = { showQueueSheet = true },
+                                        shape = CircleShape,
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = null, modifier = Modifier.size(16.dp))
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("Queue", fontSize = 12.sp)
+                                    }
+
+                                    FilledTonalButton(
+                                        onClick = { showTimerDialog = true },
+                                        shape = CircleShape,
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Icon(Icons.Default.Timer, contentDescription = null, modifier = Modifier.size(16.dp))
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("Timer", fontSize = 12.sp)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
+                Column(modifier = Modifier.fillMaxSize()) {
                 // Main Upper Stage (Center Content: Artwork vs Lyrics View)
                 Box(
                     modifier = Modifier
@@ -686,6 +955,7 @@ fun NowPlayingScreen(
             }
         }
     }
+}
 
     // QUEUE BOTTOM SHEET
     if (showQueueSheet) {
