@@ -322,8 +322,16 @@ fun SearchScreen(
                     isPlaying = isPlaying,
                     onPlayPause = { viewModel.playPause() },
                     onSkipNext = { viewModel.skipNext() },
+                    onSkipPrevious = { viewModel.skipPrevious() },
+                    onFavoriteToggle = { currentSong?.let { viewModel.toggleFavorite(it) } },
+                    isFavorite = currentSong?.isFavorite == true,
                     onOpenNowPlaying = onNavigateToNowPlaying,
                     progress = progress,
+                    onSeekProgress = { frac ->
+                        if (duration > 0) {
+                            viewModel.seekTo((frac * duration).toLong())
+                        }
+                    },
                     modifier = Modifier.fillMaxWidth()
                 )
             }

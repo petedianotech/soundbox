@@ -1,6 +1,7 @@
 package com.example.ui.components
 
 import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -20,6 +21,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.ui.graphics.Brush
@@ -319,7 +323,11 @@ fun MiniPlayer(
     onSkipNext: () -> Unit,
     onOpenNowPlaying: () -> Unit,
     modifier: Modifier = Modifier,
-    progress: Float = 0f
+    onSkipPrevious: (() -> Unit)? = null,
+    onFavoriteToggle: (() -> Unit)? = null,
+    isFavorite: Boolean = false,
+    progress: Float = 0f,
+    onSeekProgress: ((Float) -> Unit)? = null
 ) {
     AnimatedVisibility(
         visible = currentSong != null,
@@ -329,79 +337,234 @@ fun MiniPlayer(
     ) {
         currentSong?.let { song ->
             val colors = SoundboxTheme.colors
+            var offsetX by remember { mutableFloatStateOf(0f) }
+            val swipeThreshold = 120f
+            val context = androidx.compose.ui.platform.LocalContext.current
+
+            // Pulsing animation for subtle waveform / glow
+            val infiniteTransition = rememberInfiniteTransition(label = "miniWave")
+            val wavePulse by infiniteTransition.animateFloat(
+                initialValue = 0.35f,
+                targetValue = 1f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(650, easing = LinearEasing),
+                    repeatMode = RepeatMode.Reverse
+                ),
+                label = "wavePulse"
+            )
+
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .offset { androidx.compose.ui.unit.IntOffset(offsetX.toInt(), 0) }
+                    .pointerInput(song.id) {
+                        detectHorizontalDragGestures(
+                            onDragEnd = {
+                                if (offsetX > swipeThreshold) {
+                                    // Swiped Right -> Previous
+                                    onSkipPrevious?.invoke()
+                                } else if (offsetX < -swipeThreshold) {
+                                    // Swiped Left -> Next
+                                    onSkipNext()
+                                }
+                                offsetX = 0f
+                            },
+                            onDragCancel = { offsetX = 0f },
+                            onHorizontalDrag = { change, dragAmount ->
+                                change.consume()
+                                offsetX = (offsetX + dragAmount).coerceIn(-250f, 250f)
+                            }
+                        )
+                    }
                     .clickable { onOpenNowPlaying() },
-                shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+                shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
                 color = colors.miniPlayerBackground,
-                border = androidx.compose.foundation.BorderStroke(1.dp, colors.border),
+                border = androidx.compose.foundation.BorderStroke(1.dp, colors.border.copy(alpha = 0.8f)),
                 tonalElevation = 8.dp,
-                shadowElevation = 12.dp
+                shadowElevation = 16.dp
             ) {
                 Column(modifier = Modifier.fillMaxWidth()) {
-                    if (progress in 0f..1f) {
-                        LinearProgressIndicator(
-                            progress = { progress },
+                    // INTERACTIVE PROGRESS & MICRO-WAVEFORM BAR
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(6.dp)
+                            .background(colors.borderSubtle)
+                            .pointerInput(onSeekProgress) {
+                                if (onSeekProgress != null) {
+                                    detectTapGestures { offset ->
+                                        val newProgress = (offset.x / size.width.toFloat()).coerceIn(0f, 1f)
+                                        onSeekProgress(newProgress)
+                                    }
+                                }
+                            }
+                    ) {
+                        // Dynamic gradient fill for progress
+                        Box(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .height(2.5.dp),
-                            color = colors.accentCyan,
-                            trackColor = colors.borderSubtle
+                                .fillMaxHeight()
+                                .fillMaxWidth(progress.coerceIn(0f, 1f))
+                                .background(
+                                    Brush.horizontalGradient(
+                                        colors = listOf(
+                                            colors.accentCyan,
+                                            colors.accentLime
+                                        )
+                                    )
+                                )
                         )
                     }
 
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                            .padding(horizontal = 14.dp, vertical = 9.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        ArtworkThumbnail(
-                            songId = song.id,
-                            title = song.title,
-                            artist = song.artist,
-                            genre = song.genre,
-                            path = song.path,
-                            size = 46f,
-                            isCircle = false
-                        )
+                        // ARTWORK WITH LIVE PLAYING BADGE
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .border(1.dp, colors.borderSubtle, RoundedCornerShape(12.dp))
+                        ) {
+                            ArtworkThumbnail(
+                                songId = song.id,
+                                title = song.title,
+                                artist = song.artist,
+                                genre = song.genre,
+                                path = song.path,
+                                size = 48f,
+                                isCircle = false
+                            )
+
+                            if (isPlaying) {
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.BottomEnd)
+                                        .padding(3.dp)
+                                        .size(10.dp)
+                                        .clip(CircleShape)
+                                        .background(colors.accentCyan)
+                                        .border(1.5.dp, Color.Black, CircleShape)
+                                )
+                            }
+                        }
 
                         Spacer(modifier = Modifier.width(12.dp))
 
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = song.title,
-                                style = MaterialTheme.typography.bodyMedium.copy(
-                                    fontWeight = FontWeight.Black,
-                                    letterSpacing = 0.3.sp
-                                ),
-                                color = colors.textPrimary,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
+                        // TRACK INFO & LIVE BITRATE / FORMAT PILL
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text(
+                                    text = song.title,
+                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        letterSpacing = 0.2.sp
+                                    ),
+                                    color = colors.textPrimary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f, fill = false)
+                                )
+
+                                // Micro Equalizer Waves indicator when active
+                                if (isPlaying) {
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(1.5.dp),
+                                        verticalAlignment = Alignment.Bottom,
+                                        modifier = Modifier.height(10.dp)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .width(2.dp)
+                                                .height((6 * wavePulse + 3).dp)
+                                                .background(colors.accentCyan, CircleShape)
+                                        )
+                                        Box(
+                                            modifier = Modifier
+                                                .width(2.dp)
+                                                .height((8 * (1.35f - wavePulse) + 2).dp)
+                                                .background(colors.accentLime, CircleShape)
+                                        )
+                                        Box(
+                                            modifier = Modifier
+                                                .width(2.dp)
+                                                .height((7 * wavePulse + 2).dp)
+                                                .background(colors.accentCyan, CircleShape)
+                                        )
+                                    }
+                                }
+                            }
+
                             Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = "${song.artist} • ${if (song.path.endsWith(".flac")) "FLAC 24-bit" else "320 kbps"}",
-                                style = MaterialTheme.typography.bodySmall.copy(
-                                    fontSize = 11.sp,
-                                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
-                                ),
-                                color = colors.accentCyan.copy(alpha = 0.85f),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
+
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text(
+                                    text = song.artist,
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        fontSize = 11.5.sp,
+                                        fontWeight = FontWeight.Medium
+                                    ),
+                                    color = colors.textMuted,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f, fill = false)
+                                )
+
+                                // Audio Quality Tag
+                                Surface(
+                                    shape = RoundedCornerShape(4.dp),
+                                    color = colors.accentCyan.copy(alpha = 0.12f)
+                                ) {
+                                    Text(
+                                        text = if (song.path.endsWith(".flac", ignoreCase = true)) "FLAC 24-BIT" else "320 KBPS",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontSize = 8.5.sp,
+                                            fontWeight = FontWeight.Black,
+                                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                                        ),
+                                        color = colors.accentCyan,
+                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                    )
+                                }
+                            }
                         }
 
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
 
+                        // OPTIONAL FAVORITE QUICK TOGGLE
+                        if (onFavoriteToggle != null) {
+                            IconButton(
+                                onClick = onFavoriteToggle,
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                    contentDescription = "Toggle Favorite",
+                                    tint = if (isFavorite) Color(0xFFFF5252) else colors.textMuted,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+
+                        // PLAY / PAUSE BUTTON (High Contrast)
                         FilledIconButton(
                             onClick = onPlayPause,
                             colors = IconButtonDefaults.filledIconButtonColors(
                                 containerColor = colors.accentCyan,
                                 contentColor = Color.Black
                             ),
-                            modifier = Modifier.size(40.dp)
+                            modifier = Modifier.size(42.dp)
                         ) {
                             Icon(
                                 imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
@@ -412,6 +575,7 @@ fun MiniPlayer(
 
                         Spacer(modifier = Modifier.width(4.dp))
 
+                        // SKIP NEXT BUTTON
                         FilledTonalIconButton(
                             onClick = onSkipNext,
                             shape = CircleShape,
@@ -419,7 +583,7 @@ fun MiniPlayer(
                                 containerColor = colors.surfaceElevated,
                                 contentColor = colors.textPrimary
                             ),
-                            modifier = Modifier.size(40.dp)
+                            modifier = Modifier.size(42.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.SkipNext,
