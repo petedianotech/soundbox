@@ -46,8 +46,6 @@ fun SettingsScreen(
     val currentTheme by viewModel.settingsManager.themeFlow.collectAsState()
     val visibleTabs by viewModel.settingsManager.visibleTabsFlow.collectAsState()
 
-    val crossfadeSec by viewModel.settingsManager.crossfadeSeconds.collectAsState()
-    val crossfadeEnabled by viewModel.settingsManager.crossfadeEnabled.collectAsState()
     val gaplessEnabled by viewModel.settingsManager.gaplessPlayback.collectAsState()
     val replayGain by viewModel.settingsManager.replayGainMode.collectAsState()
     val hiResEngine by viewModel.settingsManager.hiResAudioEngine.collectAsState()
@@ -63,7 +61,6 @@ fun SettingsScreen(
     var showTimerDialog by remember { mutableStateOf(false) }
     var showThemeDialog by remember { mutableStateOf(false) }
     var showTabsDialog by remember { mutableStateOf(false) }
-    var showCrossfadeDialog by remember { mutableStateOf(false) }
     var showReplayGainDialog by remember { mutableStateOf(false) }
     var showVisualizerDialog by remember { mutableStateOf(false) }
 
@@ -216,30 +213,6 @@ fun SettingsScreen(
 
             // 2. PLAYBACK & TRANSITIONS SECTION
             SettingsSection(title = "PLAYBACK & TRANSITIONS", sectionIcon = Icons.Default.PlayCircle) {
-                SettingsToggleRow(
-                    title = "Crossfade Between Tracks",
-                    subtitle = if (crossfadeEnabled && crossfadeSec > 0) "Volume lowers smoothly while next track blends in ($crossfadeSec s)" else "Instant cut / Direct track change (Off)",
-                    icon = Icons.Default.LinearScale,
-                    checked = crossfadeEnabled,
-                    onCheckedChange = { isEnabled ->
-                        viewModel.settingsManager.setCrossfadeEnabled(isEnabled)
-                        if (isEnabled && crossfadeSec == 0) {
-                            viewModel.settingsManager.setCrossfadeSeconds(3)
-                        }
-                    }
-                )
-                if (crossfadeEnabled) {
-                    SettingsDivider()
-                    SettingsCardRow(
-                        title = "Crossfade Duration",
-                        subtitle = "$crossfadeSec seconds crossfade",
-                        icon = Icons.Default.Tune,
-                        badge = "${crossfadeSec}s",
-                        badgeColor = Poweramp_Cyan,
-                        onClick = { showCrossfadeDialog = true }
-                    )
-                }
-                SettingsDivider()
                 SettingsToggleRow(
                     title = "Gapless Playback",
                     subtitle = "Seamless track transition without acoustic pauses",
@@ -424,156 +397,7 @@ fun SettingsScreen(
         )
     }
 
-    if (showCrossfadeDialog) {
-        var tempSec by remember(crossfadeSec) { mutableFloatStateOf(crossfadeSec.toFloat()) }
-        AlertDialog(
-            containerColor = colors.dialogBackground,
-            titleContentColor = colors.textPrimary,
-            textContentColor = colors.textSecondary,
-            onDismissRequest = { showCrossfadeDialog = false },
-            title = {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Crossfade (0–10s)", fontWeight = FontWeight.Bold)
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = if (tempSec > 0f) colors.accentCyan.copy(alpha = 0.2f) else colors.surfaceVariant,
-                        border = androidx.compose.foundation.BorderStroke(
-                            1.dp, 
-                            if (tempSec > 0f) colors.accentCyan else colors.border
-                        )
-                    ) {
-                        Text(
-                            text = if (tempSec > 0f) "${tempSec.toInt()}s Fade" else "Off (0s)",
-                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                            color = if (tempSec > 0f) colors.accentCyan else colors.textMuted,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                        )
-                    }
-                }
-            },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Text(
-                        text = "Gradually crossfades outgoing audio into the incoming song without sudden pauses.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = colors.textSecondary
-                    )
 
-                    // Quick Toggle Switch
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(colors.surface)
-                            .padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Enable Crossfade",
-                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                                color = colors.textPrimary
-                            )
-                            Text(
-                                text = if (tempSec > 0f) "Crossfade active (${tempSec.toInt()}s)" else "Instant cut / Gapless mode",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = colors.textMuted
-                            )
-                        }
-                        Switch(
-                            checked = tempSec > 0f,
-                            onCheckedChange = { isChecked ->
-                                tempSec = if (isChecked) (if (crossfadeSec > 0) crossfadeSec.toFloat() else 3f) else 0f
-                            },
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = colors.accentCyan,
-                                checkedTrackColor = colors.accentCyan.copy(alpha = 0.35f)
-                            )
-                        )
-                    }
-
-                    // Interactive Slider (0 to 10 seconds)
-                    Column {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("0s (Off)", style = MaterialTheme.typography.labelSmall, color = colors.textMuted)
-                            Text("5s", style = MaterialTheme.typography.labelSmall, color = colors.textMuted)
-                            Text("10s (DJ Max)", style = MaterialTheme.typography.labelSmall, color = colors.textMuted)
-                        }
-                        Slider(
-                            value = tempSec,
-                            onValueChange = { tempSec = it },
-                            valueRange = 0f..10f,
-                            steps = 9,
-                            colors = SliderDefaults.colors(
-                                thumbColor = colors.accentCyan,
-                                activeTrackColor = colors.accentCyan,
-                                inactiveTrackColor = colors.surfaceVariant
-                            )
-                        )
-                    }
-
-                    // Preset Quick-Select Chips
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        listOf(0 to "Off", 2 to "2s", 4 to "4s", 6 to "6s", 8 to "8s", 10 to "10s").forEach { (sec, label) ->
-                            val isSelected = tempSec.toInt() == sec
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = if (isSelected) colors.accentCyan.copy(alpha = 0.22f) else colors.surfaceVariant,
-                                border = androidx.compose.foundation.BorderStroke(
-                                    1.dp,
-                                    if (isSelected) colors.accentCyan else colors.border
-                                ),
-                                modifier = Modifier.clickable { tempSec = sec.toFloat() }
-                            ) {
-                                Text(
-                                    text = label,
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                                    ),
-                                    color = if (isSelected) colors.accentCyan else colors.textPrimary,
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                                )
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        val sec = tempSec.toInt()
-                        viewModel.settingsManager.setCrossfadeSeconds(sec)
-                        viewModel.settingsManager.setCrossfadeEnabled(sec > 0)
-                        showCrossfadeDialog = false
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = colors.accentCyan)
-                ) {
-                    Text("Apply (${tempSec.toInt()}s)", color = if (colors.isDark) Color.Black else Color.White)
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = { showCrossfadeDialog = false },
-                    colors = ButtonDefaults.textButtonColors(contentColor = colors.textSecondary)
-                ) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
 
     if (showReplayGainDialog) {
         AlertDialog(
