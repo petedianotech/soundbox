@@ -175,6 +175,65 @@ class SettingsManager(context: Context) {
         _searchHistoryFlow.value = emptyList()
     }
 
+    // --- Equalizer & DSP Settings Persistence ---
+    fun isEqualizerEnabled(): Boolean = prefs.getBoolean("eq_enabled", true)
+    fun setEqualizerEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean("eq_enabled", enabled).apply()
+    }
+
+    fun getEqualizerPresetName(): String = prefs.getString("eq_preset_name", "Flat") ?: "Flat"
+    fun setEqualizerPresetName(name: String) {
+        prefs.edit().putString("eq_preset_name", name).apply()
+    }
+
+    fun getEqualizerBandLevels(): List<Float> {
+        val str = prefs.getString("eq_band_levels", null)
+        if (str.isNullOrBlank()) {
+            return listOf(0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f)
+        }
+        return try {
+            val list = str.split(",").mapNotNull { it.trim().toFloatOrNull() }
+            if (list.size == 10) list else listOf(0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f)
+        } catch (e: Exception) {
+            listOf(0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f)
+        }
+    }
+
+    fun setEqualizerBandLevels(levels: List<Float>) {
+        val str = levels.joinToString(",") { it.toString() }
+        prefs.edit().putString("eq_band_levels", str).apply()
+    }
+
+    fun getPreampGain(): Float = prefs.getFloat("eq_preamp_gain", 0f)
+    fun setPreampGain(gain: Float) {
+        prefs.edit().putFloat("eq_preamp_gain", gain).apply()
+    }
+
+    fun getBassBoostStrength(): Int = prefs.getInt("eq_bass_boost", 300)
+    fun setBassBoostStrength(strength: Int) {
+        prefs.edit().putInt("eq_bass_boost", strength).apply()
+    }
+
+    fun getTrebleGain(): Float = prefs.getFloat("eq_treble_gain", 0f)
+    fun setTrebleGain(gain: Float) {
+        prefs.edit().putFloat("eq_treble_gain", gain).apply()
+    }
+
+    fun getVirtualizerStrength(): Int = prefs.getInt("eq_virtualizer", 0)
+    fun setVirtualizerStrength(strength: Int) {
+        prefs.edit().putInt("eq_virtualizer", strength).apply()
+    }
+
+    fun getAudioBalance(): Float = prefs.getFloat("eq_balance", 0f)
+    fun setAudioBalance(balance: Float) {
+        prefs.edit().putFloat("eq_balance", balance).apply()
+    }
+
+    fun getReverbPreset(): Int = prefs.getInt("eq_reverb_preset", 0)
+    fun setReverbPreset(presetId: Int) {
+        prefs.edit().putInt("eq_reverb_preset", presetId).apply()
+    }
+
     companion object {
         @Volatile
         private var INSTANCE: SettingsManager? = null

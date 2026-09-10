@@ -542,16 +542,16 @@ fun MiniPlayer(
 
                         Spacer(modifier = Modifier.width(6.dp))
 
-                        // OPTIONAL FAVORITE QUICK TOGGLE
+                        // OPTIONAL LIKE QUICK TOGGLE
                         if (onFavoriteToggle != null) {
                             IconButton(
                                 onClick = onFavoriteToggle,
                                 modifier = Modifier.size(36.dp)
                             ) {
                                 Icon(
-                                    imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                                    contentDescription = "Toggle Favorite",
-                                    tint = if (isFavorite) Color(0xFFFF5252) else colors.textMuted,
+                                    imageVector = if (isFavorite) Icons.Default.ThumbUp else Icons.Outlined.ThumbUp,
+                                    contentDescription = if (isFavorite) "Unlike song" else "Like song",
+                                    tint = if (isFavorite) colors.accentCyan else colors.textMuted,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
