@@ -1209,10 +1209,22 @@ fun NowPlayingScreen(
                         }
                     )
 
-                    // Option 3: Share Track
+                    // Option 3: Lyrics & LRC Studio (Intro Cutter & Karaoke Sync)
+                    OptionMenuItem(
+                        icon = Icons.Default.EditNote,
+                        iconTint = colors.accentCyan,
+                        title = "Lyrics & LRC Sync Studio",
+                        subtitle = "Edit lines, align video intros & test karaoke live",
+                        onClick = {
+                            showLyricsOptionsSheet = false
+                            onNavigateToLyricsCreator()
+                        }
+                    )
+
+                    // Option 4: Share Track
                     OptionMenuItem(
                         icon = Icons.Default.Share,
-                        iconTint = colors.accentCyan,
+                        iconTint = colors.accentLime,
                         title = "Share Track",
                         subtitle = "Share song details via messaging apps",
                         onClick = {
@@ -1226,7 +1238,7 @@ fun NowPlayingScreen(
                         }
                     )
 
-                    // Option 4: Track Info & Details
+                    // Option 5: Track Info & Details
                     OptionMenuItem(
                         icon = Icons.Default.Info,
                         iconTint = MaterialTheme.colorScheme.onSurfaceVariant,

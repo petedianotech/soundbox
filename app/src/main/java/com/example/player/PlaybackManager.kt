@@ -40,8 +40,20 @@ class PlaybackManager private constructor(private val context: Context) {
     private val repository = MusicRepository.getInstance(context)
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
+    // Memory-optimized LoadControl to keep background RAM footprint ultra-lean while ensuring skip-free playback
+    private val lowMemoryLoadControl = androidx.media3.exoplayer.DefaultLoadControl.Builder()
+        .setBufferDurationsMs(
+            15_000, // minBufferMs (15s is ample for music tracks)
+            30_000, // maxBufferMs
+            1_000,  // bufferForPlaybackMs
+            2_000   // bufferForPlaybackAfterRebufferMs
+        )
+        .setPrioritizeTimeOverSizeThresholds(true)
+        .build()
+
     // Primary ExoPlayer reference
     val player: ExoPlayer = ExoPlayer.Builder(context)
+        .setLoadControl(lowMemoryLoadControl)
         .setAudioAttributes(
             androidx.media3.common.AudioAttributes.Builder()
                 .setContentType(androidx.media3.common.C.AUDIO_CONTENT_TYPE_MUSIC)
@@ -55,6 +67,7 @@ class PlaybackManager private constructor(private val context: Context) {
 
     // Secondary Auxiliary ExoPlayer for true Poweramp-style dual-engine overlapping crossfade
     val fadePlayer: ExoPlayer = ExoPlayer.Builder(context)
+        .setLoadControl(lowMemoryLoadControl)
         .setAudioAttributes(
             androidx.media3.common.AudioAttributes.Builder()
                 .setContentType(androidx.media3.common.C.AUDIO_CONTENT_TYPE_MUSIC)

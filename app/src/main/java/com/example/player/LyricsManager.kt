@@ -21,6 +21,13 @@ data class LyricLine(
 object LyricsManager {
     private const val TAG = "LyricsManager"
 
+    // Real-time update notifier flow across all UI screens
+    val lyricsUpdateFlow = kotlinx.coroutines.flow.MutableStateFlow(0L)
+
+    private fun notifyLyricsUpdated() {
+        lyricsUpdateFlow.value = System.currentTimeMillis()
+    }
+
     fun getLyricsFile(context: Context, song: Song): File {
         val dir = File(context.filesDir, "lyrics")
         if (!dir.exists()) dir.mkdirs()
@@ -63,6 +70,7 @@ object LyricsManager {
                 val backupFile = File(dir, "${cleanArtist}_${cleanTitle}.lrc")
                 backupFile.writeText(lyricsText)
             }
+            notifyLyricsUpdated()
         } catch (e: IOException) {
             Log.e(TAG, "Failed to save lyrics in private storage", e)
         }
@@ -98,6 +106,7 @@ object LyricsManager {
                     }
                 }
             }
+            notifyLyricsUpdated()
         } catch (e: Exception) {
             Log.e(TAG, "Error deleting lyrics for song", e)
         }
@@ -560,20 +569,25 @@ object LyricsManager {
 
     /**
      * Converts lyric lines to standard LRC contents: [mm:ss.xx] Lyric text
+     * Lines without timestamps are emitted as plain text.
      */
-    fun generateLrcContent(lines: List<Pair<Long, String>>): String {
+    fun generateLrcContent(lines: List<Pair<Long?, String>>): String {
         val sb = StringBuilder()
         for (line in lines) {
             val timeMs = line.first
             val text = line.second
             
-            val totalSeconds = timeMs / 1000
-            val minutes = totalSeconds / 60
-            val seconds = totalSeconds % 60
-            val hundredths = (timeMs % 1000) / 10
-            
-            val timestamp = String.format("[%02d:%02d.%02d]", minutes, seconds, hundredths)
-            sb.append(timestamp).append(text).append("\n")
+            if (timeMs != null) {
+                val totalSeconds = timeMs / 1000
+                val minutes = totalSeconds / 60
+                val seconds = totalSeconds % 60
+                val hundredths = (timeMs % 1000) / 10
+                
+                val timestamp = String.format(java.util.Locale.US, "[%02d:%02d.%02d]", minutes, seconds, hundredths)
+                sb.append(timestamp).append(text).append("\n")
+            } else {
+                sb.append(text).append("\n")
+            }
         }
         return sb.toString()
     }

@@ -199,6 +199,14 @@ class PlaybackService : MediaSessionService() {
         stopSelf()
     }
 
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (level >= TRIM_MEMORY_BACKGROUND || level >= TRIM_MEMORY_RUNNING_LOW) {
+            com.example.util.AlbumArtHelper.clearMemoryCache()
+            System.gc()
+        }
+    }
+
     override fun onDestroy() {
         serviceScope.cancel()
         mediaSession?.run {

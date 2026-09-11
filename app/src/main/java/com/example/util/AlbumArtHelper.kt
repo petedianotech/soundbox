@@ -40,6 +40,10 @@ object AlbumArtHelper {
     // Memory cache for instantaneous, zero-overhead lookups
     private val memoryArtMap = ConcurrentHashMap<String, Int>()
 
+    fun clearMemoryCache() {
+        memoryArtMap.clear()
+    }
+
     private fun getArtDir(context: Context): File {
         val dir = File(context.filesDir, "album_art")
         if (!dir.exists()) dir.mkdirs()
