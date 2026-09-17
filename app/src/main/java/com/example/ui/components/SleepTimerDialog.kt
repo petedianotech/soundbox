@@ -94,19 +94,20 @@ fun SleepTimerDialog(
         ) {
             Card(
                 modifier = Modifier
-                    .fillMaxWidth(0.92f)
-                    .widthIn(max = 440.dp)
+                    .fillMaxWidth(0.9f)
+                    .widthIn(max = 380.dp)
+                    .heightIn(max = 520.dp)
                     .clickable(enabled = false) {}
-                    .clip(RoundedCornerShape(28.dp))
-                    .border(1.dp, colors.border, RoundedCornerShape(28.dp)),
+                    .clip(RoundedCornerShape(24.dp))
+                    .border(1.dp, colors.border, RoundedCornerShape(24.dp)),
                 colors = CardDefaults.cardColors(containerColor = colors.dialogBackground),
-                shape = RoundedCornerShape(28.dp),
+                shape = RoundedCornerShape(24.dp),
                 elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(24.dp)
+                        .padding(18.dp)
                         .verticalScroll(rememberScrollState()),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
@@ -172,13 +173,13 @@ fun SleepTimerDialog(
 
                         Box(
                             modifier = Modifier
-                                .size(210.dp)
-                                .padding(8.dp),
+                                .size(170.dp)
+                                .padding(4.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             // Pulsing / decorative progress circle
                             Canvas(modifier = Modifier.fillMaxSize()) {
-                                val strokeWidth = 10.dp.toPx()
+                                val strokeWidth = 8.dp.toPx()
                                 val radius = (size.minDimension - strokeWidth) / 2
                                 val center = Offset(size.width / 2, size.height / 2)
 
@@ -214,10 +215,11 @@ fun SleepTimerDialog(
                                     text = formattedCountdown,
                                     style = MaterialTheme.typography.headlineLarge.copy(
                                         fontWeight = FontWeight.Black,
-                                        fontSize = 42.sp,
+                                        fontSize = 32.sp,
                                         color = colors.textPrimary,
                                         fontFamily = FontFamily.Monospace
-                                    )
+                                    ),
+                                    maxLines = 1
                                 )
                                 Text(
                                     text = "REMAINING",
@@ -313,8 +315,8 @@ fun SleepTimerDialog(
                         // Interactive Circular Rotary Dial
                         Box(
                             modifier = Modifier
-                                .size(220.dp)
-                                .padding(4.dp),
+                                .size(180.dp)
+                                .padding(2.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             RotaryTimeDial(
@@ -340,10 +342,11 @@ fun SleepTimerDialog(
                                     text = "$selectedMinutes",
                                     style = MaterialTheme.typography.displaySmall.copy(
                                         fontWeight = FontWeight.Black,
-                                        fontSize = 46.sp,
+                                        fontSize = 36.sp,
                                         color = colors.textPrimary,
                                         fontFamily = FontFamily.SansSerif
-                                    )
+                                    ),
+                                    maxLines = 1
                                 )
                                 Text(
                                     text = "MINUTES",

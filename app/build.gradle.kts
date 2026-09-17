@@ -49,6 +49,15 @@ android {
   }
 
   signingConfigs {
+    getByName("debug") {
+      val ksFile = file("${rootDir}/debug.keystore")
+      if (ksFile.exists()) {
+        storeFile = ksFile
+        storePassword = "android"
+        keyAlias = "androiddebugkey"
+        keyPassword = "android"
+      }
+    }
     create("release") {
       val keystorePath = System.getenv("KEYSTORE_PATH") ?: "${rootDir}/my-upload-key.jks"
       val keystoreFile = file(keystorePath)
@@ -57,6 +66,14 @@ android {
         storePassword = System.getenv("KEYSTORE_PASSWORD") ?: System.getenv("STORE_PASSWORD")
         keyAlias = System.getenv("KEY_ALIAS") ?: "upload"
         keyPassword = System.getenv("KEY_PASSWORD")
+      } else {
+        val ksFile = file("${rootDir}/debug.keystore")
+        if (ksFile.exists()) {
+          storeFile = ksFile
+          storePassword = "android"
+          keyAlias = "androiddebugkey"
+          keyPassword = "android"
+        }
       }
     }
   }

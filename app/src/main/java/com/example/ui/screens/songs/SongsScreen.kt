@@ -66,6 +66,8 @@ fun SongsScreen(
     var showSortMenu by remember { mutableStateOf(false) }
     var showTagEditor by remember { mutableStateOf(false) }
     var showBatchTagEditor by remember { mutableStateOf(false) }
+    var showBatchRatingDialog by remember { mutableStateOf(false) }
+    var selectedRatingScore by remember { mutableIntStateOf(5) }
 
     var editTitle by remember { mutableStateOf("") }
     var editArtist by remember { mutableStateOf("") }
@@ -168,6 +170,13 @@ fun SongsScreen(
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                         Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onClick = { showBatchRatingDialog = true }) {
+                                Icon(
+                                    imageVector = Icons.Default.Star,
+                                    contentDescription = "Rate Selected Songs",
+                                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
                             IconButton(onClick = { showBatchTagEditor = true }) {
                                 Icon(
                                     imageVector = Icons.Default.Edit,
@@ -799,6 +808,82 @@ fun SongsScreen(
                 },
                 dismissButton = {
                     TextButton(onClick = { showBatchTagEditor = false }) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
+
+        // Dedicated Batch Rating Dialog for Multi-Selected Songs
+        if (showBatchRatingDialog && inSelectionMode) {
+            val selectedSongs = songs.filter { selectedSongIds.contains(it.id) }
+            AlertDialog(
+                onDismissRequest = { showBatchRatingDialog = false },
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Star,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Rate ${selectedSongs.size} Tracks",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                        )
+                    }
+                },
+                text = {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+                    ) {
+                        Text(
+                            text = "Select a 1 to 5 star rating score to apply simultaneously to all ${selectedSongs.size} selected songs:",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        StarRatingBar(
+                            rating = selectedRatingScore,
+                            onRatingChanged = { selectedRatingScore = it },
+                            starSize = 32
+                        )
+
+                        val scoreDescription = when (selectedRatingScore) {
+                            5 -> "5 Stars — Masterpiece ★★★★★"
+                            4 -> "4 Stars — Great Track ★★★★☆"
+                            3 -> "3 Stars — Good Track ★★★☆☆"
+                            2 -> "2 Stars — Fair Track ★★☆☆☆"
+                            1 -> "1 Star — Poor Track ★☆☆☆☆"
+                            else -> "Unrated / 0 Stars"
+                        }
+
+                        Text(
+                            text = scoreDescription,
+                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            selectedSongs.forEach { songToRate ->
+                                viewModel.updateSongRating(songToRate, selectedRatingScore)
+                            }
+                            Toast.makeText(context, "Applied $selectedRatingScore-star rating to ${selectedSongs.size} songs!", Toast.LENGTH_SHORT).show()
+                            showBatchRatingDialog = false
+                            selectedSongIds = emptySet()
+                        }
+                    ) {
+                        Text("Save Rating")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showBatchRatingDialog = false }) {
                         Text("Cancel")
                     }
                 }

@@ -560,7 +560,8 @@ fun NowPlayingScreen(
                                     FilledTonalButton(
                                         onClick = { showQueueSheet = true },
                                         shape = CircleShape,
-                                        modifier = Modifier.weight(1f)
+                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                        modifier = Modifier.height(34.dp).weight(1f)
                                     ) {
                                         Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = null, modifier = Modifier.size(16.dp))
                                         Spacer(modifier = Modifier.width(4.dp))
@@ -570,7 +571,8 @@ fun NowPlayingScreen(
                                     FilledTonalButton(
                                         onClick = { showTimerDialog = true },
                                         shape = CircleShape,
-                                        modifier = Modifier.weight(1f)
+                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                        modifier = Modifier.height(34.dp).weight(1f)
                                     ) {
                                         Icon(Icons.Default.Timer, contentDescription = null, modifier = Modifier.size(16.dp))
                                         Spacer(modifier = Modifier.width(4.dp))
@@ -943,14 +945,16 @@ fun NowPlayingScreen(
     if (showQueueSheet) {
         ModalBottomSheet(
             onDismissRequest = { showQueueSheet = false },
-            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp)
-                    .padding(bottom = 32.dp)
+                    .widthIn(max = 480.dp)
+                    .align(Alignment.CenterHorizontally)
+                    .padding(horizontal = 18.dp)
+                    .padding(bottom = 24.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -975,13 +979,13 @@ fun NowPlayingScreen(
                     }
                 }
 
-                HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+                HorizontalDivider(modifier = Modifier.padding(vertical = 10.dp))
 
                 if (queue.isEmpty()) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(180.dp),
+                            .height(140.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
@@ -994,7 +998,7 @@ fun NowPlayingScreen(
                     LazyColumn(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(max = 380.dp),
+                            .heightIn(max = 300.dp),
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         itemsIndexed(queue) { index, queueSong ->
@@ -1076,15 +1080,17 @@ fun NowPlayingScreen(
 
         ModalBottomSheet(
             onDismissRequest = { showLyricsOptionsSheet = false },
-            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .widthIn(max = 480.dp)
+                    .align(Alignment.CenterHorizontally)
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp)
-                    .padding(bottom = 36.dp)
+                    .padding(horizontal = 18.dp)
+                    .padding(bottom = 28.dp)
             ) {
                 // Track Header Card
                 Surface(
@@ -1250,7 +1256,7 @@ fun NowPlayingScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(max = 340.dp)
+                        .heightIn(max = 280.dp)
                 ) {
                     OutlinedButton(
                         onClick = {
