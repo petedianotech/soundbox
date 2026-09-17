@@ -79,11 +79,7 @@ fun AboutScreen(
                 modifier = Modifier
                     .size(88.dp)
                     .clip(CircleShape)
-                    .background(
-                        Brush.radialGradient(
-                            listOf(colors.accentCyan.copy(alpha = 0.25f), colors.surfaceVariant)
-                        )
-                    )
+                    .background(colors.surfaceVariant)
                     .border(1.5.dp, colors.accentCyan, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
@@ -118,7 +114,7 @@ fun AboutScreen(
                         .padding(horizontal = 8.dp, vertical = 3.dp)
                 ) {
                     Text(
-                        text = "V2.4 PRO AUDIO ENGINE",
+                        text = "V${com.example.BuildConfig.VERSION_NAME} (CODE ${com.example.BuildConfig.VERSION_CODE})",
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,

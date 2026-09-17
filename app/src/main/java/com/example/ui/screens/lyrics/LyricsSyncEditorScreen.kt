@@ -60,10 +60,9 @@ data class SyncLine(
     val timeMs: Long? = null
 )
 
-enum class LyricsEditorMode(val label: String, val iconName: String) {
-    SYNC_STUDIO("Sync Studio", "Tune"),
-    LIVE_PREVIEW("Karaoke Test", "Mic"),
-    TEXT_EDITOR("LRC & Text", "EditNote")
+enum class LyricsEditorMode(val label: String) {
+    SYNC_KARAOKE("1-Tap Sync & Karaoke"),
+    TEXT_EDITOR("LRC & Text")
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -81,8 +80,8 @@ fun LyricsSyncEditorScreen(
     val isPlaying by viewModel.isPlaying.collectAsState()
     val songDuration by viewModel.duration.collectAsState()
 
-    // Mode Selector (Sync Studio vs Karaoke Test vs LRC Text Editor)
-    var currentMode by remember { mutableStateOf(LyricsEditorMode.SYNC_STUDIO) }
+    // Mode Selector: 1-Tap Sync & Karaoke (Unified) vs LRC & Text
+    var currentMode by remember { mutableStateOf(LyricsEditorMode.SYNC_KARAOKE) }
 
     // Lyric Editor States
     val linesList = remember { mutableStateListOf<SyncLine>() }
@@ -214,6 +213,82 @@ fun LyricsSyncEditorScreen(
                 Toast.LENGTH_SHORT
             ).show()
         }
+    }
+
+    // CORE TAP-TO-SYNC & AUTO-SHIFT ENGINE:
+    // User hears a voice, pauses audio at [targetTimeMs], and taps "Align Song Here" on [targetIndex].
+    // This immediately aligns the entire song by calculating the offset delta and shifting
+    // ALL lines across the song automatically!
+    fun anchorAndShiftAllFromLine(targetIndex: Int, targetTimeMs: Long) {
+        if (targetIndex !in linesList.indices) return
+        pushUndoState()
+        val targetLine = linesList[targetIndex]
+        val oldTargetTime = targetLine.timeMs
+
+        val updatedList = mutableListOf<SyncLine>()
+
+        if (oldTargetTime != null) {
+            // Case 1: Line already had a timestamp -> shift all existing lines by delta
+            val deltaMs = targetTimeMs - oldTargetTime
+            for (line in linesList) {
+                if (line.timeMs != null) {
+                    val newTime = (line.timeMs + deltaMs).coerceAtLeast(0L)
+                    updatedList.add(line.copy(timeMs = newTime))
+                } else {
+                    updatedList.add(line)
+                }
+            }
+            val sign = if (deltaMs >= 0) "+${String.format(Locale.US, "%.2f", deltaMs / 1000.0)}s" else "${String.format(Locale.US, "%.2f", deltaMs / 1000.0)}s"
+            Toast.makeText(
+                context,
+                "⚓ Aligned entire song to line #${targetIndex + 1}! ($sign shifted)",
+                Toast.LENGTH_SHORT
+            ).show()
+        } else {
+            // Case 2: Line was not timed yet, but other lines might have timestamps
+            val firstSyncedIdx = linesList.indexOfFirst { it.timeMs != null }
+            if (firstSyncedIdx >= 0) {
+                val refTime = linesList[firstSyncedIdx].timeMs!!
+                val estimatedOffset = (targetIndex - firstSyncedIdx) * 3500L
+                val expectedTarget = (refTime + estimatedOffset).coerceAtLeast(0L)
+                val deltaMs = targetTimeMs - expectedTarget
+                for (i in linesList.indices) {
+                    val line = linesList[i]
+                    val baseTime = line.timeMs ?: (refTime + (i - firstSyncedIdx) * 3500L).coerceAtLeast(0L)
+                    val newTime = (baseTime + deltaMs).coerceAtLeast(0L)
+                    updatedList.add(line.copy(timeMs = newTime))
+                }
+                Toast.makeText(
+                    context,
+                    "⚓ Anchored line #${targetIndex + 1} @ ${formatLrcTimeLabel(targetTimeMs)} & auto-timed whole song",
+                    Toast.LENGTH_SHORT
+                ).show()
+            } else {
+                // Case 3: Plain text lyrics with no timestamps at all.
+                // Space all lines throughout the song with targetIndex anchored at targetTimeMs!
+                val avgPacingMs = 3600L
+                for (i in linesList.indices) {
+                    val line = linesList[i]
+                    val calculatedTime = if (i == targetIndex) {
+                        targetTimeMs
+                    } else if (i < targetIndex) {
+                        (targetTimeMs - (targetIndex - i) * avgPacingMs).coerceAtLeast(0L)
+                    } else {
+                        (targetTimeMs + (i - targetIndex) * avgPacingMs).coerceAtMost(songDuration.coerceAtLeast(targetTimeMs + 60000L))
+                    }
+                    updatedList.add(line.copy(timeMs = calculatedTime))
+                }
+                Toast.makeText(
+                    context,
+                    "⚓ Timed all lyrics starting line #${targetIndex + 1} @ ${formatLrcTimeLabel(targetTimeMs)}!",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+
+        linesList.clear()
+        linesList.addAll(updatedList)
+        autoSaveCurrentLyrics()
     }
 
     // Smart Video Intro Cutter / Aligner
@@ -581,22 +656,27 @@ fun LyricsSyncEditorScreen(
 
                 // MAIN CONTENT VIEWPORT BASED ON SELECTED MODE
                 when (currentMode) {
-                    LyricsEditorMode.SYNC_STUDIO -> {
-                        SyncStudioModeView(
+                    LyricsEditorMode.SYNC_KARAOKE -> {
+                        SyncAndKaraokeView(
                             linesList = linesList,
                             currentPosition = position,
                             isPlaying = isPlaying,
                             songDuration = songDuration,
                             lazyListState = lazyListState,
-                            expandedLineIndex = expandedLineIndex,
-                            onExpandLine = { expandedLineIndex = if (expandedLineIndex == it) null else it },
                             onSeekTo = { viewModel.seekTo(it) },
                             onPlayPause = { viewModel.playPause() },
-                            onShiftAll = { shiftAllLines(it) },
+                            onAnchorAndShiftAll = { targetIdx, timeMs -> anchorAndShiftAllFromLine(targetIdx, timeMs) },
+                            onTagSingleLine = { targetIdx, timeMs -> tagLineTimestamp(targetIdx, timeMs) },
                             onShiftSingle = { idx, delta -> shiftSingleLine(idx, delta) },
-                            onTagLine = { targetIndex, timeMs -> tagLineTimestamp(targetIndex, timeMs) },
+                            onShiftAll = { shiftAllLines(it) },
                             onAlignVideoIntro = { alignVideoIntroToAudioPosition() },
                             onAuditionLine = { timeMs -> auditionTime(timeMs) },
+                            onClearLineTag = { idx ->
+                                pushUndoState()
+                                linesList[idx] = linesList[idx].copy(timeMs = null)
+                                autoSaveCurrentLyrics()
+                                Toast.makeText(context, "Cleared stamp for line #${idx + 1}", Toast.LENGTH_SHORT).show()
+                            },
                             onUndo = {
                                 if (undoStack.isNotEmpty()) {
                                     val previous = undoStack.removeAt(undoStack.lastIndex)
@@ -615,43 +695,10 @@ fun LyricsSyncEditorScreen(
                             },
                             onAddLine = { showAddLineDialog = true },
                             onShowGlobalShiftDialog = { showGlobalShiftDialog = true },
-                            onSwitchToTextMode = {
-                                val pairs = linesList.map { Pair(it.timeMs ?: 0L, it.text) }
-                                rawTextContent = LyricsManager.generateLrcContent(pairs)
-                                currentMode = LyricsEditorMode.TEXT_EDITOR
+                            onSaveAndExit = {
+                                saveLyricsToDisk()
+                                onNavigateBack()
                             }
-                        )
-                    }
-                    LyricsEditorMode.LIVE_PREVIEW -> {
-                        LiveKaraokePreviewModeView(
-                            linesList = linesList,
-                            currentPosition = position,
-                            isPlaying = isPlaying,
-                            songDuration = songDuration,
-                            onSeekTo = { viewModel.seekTo(it) },
-                            onPlayPause = { viewModel.playPause() },
-                            onShiftAll = { shiftAllLines(it) },
-                            onShiftSingle = { idx, delta -> shiftSingleLine(idx, delta) },
-                            onTagLine = { targetIndex, timeMs -> tagLineTimestamp(targetIndex, timeMs) },
-                            onClearLineTag = { idx ->
-                                pushUndoState()
-                                linesList[idx] = linesList[idx].copy(timeMs = null)
-                                autoSaveCurrentLyrics()
-                                Toast.makeText(context, "Cleared stamp for line #${idx + 1}", Toast.LENGTH_SHORT).show()
-                            },
-                            onAlignVideoIntro = { alignVideoIntroToAudioPosition() },
-                            onAuditionLine = { timeMs -> auditionTime(timeMs) },
-                            onUndo = {
-                                if (undoStack.isNotEmpty()) {
-                                    val previous = undoStack.removeAt(undoStack.lastIndex)
-                                    linesList.clear()
-                                    linesList.addAll(previous)
-                                    autoSaveCurrentLyrics()
-                                    Toast.makeText(context, "Undone last action", Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            canUndo = undoStack.isNotEmpty(),
-                            onEditLine = { line -> showLineDetailDialog = line }
                         )
                     }
                     LyricsEditorMode.TEXT_EDITOR -> {
@@ -2294,14 +2341,14 @@ private fun parseLrcToSyncLines(lrcText: String): List<SyncLine> {
     return result
 }
 
-private fun formatPositionTime(timeMs: Long): String {
+internal fun formatPositionTime(timeMs: Long): String {
     val totalSec = (timeMs / 1000).coerceAtLeast(0)
     val min = totalSec / 60
     val sec = totalSec % 60
     return String.format(Locale.US, "%02d:%02d", min, sec)
 }
 
-private fun formatLrcTimeLabel(timeMs: Long): String {
+internal fun formatLrcTimeLabel(timeMs: Long): String {
     val totalSec = (timeMs / 1000).coerceAtLeast(0)
     val min = totalSec / 60
     val sec = totalSec % 60

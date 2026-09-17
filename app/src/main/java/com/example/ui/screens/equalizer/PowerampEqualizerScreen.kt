@@ -52,6 +52,7 @@ import kotlin.math.abs
 
 data class PowerampPresetItem(
     val name: String,
+    val category: String = "Genres",
     val gains: List<Float>,
     val bass: Int = 300,
     val treble: Float = 0f,
@@ -60,17 +61,42 @@ data class PowerampPresetItem(
 )
 
 val POWERAMP_PRESETS = listOf(
-    PowerampPresetItem("Flat", listOf(0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f), 0, 0f, 0, PresetReverb.PRESET_NONE.toInt()),
-    PowerampPresetItem("Bass Extreme", listOf(11f, 9f, 6f, 3f, 0f, 0f, 1f, 2f, 4f, 5f), 850, 2f, 200, PresetReverb.PRESET_NONE.toInt()),
-    PowerampPresetItem("Rock & Metal", listOf(7f, 5f, 2f, -1f, -2f, 1f, 4f, 7f, 8f, 7f), 450, 4f, 150, PresetReverb.PRESET_SMALLROOM.toInt()),
-    PowerampPresetItem("Electronic", listOf(8f, 7f, 3f, 0f, -2f, 2f, 5f, 7f, 8f, 9f), 650, 3f, 300, PresetReverb.PRESET_MEDIUMROOM.toInt()),
-    PowerampPresetItem("Techno Pulse", listOf(9f, 8f, 4f, 0f, -1f, 1f, 4f, 6f, 8f, 9f), 700, 2.5f, 250, PresetReverb.PRESET_MEDIUMHALL.toInt()),
-    PowerampPresetItem("Acoustic Live", listOf(4f, 3f, 1f, 2f, 3f, 3f, 4f, 5f, 5f, 4f), 200, 1.5f, 100, PresetReverb.PRESET_LARGEROOM.toInt()),
-    PowerampPresetItem("Vocal Clarity", listOf(-3f, -2f, 0f, 4f, 7f, 7f, 5f, 3f, 1f, 0f), 100, 1f, 0, PresetReverb.PRESET_NONE.toInt()),
-    PowerampPresetItem("Treble Sparkle", listOf(-2f, -1f, 0f, 0f, 2f, 4f, 7f, 10f, 11f, 11f), 150, 6f, 200, PresetReverb.PRESET_PLATE.toInt()),
-    PowerampPresetItem("Hip-Hop Punch", listOf(10f, 9f, 6f, 2f, -1f, -1f, 2f, 5f, 7f, 8f), 800, 1.5f, 150, PresetReverb.PRESET_NONE.toInt()),
-    PowerampPresetItem("Jazz Lounge", listOf(5f, 4f, 2f, 2f, 0f, 0f, 2f, 3f, 4f, 5f), 300, 2f, 100, PresetReverb.PRESET_SMALLROOM.toInt()),
-    PowerampPresetItem("Club Atmosphere", listOf(6f, 5f, 3f, 1f, 0f, 2f, 4f, 5f, 6f, 6f), 500, 3f, 400, PresetReverb.PRESET_LARGEHALL.toInt())
+    // Audiophile & Reference
+    PowerampPresetItem("Flat", "Audiophile", listOf(0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f), 0, 0f, 0, PresetReverb.PRESET_NONE.toInt()),
+    PowerampPresetItem("Studio Monitor", "Audiophile", listOf(0f, 0.5f, 0f, -0.5f, 0f, 0f, 0.5f, 0f, 0f, 0.5f), 50, 0.5f, 0, PresetReverb.PRESET_NONE.toInt()),
+    PowerampPresetItem("Harman Target", "Audiophile", listOf(5f, 4f, 2f, 0f, 0f, 1f, 3f, 4f, 3f, 2f), 300, 1.5f, 80, PresetReverb.PRESET_NONE.toInt()),
+    PowerampPresetItem("Audiophile Headphone", "Audiophile", listOf(4f, 3f, 1.5f, 0f, 0f, 1.5f, 3f, 4.5f, 4f, 3f), 250, 2f, 120, PresetReverb.PRESET_NONE.toInt()),
+
+    // Heavy Bass & Beats
+    PowerampPresetItem("Bass Extreme", "Bass & Beats", listOf(11f, 9f, 6f, 3f, 0f, 0f, 1f, 2f, 4f, 5f), 900, 2f, 200, PresetReverb.PRESET_NONE.toInt()),
+    PowerampPresetItem("Deep Sub-Bass", "Bass & Beats", listOf(12f, 10f, 5f, 1f, -1f, 0f, 0f, 1f, 2f, 3f), 950, 0f, 150, PresetReverb.PRESET_NONE.toInt()),
+    PowerampPresetItem("Hip-Hop & Rap", "Bass & Beats", listOf(10f, 8.5f, 5.5f, 2f, -1f, 0f, 2.5f, 5f, 7f, 7.5f), 800, 2f, 180, PresetReverb.PRESET_NONE.toInt()),
+    PowerampPresetItem("Electronic & EDM", "Bass & Beats", listOf(8f, 7f, 3f, 0f, -2f, 2f, 5f, 7f, 8f, 9f), 700, 3.5f, 300, PresetReverb.PRESET_MEDIUMROOM.toInt()),
+    PowerampPresetItem("Techno Pulse", "Bass & Beats", listOf(9f, 8f, 4f, 0f, -1f, 1f, 4f, 6f, 8f, 9f), 750, 2.5f, 250, PresetReverb.PRESET_MEDIUMHALL.toInt()),
+    PowerampPresetItem("Dance & House", "Bass & Beats", listOf(8f, 6.5f, 4f, 0f, 1f, 2.5f, 5f, 7f, 8.5f, 8f), 650, 3f, 220, PresetReverb.PRESET_SMALLROOM.toInt()),
+    PowerampPresetItem("Dubstep & Trap", "Bass & Beats", listOf(11f, 9.5f, 6f, 1f, -2f, 1f, 4.5f, 7.5f, 9f, 9.5f), 880, 4f, 280, PresetReverb.PRESET_NONE.toInt()),
+
+    // Popular Genres & Modern
+    PowerampPresetItem("Rock & Metal", "Genres", listOf(7f, 5f, 2f, -1f, -2f, 1f, 4f, 7f, 8f, 7f), 450, 4f, 150, PresetReverb.PRESET_SMALLROOM.toInt()),
+    PowerampPresetItem("Heavy Metal Shred", "Genres", listOf(8f, 6f, 1f, -3f, -3f, 2f, 5f, 8.5f, 9f, 8.5f), 550, 5f, 180, PresetReverb.PRESET_SMALLROOM.toInt()),
+    PowerampPresetItem("Pop Sparkle", "Genres", listOf(4f, 3f, 1f, 1.5f, 3f, 4f, 5.5f, 6.5f, 7f, 7f), 350, 3.5f, 160, PresetReverb.PRESET_SMALLROOM.toInt()),
+    PowerampPresetItem("R&B & Soul", "Genres", listOf(7f, 6f, 3.5f, 1f, 2f, 2f, 3.5f, 5f, 6f, 6f), 550, 2f, 180, PresetReverb.PRESET_MEDIUMROOM.toInt()),
+    PowerampPresetItem("Jazz Lounge", "Genres", listOf(5f, 4f, 2f, 2f, 0f, 0f, 2f, 3f, 4f, 5f), 300, 2f, 120, PresetReverb.PRESET_SMALLROOM.toInt()),
+    PowerampPresetItem("Classical Concert", "Genres", listOf(5f, 4f, 3f, 2f, -1f, 0f, 2f, 4f, 5f, 5.5f), 250, 2f, 350, PresetReverb.PRESET_LARGEROOM.toInt()),
+    PowerampPresetItem("Acoustic Live", "Genres", listOf(4f, 3f, 1f, 2f, 3f, 3f, 4f, 5f, 5f, 4f), 200, 1.5f, 120, PresetReverb.PRESET_LARGEROOM.toInt()),
+    PowerampPresetItem("Reggae & Dub", "Genres", listOf(9f, 7.5f, 4f, 0f, 1f, 2f, 3.5f, 3f, 2f, 1f), 700, -1f, 150, PresetReverb.PRESET_MEDIUMROOM.toInt()),
+    PowerampPresetItem("Latin & Salsa", "Genres", listOf(6f, 4.5f, 2f, 0f, 1f, 3f, 5.5f, 7f, 7.5f, 6.5f), 400, 3.5f, 180, PresetReverb.PRESET_SMALLROOM.toInt()),
+    PowerampPresetItem("Blues & Vintage", "Genres", listOf(5f, 4f, 2.5f, 1f, 2f, 2f, 3f, 4f, 4.5f, 3.5f), 350, 1f, 100, PresetReverb.PRESET_SMALLROOM.toInt()),
+
+    // Vocals, Devices & Atmosphere
+    PowerampPresetItem("Vocal Clarity", "Vocals & Speech", listOf(-3f, -2f, 0f, 4f, 7f, 7f, 5f, 3f, 1f, 0f), 80, 1f, 0, PresetReverb.PRESET_NONE.toInt()),
+    PowerampPresetItem("Podcast & Speech", "Vocals & Speech", listOf(-5f, -3f, 0f, 5f, 8f, 7.5f, 4f, 2f, 0f, -2f), 0, 0f, 0, PresetReverb.PRESET_NONE.toInt()),
+    PowerampPresetItem("Treble Sparkle", "Atmosphere", listOf(-2f, -1f, 0f, 0f, 2f, 4f, 7f, 10f, 11f, 11f), 150, 6f, 200, PresetReverb.PRESET_PLATE.toInt()),
+    PowerampPresetItem("Club Atmosphere", "Atmosphere", listOf(6f, 5f, 3f, 1f, 0f, 2f, 4f, 5f, 6f, 6f), 550, 3f, 450, PresetReverb.PRESET_LARGEHALL.toInt()),
+    PowerampPresetItem("Lo-Fi Chill", "Atmosphere", listOf(6f, 5f, 3f, 2f, 1f, 0f, -1f, -3f, -5f, -7f), 450, -4f, 150, PresetReverb.PRESET_MEDIUMROOM.toInt()),
+    PowerampPresetItem("Car Stereo Loudness", "Devices", listOf(8f, 7f, 3f, -1f, -1f, 1f, 4f, 6.5f, 8f, 8.5f), 650, 3.5f, 200, PresetReverb.PRESET_NONE.toInt()),
+    PowerampPresetItem("Gaming & Spatial 3D", "Devices", listOf(6f, 4.5f, 1f, 0f, 2f, 4f, 6f, 7.5f, 8f, 7f), 450, 3f, 600, PresetReverb.PRESET_LARGEROOM.toInt()),
+    PowerampPresetItem("Late Night Soft", "Atmosphere", listOf(3f, 2f, 1f, 0f, 0f, 0f, -1f, -2f, -3f, -4f), 150, -2f, 50, PresetReverb.PRESET_NONE.toInt())
 )
 
 val EQ_BAND_LABELS = listOf("31", "62", "125", "250", "500", "1k", "2k", "4k", "8k", "16k")
@@ -226,7 +252,46 @@ fun PowerampEqualizerScreen(
 
             Spacer(modifier = Modifier.height(4.dp))
 
+            var selectedCategory by remember { mutableStateOf("All") }
+            val categories = listOf("All", "Bass & Beats", "Genres", "Audiophile", "Vocals & Speech", "Atmosphere", "Devices")
+
+            // Category Filter Chips
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 2.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                categories.forEach { cat ->
+                    val isCatSelected = selectedCategory == cat
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = if (isCatSelected) colors.accentCyan else colors.surfaceVariant,
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            if (isCatSelected) colors.accentCyan else colors.border
+                        ),
+                        modifier = Modifier.clickable { selectedCategory = cat }
+                    ) {
+                        Text(
+                            text = cat,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = if (isCatSelected) FontWeight.Black else FontWeight.Bold,
+                                fontSize = 9.5.sp,
+                                fontFamily = FontFamily.Monospace
+                            ),
+                            color = if (isCatSelected) Color.Black else colors.textSecondary,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
             // Studio Presets Carousel
+            val filteredPresets = if (selectedCategory == "All") POWERAMP_PRESETS else POWERAMP_PRESETS.filter { it.category == selectedCategory }
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -234,7 +299,7 @@ fun PowerampEqualizerScreen(
                     .padding(horizontal = 16.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                POWERAMP_PRESETS.forEach { preset ->
+                filteredPresets.forEach { preset ->
                     val isSelected = currentPresetName == preset.name
                     Surface(
                         shape = RoundedCornerShape(8.dp),

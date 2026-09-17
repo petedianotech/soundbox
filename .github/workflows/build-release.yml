@@ -38,6 +38,7 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEYSTORE_PATH: my-upload-key.jks
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
         run: gradle assembleRelease --no-daemon
 
       - name: Upload Release APK

@@ -51,8 +51,26 @@ class PlaybackManager private constructor(private val context: Context) {
         .setPrioritizeTimeOverSizeThresholds(true)
         .build()
 
+    // Studio DSP AudioProcessors for pristine Left/Right balance panning & spatial expansion
+    val dspAudioProcessor = SoundboxDspAudioProcessor()
+    val fadeDspAudioProcessor = SoundboxDspAudioProcessor()
+
+    private fun createRenderersFactory(processor: SoundboxDspAudioProcessor): androidx.media3.exoplayer.DefaultRenderersFactory {
+        return object : androidx.media3.exoplayer.DefaultRenderersFactory(context) {
+            override fun buildAudioSink(
+                context: Context,
+                enableFloatOutput: Boolean,
+                enableAudioTrackPlaybackParams: Boolean
+            ): androidx.media3.exoplayer.audio.AudioSink {
+                return androidx.media3.exoplayer.audio.DefaultAudioSink.Builder(context)
+                    .setAudioProcessors(arrayOf(processor))
+                    .build()
+            }
+        }
+    }
+
     // Primary ExoPlayer reference
-    val player: ExoPlayer = ExoPlayer.Builder(context)
+    val player: ExoPlayer = ExoPlayer.Builder(context, createRenderersFactory(dspAudioProcessor))
         .setLoadControl(lowMemoryLoadControl)
         .setAudioAttributes(
             androidx.media3.common.AudioAttributes.Builder()
@@ -66,7 +84,7 @@ class PlaybackManager private constructor(private val context: Context) {
         .build()
 
     // Secondary Auxiliary ExoPlayer for true Poweramp-style dual-engine overlapping crossfade
-    val fadePlayer: ExoPlayer = ExoPlayer.Builder(context)
+    val fadePlayer: ExoPlayer = ExoPlayer.Builder(context, createRenderersFactory(fadeDspAudioProcessor))
         .setLoadControl(lowMemoryLoadControl)
         .setAudioAttributes(
             androidx.media3.common.AudioAttributes.Builder()
@@ -443,18 +461,33 @@ class PlaybackManager private constructor(private val context: Context) {
         }
 
         try {
-            val reverb = PresetReverb(1000, audioSessionId).apply {
-                enabled = _reverbPreset.value != PresetReverb.PRESET_NONE.toInt()
-                if (enabled) {
-                    preset = _reverbPreset.value.toShort()
-                }
+            val reverb = try {
+                PresetReverb(0, 0)
+            } catch (e: Exception) {
+                PresetReverb(0, audioSessionId)
+            }
+            val currentPreset = _reverbPreset.value
+            if (currentPreset != PresetReverb.PRESET_NONE.toInt()) {
+                reverb.preset = currentPreset.toShort()
+                reverb.enabled = true
+                player.setAuxEffectInfo(androidx.media3.common.AuxEffectInfo(reverb.id, 1.0f))
+                fadePlayer.setAuxEffectInfo(androidx.media3.common.AuxEffectInfo(reverb.id, 1.0f))
+            } else {
+                reverb.enabled = false
+                player.setAuxEffectInfo(androidx.media3.common.AuxEffectInfo(androidx.media3.common.AuxEffectInfo.NO_AUX_EFFECT_ID, 0f))
+                fadePlayer.setAuxEffectInfo(androidx.media3.common.AuxEffectInfo(androidx.media3.common.AuxEffectInfo.NO_AUX_EFFECT_ID, 0f))
             }
             presetReverb = reverb
-            player.setAuxEffectInfo(androidx.media3.common.AuxEffectInfo(reverb.id, 1.0f))
             Log.d("PlaybackManager", "Hardware PresetReverb attached to ExoPlayer AuxEffect")
         } catch (e: Exception) {
             Log.w("PlaybackManager", "PresetReverb activation skipped: ${e.message}")
         }
+
+        // Sync DSP AudioProcessors with persisted settings
+        dspAudioProcessor.balance = _audioBalance.value
+        dspAudioProcessor.virtualizerStrength = _virtualizerStrength.value
+        fadeDspAudioProcessor.balance = _audioBalance.value
+        fadeDspAudioProcessor.virtualizerStrength = _virtualizerStrength.value
 
         applyHardwareEqualizerBands()
     }
@@ -464,10 +497,7 @@ class PlaybackManager private constructor(private val context: Context) {
     fun getTargetMasterVolume(): Float {
         val preampDb = _preampGain.value
         // Real-time digital headroom/boost: 0dB = 1.0f, +6dB ~ 1.41f, -6dB ~ 0.5f
-        val preampFactor = Math.pow(10.0, (preampDb / 20.0).toDouble()).toFloat().coerceIn(0.05f, 1.8f)
-        val balance = _audioBalance.value
-        val balFactor = if (Math.abs(balance) > 0.05f) 1f - (Math.abs(balance) * 0.15f) else 1f
-        return (preampFactor * balFactor).coerceIn(0.05f, 1.8f)
+        return Math.pow(10.0, (preampDb / 20.0).toDouble()).toFloat().coerceIn(0.05f, 1.8f)
     }
 
     private fun updatePlayerVolume() {
@@ -965,7 +995,12 @@ class PlaybackManager private constructor(private val context: Context) {
         val clamped = strength.coerceIn(0, 1000)
         _virtualizerStrength.value = clamped
         settingsManager.setVirtualizerStrength(clamped)
+        dspAudioProcessor.virtualizerStrength = clamped
+        fadeDspAudioProcessor.virtualizerStrength = clamped
         try {
+            if (virtualizer == null && player.audioSessionId != androidx.media3.common.C.AUDIO_SESSION_ID_UNSET) {
+                virtualizer = Virtualizer(1000, player.audioSessionId)
+            }
             virtualizer?.let { virt ->
                 virt.enabled = clamped > 0
                 if (clamped > 0 && virt.strengthSupported) {
@@ -981,6 +1016,8 @@ class PlaybackManager private constructor(private val context: Context) {
         val clamped = balance.coerceIn(-1f, 1f)
         _audioBalance.value = clamped
         settingsManager.setAudioBalance(clamped)
+        dspAudioProcessor.balance = clamped
+        fadeDspAudioProcessor.balance = clamped
         updatePlayerVolume()
     }
 
@@ -988,10 +1025,28 @@ class PlaybackManager private constructor(private val context: Context) {
         _reverbPreset.value = presetId
         settingsManager.setReverbPreset(presetId)
         try {
+            if (presetReverb == null) {
+                presetReverb = try {
+                    PresetReverb(0, 0)
+                } catch (e: Exception) {
+                    val session = player.audioSessionId
+                    if (session != androidx.media3.common.C.AUDIO_SESSION_ID_UNSET) {
+                        PresetReverb(0, session)
+                    } else null
+                }
+            }
             presetReverb?.let { reverb ->
-                reverb.enabled = presetId != PresetReverb.PRESET_NONE.toInt()
-                if (reverb.enabled) {
+                if (presetId != PresetReverb.PRESET_NONE.toInt()) {
                     reverb.preset = presetId.toShort()
+                    reverb.enabled = true
+                    player.setAuxEffectInfo(androidx.media3.common.AuxEffectInfo(reverb.id, 1.0f))
+                    fadePlayer.setAuxEffectInfo(androidx.media3.common.AuxEffectInfo(reverb.id, 1.0f))
+                    Log.d("PlaybackManager", "PresetReverb activated: preset=$presetId, id=${reverb.id}")
+                } else {
+                    reverb.enabled = false
+                    player.setAuxEffectInfo(androidx.media3.common.AuxEffectInfo(androidx.media3.common.AuxEffectInfo.NO_AUX_EFFECT_ID, 0f))
+                    fadePlayer.setAuxEffectInfo(androidx.media3.common.AuxEffectInfo(androidx.media3.common.AuxEffectInfo.NO_AUX_EFFECT_ID, 0f))
+                    Log.d("PlaybackManager", "PresetReverb disabled")
                 }
             }
         } catch (e: Exception) {

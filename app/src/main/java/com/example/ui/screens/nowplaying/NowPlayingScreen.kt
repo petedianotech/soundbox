@@ -315,25 +315,7 @@ fun NowPlayingScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    if (colors.isDark) {
-                        Brush.verticalGradient(
-                            listOf(
-                                Color(0xFF0F1722),
-                                Color(0xFF090D14),
-                                Color(0xFF040608)
-                            )
-                        )
-                    } else {
-                        Brush.verticalGradient(
-                            listOf(
-                                Color(0xFFF8FAFC),
-                                Color(0xFFF1F5F9),
-                                Color(0xFFE2E8F0)
-                            )
-                        )
-                    }
-                )
+                .background(colors.background)
                 .padding(innerPadding)
         ) {
             if (isLandscape) {
@@ -1989,38 +1971,6 @@ private fun FullLyricsStage(
                         }
                     }
                 }
-
-                // Top Gradient Fade
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(70.dp)
-                        .align(Alignment.TopCenter)
-                        .background(
-                            Brush.verticalGradient(
-                                colors = listOf(
-                                    MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.95f),
-                                    Color.Transparent
-                                )
-                            )
-                        )
-                )
-
-                // Bottom Gradient Fade
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(70.dp)
-                        .align(Alignment.BottomCenter)
-                        .background(
-                            Brush.verticalGradient(
-                                colors = listOf(
-                                    Color.Transparent,
-                                    MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.95f)
-                                )
-                            )
-                        )
-                )
             }
 
             // Top Status Overlay (Options, Header & 1-Tap Return to Album Art)
@@ -2028,15 +1978,7 @@ private fun FullLyricsStage(
                 modifier = Modifier
                     .fillMaxWidth()
                     .align(Alignment.TopCenter)
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                MaterialTheme.colorScheme.surfaceContainerHigh,
-                                MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.9f),
-                                Color.Transparent
-                            )
-                        )
-                    )
+                    .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                     .padding(horizontal = 16.dp, vertical = 10.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically

@@ -16,6 +16,7 @@ import com.example.data.model.CleanerSummary
 import com.example.data.model.DuplicateGroup
 import com.example.data.repository.MusicRepository
 import com.example.player.PlaybackManager
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import com.example.util.SettingsManager
@@ -138,7 +139,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         settingsManager.setSongSortOrder(order.name)
     }
 
-    // Core dataset flows (using Lazily so songs are never wiped/reset when backgrounding the app)
+    // Core dataset flows (using Eagerly so songs are immediately loaded from SQLite on startup)
     val allSongs: StateFlow<List<Song>> = combine(repository.allSongs, _sortOrder) { songs, order ->
         when (order) {
             SortOrder.NEWEST_FIRST, SortOrder.DATE_ADDED -> songs.sortedByDescending { it.dateAdded }
@@ -154,25 +155,25 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             SortOrder.RATING -> songs.sortedByDescending { it.rating }
             SortOrder.MOST_PLAYED -> songs.sortedByDescending { it.playCount }
         }
-    }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     val favoriteSongs: StateFlow<List<Song>> = repository.favoriteSongs
-        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     val topRatedSongs: StateFlow<List<Song>> = repository.topRatedSongs
-        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     val mostPlayedSongs: StateFlow<List<Song>> = repository.mostPlayedSongs
-        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     val recentlyPlayedSongs: StateFlow<List<Song>> = repository.recentlyPlayedSongs
-        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     val recentlyAddedSongs: StateFlow<List<Song>> = repository.recentlyAddedSongs
-        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     val allPlaylists: StateFlow<List<Playlist>> = repository.allPlaylists
-        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     // UI grouping states (Folder-based navigation, album grouping, and artist metadata projection)
     val folderList: StateFlow<Map<String, List<Song>>> = repository.allSongs
@@ -514,8 +515,33 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     }.stateIn(viewModelScope, SharingStarted.Lazily, CleanerSummary(emptyList(), emptyList(), 0L, 0L))
 
     init {
-        // Run first local scan to populate music database silently
-        scanStorage()
+        // Fast instant startup: immediately check if Room DB already has songs
+        viewModelScope.launch(Dispatchers.IO) {
+            val cached = repository.getCachedSongsImmediate()
+            if (cached.isEmpty()) {
+                // First install or empty DB: scan storage with progress indicator
+                scanStorage()
+            } else {
+                // Library already cached in DB: UI displays songs immediately!
+                // Run background scan silently without blocking the UI
+                silentScanStorage()
+            }
+        }
+    }
+
+    private suspend fun silentScanStorage() {
+        try {
+            val newCount = repository.scanStorage()
+            if (newCount > 0) {
+                _scanNotification.value = "Library updated • $newCount new track${if (newCount > 1) "s" else ""} added"
+                viewModelScope.launch {
+                    kotlinx.coroutines.delay(4000)
+                    _scanNotification.value = null
+                }
+            }
+        } catch (e: Exception) {
+            // Squelch and handle scan anomalies
+        }
     }
 
     fun scanStorage() {

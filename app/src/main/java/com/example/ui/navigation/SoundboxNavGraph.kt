@@ -21,7 +21,7 @@ import com.example.ui.viewmodel.MusicViewModel
 fun SoundboxNavGraph(viewModel: MusicViewModel) {
     val navController = rememberNavController()
 
-    NavHost(navController = navController, startDestination = Routes.SPLASH) {
+    NavHost(navController = navController, startDestination = Routes.HOME) {
         composable(Routes.SPLASH) {
             SplashScreen(
                 onNavigateToHome = {

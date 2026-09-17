@@ -10,6 +10,9 @@ interface SongDao {
     @Query("SELECT * FROM songs ORDER BY title ASC")
     fun getAllSongs(): Flow<List<Song>>
 
+    @Query("SELECT * FROM songs ORDER BY title ASC")
+    suspend fun getAllSongsImmediate(): List<Song>
+
     @Query("SELECT * FROM songs WHERE isFavorite = 1 ORDER BY title ASC")
     fun getFavoriteSongs(): Flow<List<Song>>
 

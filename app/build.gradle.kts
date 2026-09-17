@@ -1,8 +1,35 @@
+import java.io.FileInputStream
+import java.util.Properties
+
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.kotlin.compose)
   alias(libs.plugins.google.devtools.ksp)
   alias(libs.plugins.roborazzi)
+}
+
+val versionPropsFile = rootProject.file("version.properties")
+val versionProps = Properties().apply {
+  if (versionPropsFile.exists()) {
+    FileInputStream(versionPropsFile).use { load(it) }
+  }
+}
+
+val baseVersionCode = (versionProps.getProperty("VERSION_CODE") ?: "14").toIntOrNull() ?: 14
+val baseVersionName = versionProps.getProperty("VERSION_NAME") ?: "1.3.0"
+
+val ghRunNumber = providers.environmentVariable("GITHUB_RUN_NUMBER").map { it.toIntOrNull() ?: 0 }.orElse(0).get()
+val envVersionCode = providers.environmentVariable("VERSION_CODE").map { it.toIntOrNull() ?: 0 }.orElse(0).get()
+
+val computedVersionCode = when {
+  envVersionCode > 0 -> envVersionCode
+  ghRunNumber > 0 -> baseVersionCode + ghRunNumber
+  else -> baseVersionCode
+}
+
+val computedVersionName = when {
+  ghRunNumber > 0 -> "$baseVersionName-b$ghRunNumber"
+  else -> baseVersionName
 }
 
 android {
@@ -13,8 +40,8 @@ android {
     applicationId = "com.aistudio.soundbox.xmpzq"
     minSdk = 21
     targetSdk = 36
-    versionCode = 1
-    versionName = "1.0"
+    versionCode = computedVersionCode
+    versionName = computedVersionName
     multiDexEnabled = true
     vectorDrawables.useSupportLibrary = true
 
