@@ -47,12 +47,19 @@ fun SettingsScreen(
     val visibleTabs by viewModel.settingsManager.visibleTabsFlow.collectAsState()
 
     val gaplessEnabled by viewModel.settingsManager.gaplessPlayback.collectAsState()
+    val crossfadeEnabled by viewModel.settingsManager.crossfadeEnabled.collectAsState()
+    val crossfadeSeconds by viewModel.settingsManager.crossfadeSeconds.collectAsState()
     val replayGain by viewModel.settingsManager.replayGainMode.collectAsState()
     val hiResEngine by viewModel.settingsManager.hiResAudioEngine.collectAsState()
     val keepScreenOn by viewModel.settingsManager.keepScreenOn.collectAsState()
     val hapticFeedback by viewModel.settingsManager.hapticFeedback.collectAsState()
     val visualizerStyle by viewModel.settingsManager.visualizerStyle.collectAsState()
     val visualizerEnabled by viewModel.settingsManager.visualizerEnabled.collectAsState()
+    val visualizerMode by viewModel.settingsManager.visualizerMode.collectAsState()
+    val vizTimeMorning by viewModel.settingsManager.vizTimeMorning.collectAsState()
+    val vizTimeAfternoon by viewModel.settingsManager.vizTimeAfternoon.collectAsState()
+    val vizTimeEvening by viewModel.settingsManager.vizTimeEvening.collectAsState()
+    val vizTimeNight by viewModel.settingsManager.vizTimeNight.collectAsState()
     val autoPauseHeadphone by viewModel.settingsManager.autoPauseOnHeadphoneUnplug.collectAsState()
     val autoResumeHeadphone by viewModel.settingsManager.autoResumeOnHeadphonePlug.collectAsState()
     val dynamicTheme by viewModel.settingsManager.dynamicThemeFromAlbumArt.collectAsState()
@@ -63,6 +70,9 @@ fun SettingsScreen(
     var showTabsDialog by remember { mutableStateOf(false) }
     var showReplayGainDialog by remember { mutableStateOf(false) }
     var showVisualizerDialog by remember { mutableStateOf(false) }
+    var showVisualizerModeDialog by remember { mutableStateOf(false) }
+    var showTimeSlotsDialog by remember { mutableStateOf(false) }
+    var selectedTimePeriodKey by remember { mutableStateOf<String?>(null) }
 
     val colors = SoundboxTheme.colors
 
@@ -211,8 +221,90 @@ fun SettingsScreen(
                 )
             }
 
-            // 2. PLAYBACK & TRANSITIONS SECTION
-            SettingsSection(title = "PLAYBACK & TRANSITIONS", sectionIcon = Icons.Default.PlayCircle) {
+            // 2. CROSS-FADE TRANSITIONS SECTION
+            SettingsSection(title = "CROSS-FADE TRANSITIONS", sectionIcon = Icons.Default.Shuffle) {
+                SettingsToggleRow(
+                    title = "Enable Cross-Fade",
+                    subtitle = if (crossfadeEnabled) "Seamless dual-player acoustic blending active" else "Cross-fade disabled (standard track end)",
+                    icon = Icons.Default.Transform,
+                    checked = crossfadeEnabled,
+                    onCheckedChange = { viewModel.settingsManager.setCrossfadeEnabled(it) }
+                )
+                if (crossfadeEnabled) {
+                    SettingsDivider()
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 10.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Cross-Fade Duration",
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                                color = colors.textPrimary
+                            )
+                            Text(
+                                text = if (crossfadeSeconds == 0) "Off (0s)" else "${crossfadeSeconds}s",
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Monospace
+                                ),
+                                color = colors.accentCyan
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Smooth acoustic overlap between outgoing and incoming tracks",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = colors.textMuted
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        val presetDurations = listOf(0, 1, 2, 3, 4, 5, 6, 8, 10, 12, 15)
+                        val currentIdx = presetDurations.indexOf(crossfadeSeconds).let { if (it >= 0) it else 3 }
+
+                        Slider(
+                            value = currentIdx.toFloat(),
+                            onValueChange = { floatVal ->
+                                val selectedSec = presetDurations[floatVal.toInt().coerceIn(0, presetDurations.size - 1)]
+                                viewModel.settingsManager.setCrossfadeSeconds(selectedSec)
+                            },
+                            valueRange = 0f..(presetDurations.size - 1).toFloat(),
+                            steps = presetDurations.size - 2,
+                            colors = SliderDefaults.colors(
+                                thumbColor = colors.accentCyan,
+                                activeTrackColor = colors.accentCyan,
+                                inactiveTrackColor = colors.border
+                            )
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            listOf(0, 2, 5, 8, 12, 15).forEach { sec ->
+                                val isChipSelected = crossfadeSeconds == sec
+                                FilterChip(
+                                    selected = isChipSelected,
+                                    onClick = { viewModel.settingsManager.setCrossfadeSeconds(sec) },
+                                    label = { Text(if (sec == 0) "Off" else "${sec}s", fontSize = 11.sp) },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = colors.accentCyan.copy(alpha = 0.2f),
+                                        selectedLabelColor = colors.accentCyan
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 3. PLAYBACK & SLEEP TIMER SECTION
+            SettingsSection(title = "PLAYBACK & SLEEP TIMER", sectionIcon = Icons.Default.PlayCircle) {
                 SettingsToggleRow(
                     title = "Gapless Playback",
                     subtitle = "Seamless track transition without acoustic pauses",
@@ -231,8 +323,8 @@ fun SettingsScreen(
                 )
             }
 
-            // 3. LOOK & FEEL (SKINS & VISUALIZER)
-            SettingsSection(title = "LOOK & FEEL (SKIN & THEME)", sectionIcon = Icons.Default.Palette) {
+            // 4. LOOK & FEEL (SKINS & VISUALIZER)
+            SettingsSection(title = "LOOK & FEEL (SKIN & VISUALIZER)", sectionIcon = Icons.Default.Palette) {
                 SettingsCardRow(
                     title = "App Skin Theme",
                     subtitle = if (currentTheme == "LIGHT") "Light Theme" else "Dark Theme (Default)",
@@ -258,12 +350,31 @@ fun SettingsScreen(
                 if (visualizerEnabled) {
                     SettingsDivider()
                     SettingsCardRow(
-                        title = "Visualizer Spectrum Style",
-                        subtitle = com.example.ui.components.VisualizerStyle.fromId(visualizerStyle).title,
-                        icon = Icons.Default.BarChart,
-                        badge = "10 STYLES",
-                        onClick = { showVisualizerDialog = true }
+                        title = "Visualizer Mode",
+                        subtitle = if (visualizerMode == "AUTO_TIME") "Automatic by Time of Day" else "Manual (Single Style)",
+                        icon = Icons.Default.Schedule,
+                        badge = if (visualizerMode == "AUTO_TIME") "AUTO TIME" else "MANUAL",
+                        badgeColor = if (visualizerMode == "AUTO_TIME") Poweramp_Cyan else colors.accentAmber,
+                        onClick = { showVisualizerModeDialog = true }
                     )
+                    SettingsDivider()
+                    if (visualizerMode == "AUTO_TIME") {
+                        SettingsCardRow(
+                            title = "Time-Based Visualizer Schedules",
+                            subtitle = "Morning: ${com.example.ui.components.VisualizerStyle.fromId(vizTimeMorning).title}\nAfternoon: ${com.example.ui.components.VisualizerStyle.fromId(vizTimeAfternoon).title}\nEvening: ${com.example.ui.components.VisualizerStyle.fromId(vizTimeEvening).title}\nNight: ${com.example.ui.components.VisualizerStyle.fromId(vizTimeNight).title}",
+                            icon = Icons.Default.AccessTime,
+                            badge = "4 SCHEDULES",
+                            onClick = { showTimeSlotsDialog = true }
+                        )
+                    } else {
+                        SettingsCardRow(
+                            title = "Visualizer Spectrum Style",
+                            subtitle = com.example.ui.components.VisualizerStyle.fromId(visualizerStyle).title,
+                            icon = Icons.Default.BarChart,
+                            badge = "16 STYLES",
+                            onClick = { showVisualizerDialog = true }
+                        )
+                    }
                 }
                 SettingsDivider()
                 SettingsToggleRow(
@@ -446,13 +557,204 @@ fun SettingsScreen(
         )
     }
 
+    if (showVisualizerModeDialog) {
+        AlertDialog(
+            containerColor = colors.dialogBackground,
+            titleContentColor = colors.textPrimary,
+            textContentColor = colors.textSecondary,
+            onDismissRequest = { showVisualizerModeDialog = false },
+            title = { Text("Visualizer Mode", fontWeight = FontWeight.Bold) },
+            text = {
+                Column {
+                    listOf(
+                        "MANUAL" to "Manual Selection" to "Keep one chosen visualizer spectrum style across all songs",
+                        "AUTO_TIME" to "Automatic by Time" to "Automatically change visualizer styles based on morning, afternoon, evening, and night"
+                    ).forEach { (pair, desc) ->
+                        val (modeId, modeTitle) = pair
+                        val isSelected = visualizerMode == modeId
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable {
+                                    viewModel.settingsManager.setVisualizerMode(modeId)
+                                    showVisualizerModeDialog = false
+                                }
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = isSelected,
+                                onClick = null,
+                                colors = RadioButtonDefaults.colors(selectedColor = colors.accentCyan)
+                            )
+                            Spacer(Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = modeTitle,
+                                    color = if (isSelected) colors.accentCyan else colors.textPrimary,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                )
+                                Text(
+                                    text = desc,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = colors.textMuted
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { showVisualizerModeDialog = false },
+                    colors = ButtonDefaults.textButtonColors(contentColor = colors.accentCyan)
+                ) {
+                    Text("Close")
+                }
+            }
+        )
+    }
+
+    if (showTimeSlotsDialog) {
+        AlertDialog(
+            containerColor = colors.dialogBackground,
+            titleContentColor = colors.textPrimary,
+            textContentColor = colors.textSecondary,
+            onDismissRequest = {
+                showTimeSlotsDialog = false
+                selectedTimePeriodKey = null
+            },
+            title = { Text(if (selectedTimePeriodKey == null) "Time-Based Visualizer Schedules" else "Choose Visualizer Style", fontWeight = FontWeight.Bold) },
+            text = {
+                if (selectedTimePeriodKey == null) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        listOf(
+                            Triple("MORNING", "Morning (06:00 - 12:00)", vizTimeMorning),
+                            Triple("AFTERNOON", "Afternoon (12:00 - 18:00)", vizTimeAfternoon),
+                            Triple("EVENING", "Evening (18:00 - 23:00)", vizTimeEvening),
+                            Triple("NIGHT", "Night (23:00 - 06:00)", vizTimeNight)
+                        ).forEach { (slotKey, slotTitle, currentStyleId) ->
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable { selectedTimePeriodKey = slotKey },
+                                color = colors.surface,
+                                border = androidx.compose.foundation.BorderStroke(1.dp, colors.border)
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(12.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = slotTitle,
+                                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                                            color = colors.textPrimary
+                                        )
+                                        Text(
+                                            text = com.example.ui.components.VisualizerStyle.fromId(currentStyleId).title,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = colors.accentCyan
+                                        )
+                                    }
+                                    Icon(
+                                        imageVector = Icons.Default.Edit,
+                                        contentDescription = "Change",
+                                        tint = colors.textMuted,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    val activeSlot = selectedTimePeriodKey
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        com.example.ui.components.VisualizerStyle.entries.forEach { style ->
+                            val isSelected = when (activeSlot) {
+                                "MORNING" -> vizTimeMorning == style.id
+                                "AFTERNOON" -> vizTimeAfternoon == style.id
+                                "EVENING" -> vizTimeEvening == style.id
+                                "NIGHT" -> vizTimeNight == style.id
+                                else -> false
+                            }
+                            Row(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable {
+                                        when (activeSlot) {
+                                            "MORNING" -> viewModel.settingsManager.setVizTimeMorning(style.id)
+                                            "AFTERNOON" -> viewModel.settingsManager.setVizTimeAfternoon(style.id)
+                                            "EVENING" -> viewModel.settingsManager.setVizTimeEvening(style.id)
+                                            "NIGHT" -> viewModel.settingsManager.setVizTimeNight(style.id)
+                                        }
+                                        selectedTimePeriodKey = null
+                                    }
+                                    .padding(vertical = 8.dp, horizontal = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                RadioButton(
+                                    selected = isSelected,
+                                    onClick = null,
+                                    colors = RadioButtonDefaults.colors(selectedColor = colors.accentCyan)
+                                )
+                                Spacer(Modifier.width(10.dp))
+                                Column {
+                                    Text(
+                                        text = style.title,
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal),
+                                        color = if (isSelected) colors.accentCyan else colors.textPrimary
+                                    )
+                                    Text(
+                                        text = style.subtitle,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = colors.textMuted
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (selectedTimePeriodKey != null) {
+                            selectedTimePeriodKey = null
+                        } else {
+                            showTimeSlotsDialog = false
+                        }
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = colors.accentCyan)
+                ) {
+                    Text(if (selectedTimePeriodKey != null) "Back" else "Done")
+                }
+            }
+        )
+    }
+
     if (showVisualizerDialog) {
         AlertDialog(
             containerColor = colors.dialogBackground,
             titleContentColor = colors.textPrimary,
             textContentColor = colors.textSecondary,
             onDismissRequest = { showVisualizerDialog = false },
-            title = { Text("Visualizer Style (10 Modes)", fontWeight = FontWeight.Bold) },
+            title = { Text("Visualizer Style (16 Modes)", fontWeight = FontWeight.Bold) },
             text = {
                 Column(
                     modifier = Modifier

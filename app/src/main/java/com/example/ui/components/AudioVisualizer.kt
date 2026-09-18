@@ -17,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Waves
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -26,7 +27,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
@@ -38,15 +38,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.example.util.SettingsManager
+import kotlinx.coroutines.delay
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.hypot
+import kotlin.math.min
 import kotlin.math.sin
 
 /**
- * 10 Studio-Grade, Professional Audio Spectrum & Visualizer Engines.
- * Designed for high fidelity, non-distracting aesthetics, and smooth physics.
+ * 16 Studio-Grade, Professional Audio Spectrum & Visualizer Engines.
+ * Designed for high fidelity, non-distracting aesthetics, smooth physics,
+ * zero gradient overload, and lightweight CPU/GPU efficiency on Android 5.0+.
  */
 enum class VisualizerStyle(
     val id: String,
@@ -61,8 +64,14 @@ enum class VisualizerStyle(
     FLOATING_PARTICLES("FLOATING_PARTICLES", "Audio Constellation", "Sound-reactive floating particle field"),
     CHROMATIC_WAVES("CHROMATIC_WAVES", "Harmonic Wave Ribbons", "Multi-band flowing acoustic curves"),
     SEGMENTED_LED("SEGMENTED_LED", "Hi-Fi Segmented LEDs", "Discrete calibrated LED headroom stack"),
-    ACOUSTIC_CURVE("ACOUSTIC_CURVE", "RTA Spline Envelope", "Continuous bezier frequency envelope"),
-    DYNAMIC_PEAK_DOTS("DYNAMIC_PEAK_DOTS", "Minimalist Peak Matrix", "Floating transient harmonic dot matrix");
+    ACOUSTIC_CURVE("ACOUSTIC_CURVE", "RTA Spline Envelope", "Continuous frequency envelope"),
+    DYNAMIC_PEAK_DOTS("DYNAMIC_PEAK_DOTS", "Minimalist Peak Matrix", "Floating transient harmonic dot matrix"),
+    CIRCULAR_SPECTRUM("CIRCULAR_SPECTRUM", "360° Circular Equalizer", "Radial frequency ring with audio reactive burst"),
+    HEXAGON_PULSE("HEXAGON_PULSE", "Harmonic Hexagon Matrix", "Resonant concentric geometric wireframe polygons"),
+    WATERFALL_BARCODE("WATERFALL_BARCODE", "Audiophile Barcode Waterfall", "High-density vertical spectrum stripes"),
+    VINTAGE_VU_BARS("VINTAGE_VU_BARS", "Vintage Hi-Fi RTA Stacker", "Classic retro digital equalizer stack with peak decay"),
+    TUNNEL_VORTEX("TUNNEL_VORTEX", "Acoustic Resonance Tunnel", "Pulsing concentric perspective audio rings"),
+    FLUID_RIPPLE("FLUID_RIPPLE", "Harmonic Fluid Ripples", "Multi-frequency sine interference field");
 
     companion object {
         fun fromId(id: String): VisualizerStyle {
@@ -88,9 +97,22 @@ fun RealtimeAudioVisualizer(
     onDismiss: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
-    val settingsManager = remember { SettingsManager(context) }
+    val settingsManager = remember { SettingsManager.getInstance(context) }
     val savedStyleId by settingsManager.visualizerStyle.collectAsState()
-    val activeStyle = remember(savedStyleId) { VisualizerStyle.fromId(savedStyleId) }
+    val visualizerMode by settingsManager.visualizerMode.collectAsState()
+
+    // Dynamic resolved style based on mode (MANUAL or AUTO_TIME)
+    var resolvedStyleId by remember { mutableStateOf(settingsManager.getEffectiveVisualizerStyle()) }
+
+    // Lightweight periodic check for Auto-Time mode (updates every 30 seconds without recreating audio engine)
+    LaunchedEffect(visualizerMode, savedStyleId, isPlaying) {
+        while (true) {
+            resolvedStyleId = settingsManager.getEffectiveVisualizerStyle()
+            delay(30_000L)
+        }
+    }
+
+    val activeStyle = remember(resolvedStyleId) { VisualizerStyle.fromId(resolvedStyleId) }
 
     var hasRecordPermission by remember {
         mutableStateOf(
@@ -123,7 +145,7 @@ fun RealtimeAudioVisualizer(
         label = "phase"
     )
 
-    // Hardware Visualizer setup
+    // Hardware Visualizer setup - persists across style transitions without recreation
     DisposableEffect(audioSessionId, isPlaying, hasRecordPermission) {
         var visualizer: Visualizer? = null
         if (hasRecordPermission && isPlaying && audioSessionId > 0) {
@@ -223,7 +245,10 @@ fun RealtimeAudioVisualizer(
     fun cycleNextStyle() {
         val allStyles = VisualizerStyle.entries
         val nextIndex = (activeStyle.ordinal + 1) % allStyles.size
-        settingsManager.setVisualizerStyle(allStyles[nextIndex].id)
+        val nextId = allStyles[nextIndex].id
+        settingsManager.setVisualizerMode("MANUAL")
+        settingsManager.setVisualizerStyle(nextId)
+        resolvedStyleId = nextId
     }
 
     Column(
@@ -243,7 +268,6 @@ fun RealtimeAudioVisualizer(
                 val width = size.width
                 val height = size.height
 
-                // Helper to get normalized magnitude for band i
                 fun getMag(i: Int): Float {
                     return if (isPlaying && hasRecordPermission) {
                         magnitudes.getOrElse(i) { 0.05f }
@@ -277,14 +301,8 @@ fun RealtimeAudioVisualizer(
                             val x = i * (barWidth + barSpacing)
                             val y = height - barHeight
 
-                            val barBrush = Brush.verticalGradient(
-                                colors = listOf(accentColor, accentColor.copy(alpha = 0.65f)),
-                                startY = y,
-                                endY = height
-                            )
-
                             drawRoundRect(
-                                brush = barBrush,
+                                color = accentColor,
                                 topLeft = Offset(x, y),
                                 size = Size(barWidth, barHeight),
                                 cornerRadius = CornerRadius(barWidth / 2f, barWidth / 2f)
@@ -293,7 +311,7 @@ fun RealtimeAudioVisualizer(
                             val peak = getPeak(i, mag)
                             val peakY = (height - (height * 0.85f * peak) - 3f).coerceAtLeast(0f)
                             drawCircle(
-                                color = accentColor,
+                                color = accentColor.copy(alpha = 0.9f),
                                 radius = (barWidth / 2f).coerceAtMost(2.5.dp.toPx()),
                                 center = Offset(x + (barWidth / 2f), peakY)
                             )
@@ -301,7 +319,7 @@ fun RealtimeAudioVisualizer(
                     }
 
                     VisualizerStyle.ANALOG_VU_DUAL -> {
-                        // 2. Dual Audiophile Analog VU Meters (Left & Right channels)
+                        // 2. Dual Audiophile Analog VU Meters
                         val meterWidth = (width - 16.dp.toPx()) / 2f
                         val meterHeight = height
 
@@ -311,18 +329,15 @@ fun RealtimeAudioVisualizer(
                             val pivotY = meterHeight * 1.15f
                             val needleLength = meterHeight * 0.95f
 
-                            // Average energy for left (ch=0) vs right (ch=1)
                             val half = barCount / 2
                             val channelMags = if (ch == 0) (0 until half) else (half until barCount)
                             val avgMag = channelMags.map { getMag(it) }.average().toFloat().coerceIn(0.04f, 1f)
 
-                            // Arc sweep: -40 deg to +40 deg
                             val angleDeg = -40f + (avgMag * 80f)
                             val angleRad = (angleDeg - 90f) * (PI / 180f)
                             val needleEndX = pivotX + (cos(angleRad) * needleLength).toFloat()
                             val needleEndY = pivotY + (sin(angleRad) * needleLength).toFloat()
 
-                            // Draw scale arc
                             drawArc(
                                 color = secondaryColor.copy(alpha = 0.25f),
                                 startAngle = 210f,
@@ -333,7 +348,6 @@ fun RealtimeAudioVisualizer(
                                 style = Stroke(width = 1.5.dp.toPx(), cap = StrokeCap.Round)
                             )
 
-                            // Needle
                             val isOverload = avgMag > 0.82f
                             val needleColor = if (isOverload) Color(0xFFEF4444) else accentColor
                             drawLine(
@@ -344,21 +358,11 @@ fun RealtimeAudioVisualizer(
                                 cap = StrokeCap.Round
                             )
 
-                            // Pivot cap
                             drawCircle(
                                 color = secondaryColor,
                                 radius = 4.dp.toPx(),
                                 center = Offset(pivotX, pivotY)
                             )
-
-                            // Peak LED
-                            if (isOverload) {
-                                drawCircle(
-                                    color = Color(0xFFEF4444),
-                                    radius = 3.dp.toPx(),
-                                    center = Offset(meterX + meterWidth - 10.dp.toPx(), 10.dp.toPx())
-                                )
-                            }
                         }
                     }
 
@@ -366,36 +370,27 @@ fun RealtimeAudioVisualizer(
                         // 3. Radial Orbit Ring
                         val centerX = width / 2f
                         val centerY = height / 2f
-                        val baseRadius = (height / 2f) * 0.45f
-                        val maxRayLength = (height / 2f) * 0.5f
+                        val baseRadius = min(width, height) * 0.24f
 
-                        // Inner core
-                        val bassEnergy = (getMag(0) + getMag(1) + getMag(2)) / 3f
                         drawCircle(
-                            color = accentColor.copy(alpha = 0.2f),
-                            radius = baseRadius + (bassEnergy * 6f),
-                            center = Offset(centerX, centerY)
-                        )
-                        drawCircle(
-                            color = accentColor,
-                            radius = baseRadius * 0.75f,
+                            color = secondaryColor.copy(alpha = 0.2f),
+                            radius = baseRadius,
                             center = Offset(centerX, centerY),
                             style = Stroke(width = 1.5.dp.toPx())
                         )
 
-                        // Radiating rays
-                        val angleStep = (2 * PI) / barCount
                         for (i in 0 until barCount) {
                             val mag = getMag(i)
-                            val angle = i * angleStep
-                            val startX = centerX + (cos(angle) * baseRadius).toFloat()
-                            val startY = centerY + (sin(angle) * baseRadius).toFloat()
-                            val rayLen = baseRadius + (mag * maxRayLength)
-                            val endX = centerX + (cos(angle) * rayLen).toFloat()
-                            val endY = centerY + (sin(angle) * rayLen).toFloat()
+                            val angle = (i.toFloat() / barCount) * (PI * 2).toFloat()
+                            val rayLen = (min(width, height) * 0.22f * mag).coerceAtLeast(2f)
+
+                            val startX = centerX + (cos(angle) * baseRadius)
+                            val startY = centerY + (sin(angle) * baseRadius)
+                            val endX = centerX + (cos(angle) * (baseRadius + rayLen))
+                            val endY = centerY + (sin(angle) * (baseRadius + rayLen))
 
                             drawLine(
-                                color = if (i % 2 == 0) accentColor else secondaryColor,
+                                color = accentColor,
                                 start = Offset(startX, startY),
                                 end = Offset(endX, endY),
                                 strokeWidth = 2.dp.toPx(),
@@ -405,47 +400,26 @@ fun RealtimeAudioVisualizer(
                     }
 
                     VisualizerStyle.OSCILLOSCOPE_CRT -> {
-                        // 4. Phosphor CRT Oscilloscope
+                        // 4. Phosphor Oscilloscope
+                        val midY = height / 2f
                         val path = Path()
                         val stepX = width / (barCount - 1).coerceAtLeast(1)
-                        val midY = height / 2f
 
                         for (i in 0 until barCount) {
-                            val mag = if (isPlaying && hasRecordPermission) {
-                                (magnitudes.getOrElse(i) { 0.05f } - 0.5f) * 2f
-                            } else if (isPlaying) {
-                                (sin(fallbackPhase + (i * 0.45f)) * 0.85f)
-                            } else {
-                                0.0f
-                            }
-
+                            val mag = getMag(i)
+                            val waveSample = (sin(fallbackPhase * 2f + (i * 0.5f)) * mag * (height * 0.42f))
                             val x = i * stepX
-                            val y = midY + (mag * (height * 0.38f))
+                            val y = (midY + waveSample).coerceIn(2f, height - 2f)
 
-                            if (i == 0) {
-                                path.moveTo(x, y)
-                            } else {
-                                val prevX = (i - 1) * stepX
-                                val prevMag = if (isPlaying && hasRecordPermission) {
-                                    (magnitudes.getOrElse(i - 1) { 0.05f } - 0.5f) * 2f
-                                } else if (isPlaying) {
-                                    (sin(fallbackPhase + ((i - 1) * 0.45f)) * 0.85f)
-                                } else {
-                                    0.0f
-                                }
-                                val prevY = midY + (prevMag * (height * 0.38f))
-                                val cx = (prevX + x) / 2f
-                                path.cubicTo(cx, prevY, cx, y, x, y)
-                            }
+                            if (i == 0) path.moveTo(x, y)
+                            else path.lineTo(x, y)
                         }
 
-                        // Outer phosphor glow
                         drawPath(
                             path = path,
                             color = accentColor.copy(alpha = 0.35f),
-                            style = Stroke(width = 5.dp.toPx(), cap = StrokeCap.Round)
+                            style = Stroke(width = 4.5.dp.toPx(), cap = StrokeCap.Round)
                         )
-                        // Sharp laser line
                         drawPath(
                             path = path,
                             color = accentColor,
@@ -454,47 +428,40 @@ fun RealtimeAudioVisualizer(
                     }
 
                     VisualizerStyle.MIRRORED_STEREO -> {
-                        // 5. Mirrored Stereo Field (Symmetrical from center horizontal axis)
-                        val totalGap = width * 0.18f
+                        // 5. Mirrored Stereo Field
+                        val midY = height / 2f
+                        val totalGap = width * 0.15f
                         val barSpacing = totalGap / (barCount - 1).coerceAtLeast(1)
                         val barWidth = ((width - totalGap) / barCount).coerceAtLeast(2f)
-                        val midY = height / 2f
 
                         for (i in 0 until barCount) {
                             val mag = getMag(i)
-                            val halfH = (height * 0.42f * mag).coerceAtLeast(2f)
+                            val halfHeight = (height * 0.42f * mag).coerceAtLeast(2f)
                             val x = i * (barWidth + barSpacing)
 
                             drawRoundRect(
                                 color = accentColor,
-                                topLeft = Offset(x, midY - halfH),
-                                size = Size(barWidth, halfH * 2f),
+                                topLeft = Offset(x, midY - halfHeight),
+                                size = Size(barWidth, halfHeight * 2),
                                 cornerRadius = CornerRadius(barWidth / 2f, barWidth / 2f)
                             )
                         }
-
-                        // Baseline axis
-                        drawLine(
-                            color = secondaryColor.copy(alpha = 0.3f),
-                            start = Offset(0f, midY),
-                            end = Offset(width, midY),
-                            strokeWidth = 1.dp.toPx()
-                        )
                     }
 
                     VisualizerStyle.FLOATING_PARTICLES -> {
-                        // 6. Audio Constellation Particles
-                        val stepX = width / (barCount - 1).coerceAtLeast(1)
+                        // 6. Audio Constellation
                         val particlePoints = mutableListOf<Offset>()
+                        val stepX = width / (barCount - 1).coerceAtLeast(1)
 
                         for (i in 0 until barCount) {
                             val mag = getMag(i)
                             val x = i * stepX
-                            val y = height - (height * 0.85f * mag).coerceIn(8f, height - 8f)
+                            val waveY = (sin(fallbackPhase + (i * 0.7f)) * (height * 0.25f))
+                            val y = ((height / 2f) + waveY - (mag * height * 0.35f)).coerceIn(4f, height - 4f)
                             val pt = Offset(x, y)
                             particlePoints.add(pt)
 
-                            val radius = (3.dp.toPx() + (mag * 4.dp.toPx())).coerceAtMost(6.dp.toPx())
+                            val radius = (1.5.dp.toPx() + (mag * 3.5.dp.toPx())).coerceAtMost(5.dp.toPx())
                             drawCircle(
                                 color = accentColor,
                                 radius = radius,
@@ -502,7 +469,6 @@ fun RealtimeAudioVisualizer(
                             )
                         }
 
-                        // Constellation link lines
                         for (i in 0 until particlePoints.size - 1) {
                             val p1 = particlePoints[i]
                             val p2 = particlePoints[i + 1]
@@ -516,14 +482,14 @@ fun RealtimeAudioVisualizer(
                     }
 
                     VisualizerStyle.CHROMATIC_WAVES -> {
-                        // 7. Harmonic Wave Ribbons (3 harmonic smooth waves)
+                        // 7. Harmonic Wave Ribbons
                         val midY = height / 2f
                         val stepX = width / (barCount - 1).coerceAtLeast(1)
 
                         val waveConfigs = listOf(
-                            Triple(accentColor.copy(alpha = 0.65f), 1.0f, 0.4f),
-                            Triple(secondaryColor.copy(alpha = 0.5f), 1.6f, 0.32f),
-                            Triple(accentColor.copy(alpha = 0.35f), 2.2f, 0.25f)
+                            Triple(accentColor, 1.0f, 0.4f),
+                            Triple(secondaryColor.copy(alpha = 0.7f), 1.6f, 0.32f),
+                            Triple(accentColor.copy(alpha = 0.45f), 2.2f, 0.25f)
                         )
 
                         for ((color, freqMult, ampMult) in waveConfigs) {
@@ -567,9 +533,9 @@ fun RealtimeAudioVisualizer(
 
                                 val segColor = when {
                                     !isActive -> secondaryColor.copy(alpha = 0.12f)
-                                    segFromBottom >= 7 -> Color(0xFFEF4444) // Red overload
-                                    segFromBottom >= 5 -> Color(0xFFF59E0B) // Amber headroom
-                                    else -> accentColor // Safe signal level
+                                    segFromBottom >= 7 -> Color(0xFFEF4444)
+                                    segFromBottom >= 5 -> Color(0xFFF59E0B)
+                                    else -> accentColor
                                 }
 
                                 drawRoundRect(
@@ -586,7 +552,6 @@ fun RealtimeAudioVisualizer(
                         // 9. RTA Frequency Spline Envelope
                         val stepX = width / (barCount - 1).coerceAtLeast(1)
                         val curvePath = Path()
-                        val fillPath = Path()
 
                         for (i in 0 until barCount) {
                             val mag = getMag(i)
@@ -595,33 +560,15 @@ fun RealtimeAudioVisualizer(
 
                             if (i == 0) {
                                 curvePath.moveTo(x, y)
-                                fillPath.moveTo(x, height)
-                                fillPath.lineTo(x, y)
                             } else {
                                 val prevX = (i - 1) * stepX
                                 val prevMag = getMag(i - 1)
                                 val prevY = height - (height * 0.88f * prevMag).coerceAtLeast(4f)
                                 val cx = (prevX + x) / 2f
                                 curvePath.cubicTo(cx, prevY, cx, y, x, y)
-                                fillPath.cubicTo(cx, prevY, cx, y, x, y)
                             }
                         }
 
-                        fillPath.lineTo(width, height)
-                        fillPath.close()
-
-                        // Gradient fill under curve
-                        drawPath(
-                            path = fillPath,
-                            brush = Brush.verticalGradient(
-                                colors = listOf(accentColor.copy(alpha = 0.35f), Color.Transparent),
-                                startY = 0f,
-                                endY = height
-                            ),
-                            style = Fill
-                        )
-
-                        // Outline curve
                         drawPath(
                             path = curvePath,
                             color = accentColor,
@@ -639,24 +586,214 @@ fun RealtimeAudioVisualizer(
                             val x = i * stepX
                             val y = height - (height * 0.86f * peak).coerceAtLeast(6f)
 
-                            // Subtle vertical tracer line
                             drawLine(
-                                color = secondaryColor.copy(alpha = 0.15f),
+                                color = secondaryColor.copy(alpha = 0.2f),
                                 start = Offset(x, height),
                                 end = Offset(x, y),
                                 strokeWidth = 1.dp.toPx()
                             )
 
-                            // Glowing peak dot
-                            drawCircle(
-                                color = accentColor.copy(alpha = 0.35f),
-                                radius = 5.dp.toPx(),
-                                center = Offset(x, y)
-                            )
                             drawCircle(
                                 color = accentColor,
                                 radius = 2.5.dp.toPx(),
                                 center = Offset(x, y)
+                            )
+                        }
+                    }
+
+                    VisualizerStyle.CIRCULAR_SPECTRUM -> {
+                        // 11. 360° Circular Equalizer
+                        val centerX = width / 2f
+                        val centerY = height / 2f
+                        val baseR = min(width, height) * 0.25f
+
+                        drawCircle(
+                            color = secondaryColor.copy(alpha = 0.2f),
+                            radius = baseR,
+                            center = Offset(centerX, centerY),
+                            style = Stroke(width = 1.5.dp.toPx())
+                        )
+
+                        for (i in 0 until barCount) {
+                            val mag = getMag(i)
+                            val angle = (i.toFloat() / barCount) * (PI * 2).toFloat() - (PI / 2).toFloat()
+                            val barLen = (min(width, height) * 0.22f * mag).coerceAtLeast(3f)
+
+                            val startX = centerX + cos(angle) * baseR
+                            val startY = centerY + sin(angle) * baseR
+                            val endX = centerX + cos(angle) * (baseR + barLen)
+                            val endY = centerY + sin(angle) * (baseR + barLen)
+
+                            drawLine(
+                                color = accentColor,
+                                start = Offset(startX, startY),
+                                end = Offset(endX, endY),
+                                strokeWidth = 2.2.dp.toPx(),
+                                cap = StrokeCap.Round
+                            )
+
+                            val peak = getPeak(i, mag)
+                            val peakX = centerX + cos(angle) * (baseR + (min(width, height) * 0.22f * peak))
+                            val peakY = centerY + sin(angle) * (baseR + (min(width, height) * 0.22f * peak))
+                            drawCircle(
+                                color = secondaryColor,
+                                radius = 1.8.dp.toPx(),
+                                center = Offset(peakX, peakY)
+                            )
+                        }
+                    }
+
+                    VisualizerStyle.HEXAGON_PULSE -> {
+                        // 12. Harmonic Hexagon Matrix
+                        val centerX = width / 2f
+                        val centerY = height / 2f
+                        val bassEnergy = (getMag(0) + getMag(1) + getMag(2)) / 3f
+
+                        val layerScales = listOf(0.18f, 0.32f, 0.44f)
+                        for ((idx, scale) in layerScales.withIndex()) {
+                            val radius = (min(width, height) * scale * (1f + (bassEnergy * 0.25f * (idx + 1)))).coerceAtLeast(4f)
+                            val hexPath = Path()
+                            for (corner in 0..5) {
+                                val angle = (corner * 60f) * (PI / 180f).toFloat() + (if (idx % 2 == 1) fallbackPhase * 0.2f else -fallbackPhase * 0.2f)
+                                val hx = centerX + cos(angle) * radius
+                                val hy = centerY + sin(angle) * radius
+                                if (corner == 0) hexPath.moveTo(hx, hy) else hexPath.lineTo(hx, hy)
+                            }
+                            hexPath.close()
+
+                            val color = if (idx == 0) accentColor else secondaryColor.copy(alpha = if (idx == 1) 0.6f else 0.3f)
+                            drawPath(
+                                path = hexPath,
+                                color = color,
+                                style = Stroke(width = (2.5f - (idx * 0.5f)).dp.toPx(), cap = StrokeCap.Round)
+                            )
+                        }
+                    }
+
+                    VisualizerStyle.WATERFALL_BARCODE -> {
+                        // 13. Audiophile Barcode Waterfall
+                        val stripeCount = (barCount * 1.5f).toInt()
+                        val stripeWidth = (width / stripeCount) * 0.65f
+                        val stripeGap = (width / stripeCount) * 0.35f
+                        val midY = height / 2f
+
+                        for (i in 0 until stripeCount) {
+                            val mappedBand = (i * barCount / stripeCount).coerceIn(0, barCount - 1)
+                            val mag = getMag(mappedBand)
+                            val stripeHeight = (height * 0.85f * mag).coerceAtLeast(3f)
+                            val x = i * (stripeWidth + stripeGap) + (stripeGap / 2f)
+
+                            val color = if (i % 2 == 0) accentColor else secondaryColor.copy(alpha = 0.7f)
+                            drawRoundRect(
+                                color = color,
+                                topLeft = Offset(x, midY - (stripeHeight / 2f)),
+                                size = Size(stripeWidth, stripeHeight),
+                                cornerRadius = CornerRadius(stripeWidth / 2f, stripeWidth / 2f)
+                            )
+                        }
+                    }
+
+                    VisualizerStyle.VINTAGE_VU_BARS -> {
+                        // 14. Vintage Hi-Fi RTA Stacker
+                        val columns = 16
+                        val rows = 7
+                        val colW = (width / columns) * 0.75f
+                        val colSpacing = (width / columns) * 0.25f
+                        val rowH = (height / rows) * 0.7f
+                        val rowSpacing = (height / rows) * 0.3f
+
+                        for (c in 0 until columns) {
+                            val bandIdx = (c * barCount / columns).coerceIn(0, barCount - 1)
+                            val mag = getMag(bandIdx)
+                            val activeRows = (mag * rows).toInt().coerceIn(1, rows)
+                            val x = c * (colW + colSpacing) + (colSpacing / 2f)
+
+                            for (r in 0 until rows) {
+                                val rFromBottom = rows - 1 - r
+                                val y = r * (rowH + rowSpacing)
+                                val isActive = rFromBottom < activeRows
+
+                                val blockColor = when {
+                                    !isActive -> secondaryColor.copy(alpha = 0.1f)
+                                    rFromBottom >= 6 -> Color(0xFFEF4444)
+                                    rFromBottom >= 4 -> Color(0xFFF59E0B)
+                                    else -> accentColor
+                                }
+
+                                drawRect(
+                                    color = blockColor,
+                                    topLeft = Offset(x, y),
+                                    size = Size(colW, rowH)
+                                )
+                            }
+                        }
+                    }
+
+                    VisualizerStyle.TUNNEL_VORTEX -> {
+                        // 15. Acoustic Resonance Tunnel
+                        val centerX = width / 2f
+                        val centerY = height / 2f
+                        val ringCount = 5
+                        val bass = (getMag(0) + getMag(1)) / 2f
+
+                        for (r in 1..ringCount) {
+                            val scale = r.toFloat() / ringCount
+                            val baseRadius = (min(width, height) * 0.44f * scale)
+                            val reactiveR = (baseRadius * (1f + (bass * 0.2f * (1f - (scale * 0.5f))))).coerceAtLeast(2f)
+
+                            val alpha = 0.2f + (0.8f * (1f - (scale * 0.6f)))
+                            drawCircle(
+                                color = accentColor.copy(alpha = alpha.coerceIn(0.15f, 1f)),
+                                radius = reactiveR,
+                                center = Offset(centerX, centerY),
+                                style = Stroke(width = 1.8.dp.toPx())
+                            )
+                        }
+
+                        // Perspective cross-beams
+                        val angles = listOf(30f, 150f, 210f, 330f)
+                        val maxR = min(width, height) * 0.44f
+                        for (deg in angles) {
+                            val rad = deg * (PI / 180f).toFloat()
+                            drawLine(
+                                color = secondaryColor.copy(alpha = 0.25f),
+                                start = Offset(centerX, centerY),
+                                end = Offset(centerX + cos(rad) * maxR, centerY + sin(rad) * maxR),
+                                strokeWidth = 1.dp.toPx()
+                            )
+                        }
+                    }
+
+                    VisualizerStyle.FLUID_RIPPLE -> {
+                        // 16. Harmonic Fluid Ripples
+                        val midY = height / 2f
+                        val stepX = width / (barCount - 1).coerceAtLeast(1)
+
+                        val waveConfigs = listOf(
+                            Triple(accentColor, 1.0f, 0.42f),
+                            Triple(secondaryColor.copy(alpha = 0.75f), 1.7f, 0.3f),
+                            Triple(accentColor.copy(alpha = 0.4f), 2.5f, 0.22f),
+                            Triple(secondaryColor.copy(alpha = 0.3f), 3.2f, 0.15f)
+                        )
+
+                        for ((color, speed, amp) in waveConfigs) {
+                            val path = Path()
+                            for (i in 0 until barCount) {
+                                val mag = getMag(i)
+                                val x = i * stepX
+                                val y = midY + (sin(fallbackPhase * speed + (i * 0.45f)) * mag * height * amp)
+                                if (i == 0) path.moveTo(x, y)
+                                else {
+                                    val prevX = (i - 1) * stepX
+                                    val prevY = midY + (sin(fallbackPhase * speed + ((i - 1) * 0.45f)) * getMag(i - 1) * height * amp)
+                                    val cx = (prevX + x) / 2f
+                                    path.cubicTo(cx, prevY, cx, y, x, y)
+                                }
+                            }
+                            drawPath(
+                                path = path,
+                                color = color,
+                                style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round)
                             )
                         }
                     }
@@ -672,6 +809,7 @@ fun RealtimeAudioVisualizer(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
+            val isAutoTime = visualizerMode == "AUTO_TIME"
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
@@ -680,14 +818,14 @@ fun RealtimeAudioVisualizer(
                     .padding(horizontal = 6.dp, vertical = 2.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Default.GraphicEq,
+                    imageVector = if (isAutoTime) Icons.Default.Schedule else Icons.Default.GraphicEq,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(13.dp)
                 )
                 Spacer(modifier = Modifier.width(5.dp))
                 Text(
-                    text = "${activeStyle.ordinal + 1}/10 • ${activeStyle.title}",
+                    text = "${activeStyle.ordinal + 1}/${VisualizerStyle.entries.size} • ${activeStyle.title}${if (isAutoTime) " (Auto Time)" else ""}",
                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.5.sp, fontWeight = FontWeight.Medium),
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

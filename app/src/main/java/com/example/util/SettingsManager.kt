@@ -38,11 +38,29 @@ class SettingsManager(context: Context) {
     private val _hapticFeedback = MutableStateFlow(prefs.getBoolean("haptic_feedback", true))
     val hapticFeedback: StateFlow<Boolean> = _hapticFeedback
 
-    private val _visualizerStyle = MutableStateFlow(prefs.getString("visualizer_style", "WAVEFORM") ?: "WAVEFORM")
+    private val _visualizerStyle = MutableStateFlow(prefs.getString("visualizer_style", "STUDIO_SPECTRUM") ?: "STUDIO_SPECTRUM")
     val visualizerStyle: StateFlow<String> = _visualizerStyle
 
     private val _visualizerEnabled = MutableStateFlow(prefs.getBoolean("visualizer_enabled", true))
     val visualizerEnabled: StateFlow<Boolean> = _visualizerEnabled
+
+    // Visualizer Mode: "MANUAL" (user chooses 1 style) or "AUTO_TIME" (changes according to time)
+    private val _visualizerMode = MutableStateFlow(prefs.getString("visualizer_mode", "MANUAL") ?: "MANUAL")
+    val visualizerMode: StateFlow<String> = _visualizerMode
+
+    // Time periods for Auto-Time visualizer
+    // Morning: 06:00 - 12:00, Afternoon: 12:00 - 18:00, Evening: 18:00 - 23:00, Night: 23:00 - 06:00
+    private val _vizTimeMorning = MutableStateFlow(prefs.getString("viz_time_morning", "STUDIO_SPECTRUM") ?: "STUDIO_SPECTRUM")
+    val vizTimeMorning: StateFlow<String> = _vizTimeMorning
+
+    private val _vizTimeAfternoon = MutableStateFlow(prefs.getString("viz_time_afternoon", "RADIAL_ORBIT") ?: "RADIAL_ORBIT")
+    val vizTimeAfternoon: StateFlow<String> = _vizTimeAfternoon
+
+    private val _vizTimeEvening = MutableStateFlow(prefs.getString("viz_time_evening", "CIRCULAR_SPECTRUM") ?: "CIRCULAR_SPECTRUM")
+    val vizTimeEvening: StateFlow<String> = _vizTimeEvening
+
+    private val _vizTimeNight = MutableStateFlow(prefs.getString("viz_time_night", "OSCILLOSCOPE_CRT") ?: "OSCILLOSCOPE_CRT")
+    val vizTimeNight: StateFlow<String> = _vizTimeNight
 
     private val _autoPauseOnHeadphoneUnplug = MutableStateFlow(prefs.getBoolean("auto_pause_headphone", true))
     val autoPauseOnHeadphoneUnplug: StateFlow<Boolean> = _autoPauseOnHeadphoneUnplug
@@ -119,6 +137,44 @@ class SettingsManager(context: Context) {
     fun setVisualizerEnabled(enabled: Boolean) {
         prefs.edit().putBoolean("visualizer_enabled", enabled).apply()
         _visualizerEnabled.value = enabled
+    }
+
+    fun setVisualizerMode(mode: String) {
+        prefs.edit().putString("visualizer_mode", mode).apply()
+        _visualizerMode.value = mode
+    }
+
+    fun setVizTimeMorning(style: String) {
+        prefs.edit().putString("viz_time_morning", style).apply()
+        _vizTimeMorning.value = style
+    }
+
+    fun setVizTimeAfternoon(style: String) {
+        prefs.edit().putString("viz_time_afternoon", style).apply()
+        _vizTimeAfternoon.value = style
+    }
+
+    fun setVizTimeEvening(style: String) {
+        prefs.edit().putString("viz_time_evening", style).apply()
+        _vizTimeEvening.value = style
+    }
+
+    fun setVizTimeNight(style: String) {
+        prefs.edit().putString("viz_time_night", style).apply()
+        _vizTimeNight.value = style
+    }
+
+    fun getEffectiveVisualizerStyle(): String {
+        if (_visualizerMode.value != "AUTO_TIME") {
+            return _visualizerStyle.value
+        }
+        val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+        return when (hour) {
+            in 6..11 -> _vizTimeMorning.value
+            in 12..17 -> _vizTimeAfternoon.value
+            in 18..22 -> _vizTimeEvening.value
+            else -> _vizTimeNight.value
+        }
     }
 
     fun setTheme(theme: String) {
