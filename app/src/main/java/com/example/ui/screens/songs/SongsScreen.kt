@@ -53,6 +53,7 @@ fun SongsScreen(
     val songs by viewModel.allSongs.collectAsState()
     val currentSortOrder by viewModel.sortOrder.collectAsState()
     val isScanning by viewModel.isScanning.collectAsState()
+    val isInitialLoadComplete by viewModel.isInitialLoadComplete.collectAsState()
     val scanNotification by viewModel.scanNotification.collectAsState()
     val currentSong by viewModel.currentSong.collectAsState()
     val playlists by viewModel.allPlaylists.collectAsState()
@@ -95,9 +96,22 @@ fun SongsScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         if (songs.isEmpty()) {
-            if (isScanning) {
+            if (!isInitialLoadComplete || isScanning) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        CircularProgressIndicator(
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(36.dp)
+                        )
+                        Text(
+                            text = "Loading music library...",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             } else {
                 EmptyPlaceholder(

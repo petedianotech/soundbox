@@ -382,6 +382,9 @@ class MusicRepository(private val context: Context) {
             val queryUri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
 
             try {
+                val currentBatch = mutableListOf<Song>()
+                val existingIds = songDao.getAllSongIds().toSet()
+
                 context.contentResolver.query(
                     queryUri,
                     projection.toTypedArray(),
@@ -416,31 +419,40 @@ class MusicRepository(private val context: Context) {
                             genre = "Music"
                         }
 
-                        if (genre.isBlank()) {
-                            genre = "Music"
-                        }
+                        // Fast string-based folder parsing avoiding slow File allocations
+                        val lastSlash = path.lastIndexOf('/')
+                        val folderPath = if (lastSlash > 0) path.substring(0, lastSlash) else "/storage/emulated/0/Music"
+                        val folderName = if (folderPath.contains('/')) folderPath.substringAfterLast('/') else "Music"
 
-                        val file = File(path)
-                        val folderPath = file.parent ?: "/storage/emulated/0/Music"
-                        val folderName = file.parentFile?.name ?: "Music"
-
-                        fetchedSongs.add(
-                            Song(
-                                id = id,
-                                title = title,
-                                artist = artist,
-                                album = album,
-                                duration = duration,
-                                path = path,
-                                size = size,
-                                folderPath = folderPath,
-                                folderName = folderName,
-                                trackNumber = trackNumber,
-                                genre = genre,
-                                isFavorite = false,
-                                dateAdded = dateAdded
-                            )
+                        val song = Song(
+                            id = id,
+                            title = title,
+                            artist = artist,
+                            album = album,
+                            duration = duration,
+                            path = path,
+                            size = size,
+                            folderPath = folderPath,
+                            folderName = folderName,
+                            trackNumber = trackNumber,
+                            genre = genre,
+                            isFavorite = false,
+                            dateAdded = dateAdded
                         )
+
+                        fetchedSongs.add(song)
+                        currentBatch.add(song)
+
+                        // Stream immediately to Room in chunks of 50 tracks for instant UI rendering (<50ms)
+                        if (currentBatch.size >= 50) {
+                            songDao.insertSongs(currentBatch.toList())
+                            currentBatch.clear()
+                        }
+                    }
+
+                    if (currentBatch.isNotEmpty()) {
+                        songDao.insertSongs(currentBatch.toList())
+                        currentBatch.clear()
                     }
                 }
             } catch (e: Exception) {
@@ -455,10 +467,7 @@ class MusicRepository(private val context: Context) {
                 val newSongs = fetchedSongs.filter { it.id !in existingIds }
                 newSongsCount = newSongs.size
 
-                // Insert only active tracks
-                songDao.insertSongs(fetchedSongs)
-
-                // Clean up songs that are no longer present on physical storage
+                // Final sync and cleanup of songs that are no longer present on physical storage
                 val paths = fetchedSongs.map { it.path }
                 songDao.deleteStaleSongs(paths)
             }

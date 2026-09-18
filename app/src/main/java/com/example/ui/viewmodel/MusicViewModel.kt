@@ -95,6 +95,9 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     private val _isScanning = MutableStateFlow(false)
     val isScanning: StateFlow<Boolean> = _isScanning.asStateFlow()
 
+    private val _isInitialLoadComplete = MutableStateFlow(false)
+    val isInitialLoadComplete: StateFlow<Boolean> = _isInitialLoadComplete.asStateFlow()
+
     private val _scanNotification = MutableStateFlow<String?>(null)
     val scanNotification: StateFlow<String?> = _scanNotification.asStateFlow()
 
@@ -518,13 +521,28 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         // Fast instant startup: immediately check if Room DB already has songs
         viewModelScope.launch(Dispatchers.IO) {
             val cached = repository.getCachedSongsImmediate()
-            if (cached.isEmpty()) {
-                // First install or empty DB: scan storage with progress indicator
-                scanStorage()
-            } else {
-                // Library already cached in DB: UI displays songs immediately!
-                // Run background scan silently without blocking the UI
+            if (cached.isNotEmpty()) {
+                _isInitialLoadComplete.value = true
                 silentScanStorage()
+            } else {
+                _isScanning.value = true
+                try {
+                    repository.scanStorage()
+                } catch (e: Exception) {
+                    // Safe scan catch
+                } finally {
+                    _isScanning.value = false
+                    _isInitialLoadComplete.value = true
+                }
+            }
+        }
+
+        // As soon as Room DB emits any song data, immediately mark initial load ready
+        viewModelScope.launch {
+            repository.allSongs.collect { list ->
+                if (list.isNotEmpty()) {
+                    _isInitialLoadComplete.value = true
+                }
             }
         }
     }

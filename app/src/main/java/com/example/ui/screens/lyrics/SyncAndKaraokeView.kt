@@ -1,5 +1,10 @@
 package com.example.ui.screens.lyrics
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -19,6 +24,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.theme.SoundboxTheme
@@ -27,12 +33,13 @@ import java.util.Locale
 /**
  * UNIFIED 1-TAP SYNC & LIVE KARAOKE VIEW
  *
+ * High-density layout displaying 4-6+ lines at once.
  * Direct user flow:
- * 1. Listen to the audio.
+ * 1. Listen to audio.
  * 2. Hit Pause right when a lyric line is spoken/sung.
- * 3. Tap "⚓ Align Song Here" on that lyric line.
- * 4. The entire song's timing shifts automatically by the calculated offset!
- * 5. Tap Play to sing along and verify in real-time Karaoke mode.
+ * 3. Tap "Align" on that lyric line (or anywhere on the line).
+ * 4. Entire song's timing shifts automatically by the calculated offset!
+ * 5. Tap Play to verify in real-time Karaoke mode.
  * 6. Save & Finish!
  */
 @Composable
@@ -61,6 +68,7 @@ fun SyncAndKaraokeView(
 ) {
     val colors = SoundboxTheme.colors
     var autoScrollEnabled by remember { mutableStateOf(true) }
+    var expandedLineIndex by remember { mutableStateOf<Int?>(null) }
 
     // Active lyric index based on current playback position
     val activeLyricIndex = remember(linesList, currentPosition) {
@@ -80,63 +88,22 @@ fun SyncAndKaraokeView(
             .fillMaxSize()
             .background(colors.background)
     ) {
-        // TOP CONTROL DECK & GUIDANCE BANNER
+        // COMPACT TOP CONTROL DECK (Single slider, compact buttons, maximum vertical room for lyrics)
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 6.dp),
-            shape = RoundedCornerShape(12.dp),
+                .padding(horizontal = 12.dp, vertical = 4.dp),
+            shape = RoundedCornerShape(10.dp),
             color = colors.surface,
             border = BorderStroke(1.dp, colors.border)
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(10.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                // Audio Status & Guidance Banner (No gradients, clean high-contrast M3 theme)
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = if (isPlaying) colors.accentLime.copy(alpha = 0.15f) else colors.accentCyan.copy(alpha = 0.15f),
-                    border = BorderStroke(1.dp, if (isPlaying) colors.accentLime else colors.accentCyan)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 10.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Icon(
-                            imageVector = if (isPlaying) Icons.Default.PlayArrow else Icons.Default.Pause,
-                            contentDescription = null,
-                            tint = if (isPlaying) colors.accentLime else colors.accentCyan,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = if (isPlaying) "PLAYING • KARAOKE ACTIVE" else "PAUSED @ ${formatPositionTime(currentPosition)}",
-                                style = MaterialTheme.typography.labelMedium.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = FontFamily.Monospace
-                                ),
-                                color = if (isPlaying) colors.accentLime else colors.accentCyan
-                            )
-                            Text(
-                                text = if (isPlaying) {
-                                    "Listen for the singer's voice. Hit Pause right when the line starts!"
-                                } else {
-                                    "Tap 'Align Song Here' on that lyric line below to auto-shift the whole song!"
-                                },
-                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                                color = colors.textSecondary
-                            )
-                        }
-                    }
-                }
-
-                // Quick Playback & Alignment Toolbar
+                // Top controls row: Replay 5s, Play/Pause, Forward 5s, Time, Cut Intro, Auto-scroll
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -144,64 +111,88 @@ fun SyncAndKaraokeView(
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        // Replay 5s
                         IconButton(
                             onClick = { onSeekTo((currentPosition - 5000L).coerceAtLeast(0L)) },
-                            modifier = Modifier.size(36.dp)
+                            modifier = Modifier.size(30.dp)
                         ) {
-                            Icon(Icons.Default.Replay5, contentDescription = "Back 5s", tint = colors.textPrimary)
+                            Icon(
+                                Icons.Default.Replay5,
+                                contentDescription = "Back 5s",
+                                tint = colors.textPrimary,
+                                modifier = Modifier.size(18.dp)
+                            )
                         }
 
-                        // Big Play / Pause Button
                         FilledIconButton(
                             onClick = onPlayPause,
                             colors = IconButtonDefaults.filledIconButtonColors(
-                                containerColor = colors.accentCyan,
+                                containerColor = if (isPlaying) colors.accentLime else colors.accentCyan,
                                 contentColor = Color.Black
                             ),
-                            modifier = Modifier.size(42.dp)
+                            modifier = Modifier.size(32.dp)
                         ) {
                             Icon(
                                 imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                                 contentDescription = if (isPlaying) "Pause" else "Play",
-                                modifier = Modifier.size(24.dp)
+                                modifier = Modifier.size(18.dp)
                             )
                         }
 
-                        // Forward 5s
                         IconButton(
                             onClick = { onSeekTo((currentPosition + 5000L).coerceAtMost(songDuration)) },
-                            modifier = Modifier.size(36.dp)
+                            modifier = Modifier.size(30.dp)
                         ) {
-                            Icon(Icons.Default.Forward5, contentDescription = "Forward 5s", tint = colors.textPrimary)
+                            Icon(
+                                Icons.Default.Forward5,
+                                contentDescription = "Forward 5s",
+                                tint = colors.textPrimary,
+                                modifier = Modifier.size(18.dp)
+                            )
                         }
+
+                        Text(
+                            text = "${formatPositionTime(currentPosition)} / ${formatPositionTime(songDuration)}",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.sp,
+                                fontFamily = FontFamily.Monospace
+                            ),
+                            color = if (isPlaying) colors.accentLime else colors.accentCyan
+                        )
                     }
 
-                    // Interactive Scrub Bar / Time Display
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        modifier = Modifier.weight(1f, fill = false)
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        // Cut Video Intro Quick Button
                         OutlinedButton(
                             onClick = onAlignVideoIntro,
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
+                            shape = RoundedCornerShape(6.dp),
+                            modifier = Modifier.height(26.dp),
                             border = BorderStroke(1.dp, colors.accentCyan.copy(alpha = 0.5f))
                         ) {
-                            Icon(Icons.Default.ContentCut, contentDescription = null, modifier = Modifier.size(14.dp), tint = colors.accentCyan)
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Cut Intro", style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp), color = colors.accentCyan)
+                            Icon(
+                                Icons.Default.ContentCut,
+                                contentDescription = null,
+                                modifier = Modifier.size(12.dp),
+                                tint = colors.accentCyan
+                            )
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text(
+                                "Cut Intro",
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                color = colors.accentCyan
+                            )
                         }
 
-                        // Auto-scroll toggle chip
                         FilterChip(
                             selected = autoScrollEnabled,
                             onClick = { autoScrollEnabled = !autoScrollEnabled },
-                            label = { Text("Auto-scroll", fontSize = 11.sp) },
+                            label = { Text("Scroll", fontSize = 10.sp) },
+                            modifier = Modifier.height(26.dp),
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = colors.surfaceVariant,
                                 selectedLabelColor = colors.accentCyan
@@ -210,55 +201,28 @@ fun SyncAndKaraokeView(
                     }
                 }
 
-                // Interactive Audio Timeline Progress Slider
+                // Single Timeline Progress Slider
                 if (songDuration > 0L) {
-                    Column(
+                    Slider(
+                        value = (currentPosition.toFloat() / songDuration.toFloat()).coerceIn(0f, 1f),
+                        onValueChange = { frac ->
+                            val target = (frac * songDuration).toLong()
+                            onSeekTo(target)
+                        },
+                        colors = SliderDefaults.colors(
+                            thumbColor = if (isPlaying) colors.accentLime else colors.accentCyan,
+                            activeTrackColor = if (isPlaying) colors.accentLime else colors.accentCyan,
+                            inactiveTrackColor = colors.surfaceVariant
+                        ),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 2.dp)
-                    ) {
-                        Slider(
-                            value = (currentPosition.toFloat() / songDuration.toFloat()).coerceIn(0f, 1f),
-                            onValueChange = { frac ->
-                                val target = (frac * songDuration).toLong()
-                                onSeekTo(target)
-                            },
-                            colors = SliderDefaults.colors(
-                                thumbColor = colors.accentCyan,
-                                activeTrackColor = colors.accentCyan,
-                                inactiveTrackColor = colors.surfaceVariant
-                            ),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(28.dp)
-                        )
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = formatPositionTime(currentPosition),
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontSize = 10.sp,
-                                    fontFamily = FontFamily.Monospace
-                                ),
-                                color = colors.accentCyan
-                            )
-                            Text(
-                                text = formatPositionTime(songDuration),
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontSize = 10.sp,
-                                    fontFamily = FontFamily.Monospace
-                                ),
-                                color = colors.textSecondary
-                            )
-                        }
-                    }
+                            .height(18.dp)
+                    )
                 }
             }
         }
 
-        // LYRICS STREAM (CARDS WITH DIRECT TAP-TO-ALIGN BUTTONS)
+        // LYRICS STREAM (HIGH DENSITY CARDS: 4-6+ LINES ON SCREEN, EXPANDABLE ON TAP)
         if (linesList.isEmpty()) {
             Box(
                 modifier = Modifier
@@ -287,205 +251,237 @@ fun SyncAndKaraokeView(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(top = 4.dp, bottom = 12.dp)
+                    .padding(horizontal = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                contentPadding = PaddingValues(top = 2.dp, bottom = 8.dp)
             ) {
                 itemsIndexed(linesList, key = { _, it -> it.index }) { index, line ->
                     val isCurrent = index == activeLyricIndex
+                    val isExpanded = expandedLineIndex == index
 
                     Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        color = if (isCurrent) colors.accentCyan.copy(alpha = 0.2f) else colors.surface,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                expandedLineIndex = if (isExpanded) null else index
+                            },
+                        shape = RoundedCornerShape(8.dp),
+                        color = if (isCurrent) colors.accentCyan.copy(alpha = 0.15f) else colors.surface,
                         border = BorderStroke(
-                            width = if (isCurrent) 2.dp else 1.dp,
+                            width = if (isCurrent) 1.5.dp else 1.dp,
                             color = if (isCurrent) colors.accentCyan else colors.border
                         )
                     ) {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 10.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                                .padding(horizontal = 8.dp, vertical = 6.dp)
                         ) {
-                            // Header Row: Line #, Timestamp Badge, and Tools
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    // Line Number
-                                    Surface(
-                                        shape = RoundedCornerShape(4.dp),
-                                        color = if (isCurrent) colors.accentCyan else colors.surfaceVariant
-                                    ) {
-                                        Text(
-                                            text = "#${index + 1}",
-                                            style = MaterialTheme.typography.labelSmall.copy(
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 10.sp,
-                                                fontFamily = FontFamily.Monospace
-                                            ),
-                                            color = if (isCurrent) Color.Black else colors.textSecondary,
-                                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
-                                        )
-                                    }
-
-                                    // Timestamp Label
-                                    if (line.timeMs != null) {
-                                        Text(
-                                            text = "@ ${formatLrcTimeLabel(line.timeMs)}",
-                                            style = MaterialTheme.typography.labelSmall.copy(
-                                                fontWeight = FontWeight.Bold,
-                                                fontFamily = FontFamily.Monospace,
-                                                fontSize = 11.sp
-                                            ),
-                                            color = if (isCurrent) colors.accentCyan else colors.accentLime
-                                        )
-
-                                        // When paused, show potential shift preview
-                                        if (!isPlaying) {
-                                            val deltaMs = currentPosition - line.timeMs
-                                            if (deltaMs != 0L) {
-                                                val deltaSec = deltaMs / 1000.0
-                                                val deltaSign = if (deltaMs >= 0) "+${String.format(Locale.US, "%.2f", deltaSec)}s" else "${String.format(Locale.US, "%.2f", deltaSec)}s"
-                                                Surface(
-                                                    shape = RoundedCornerShape(4.dp),
-                                                    color = colors.surfaceVariant
-                                                ) {
-                                                    Text(
-                                                        text = "Shift all $deltaSign",
-                                                        style = MaterialTheme.typography.labelSmall.copy(
-                                                            fontSize = 9.sp,
-                                                            fontFamily = FontFamily.Monospace
-                                                        ),
-                                                        color = colors.textSecondary,
-                                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
-                                                    )
-                                                }
-                                            }
-                                        }
-                                    } else {
-                                        Text(
-                                            text = "[Untimed]",
-                                            style = MaterialTheme.typography.labelSmall.copy(
-                                                fontSize = 10.sp,
-                                                fontFamily = FontFamily.Monospace
-                                            ),
-                                            color = colors.textSecondary
-                                        )
-                                    }
-                                }
-
-                                // Secondary line actions (Test 3s, Edit text, Delete)
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    if (line.timeMs != null) {
-                                        IconButton(
-                                            onClick = { onAuditionLine(line.timeMs) },
-                                            modifier = Modifier.size(28.dp)
-                                        ) {
-                                            Icon(Icons.Default.PlayArrow, contentDescription = "Test 3s", tint = colors.accentCyan, modifier = Modifier.size(16.dp))
-                                        }
-                                    }
-                                    IconButton(
-                                        onClick = { onEditLine(line) },
-                                        modifier = Modifier.size(28.dp)
-                                    ) {
-                                        Icon(Icons.Default.Edit, contentDescription = "Edit", tint = colors.textSecondary, modifier = Modifier.size(16.dp))
-                                    }
-                                    IconButton(
-                                        onClick = { onDeleteLine(index) },
-                                        modifier = Modifier.size(28.dp)
-                                    ) {
-                                        Icon(Icons.Default.DeleteOutline, contentDescription = "Delete", tint = colors.textSecondary, modifier = Modifier.size(16.dp))
-                                    }
-                                }
-                            }
-
-                            // Lyric Text
-                            Text(
-                                text = line.text.ifBlank { "—" },
-                                style = if (isCurrent) {
-                                    MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, fontSize = 17.sp)
-                                } else {
-                                    MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp)
-                                },
-                                color = if (isCurrent) colors.accentCyan else colors.textPrimary,
-                                modifier = Modifier.padding(vertical = 2.dp)
-                            )
-
-                            // Direct Action Buttons Row (The Core Feature)
+                            // Primary Row (Compact, ~40-44dp tall, shows index, timestamp, lyric text, and Align button)
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
-                                // 1. THE MAIN BUTTON: ALIGN SONG HERE & SHIFT ALL!
+                                // Line Number
+                                Surface(
+                                    shape = RoundedCornerShape(4.dp),
+                                    color = if (isCurrent) colors.accentCyan else colors.surfaceVariant
+                                ) {
+                                    Text(
+                                        text = "#${index + 1}",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 9.sp,
+                                            fontFamily = FontFamily.Monospace
+                                        ),
+                                        color = if (isCurrent) Color.Black else colors.textSecondary,
+                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                    )
+                                }
+
+                                // Timestamp Label
+                                if (line.timeMs != null) {
+                                    Text(
+                                        text = "@ ${formatLrcTimeLabel(line.timeMs)}",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            fontFamily = FontFamily.Monospace,
+                                            fontSize = 10.sp
+                                        ),
+                                        color = if (isCurrent) colors.accentCyan else colors.accentLime
+                                    )
+                                } else {
+                                    Text(
+                                        text = "[Untimed]",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontSize = 9.sp,
+                                            fontFamily = FontFamily.Monospace
+                                        ),
+                                        color = colors.textSecondary
+                                    )
+                                }
+
+                                // Lyric Text (Main readable text)
+                                Text(
+                                    text = line.text.ifBlank { "—" },
+                                    style = if (isCurrent) {
+                                        MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                    } else {
+                                        MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp)
+                                    },
+                                    color = if (isCurrent) colors.accentCyan else colors.textPrimary,
+                                    maxLines = if (isExpanded) 4 else 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f)
+                                )
+
+                                // Direct Quick Align Button: ALIGN SONG HERE & SHIFT ALL!
                                 Button(
                                     onClick = { onAnchorAndShiftAll(index, currentPosition) },
                                     colors = ButtonDefaults.buttonColors(
                                         containerColor = colors.accentCyan,
                                         contentColor = Color.Black
                                     ),
-                                    shape = RoundedCornerShape(8.dp),
-                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                                    modifier = Modifier.weight(1f)
+                                    shape = RoundedCornerShape(6.dp),
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                    modifier = Modifier.height(28.dp)
                                 ) {
-                                    Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(14.dp))
-                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(12.dp))
+                                    Spacer(modifier = Modifier.width(3.dp))
                                     Text(
-                                        text = "Align Song Here",
-                                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
+                                        text = "Align",
+                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, fontSize = 11.sp)
                                     )
                                 }
 
-                                // 2. Tag single line without shifting
-                                OutlinedButton(
-                                    onClick = { onTagSingleLine(index, currentPosition) },
-                                    shape = RoundedCornerShape(8.dp),
-                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-                                    border = BorderStroke(1.dp, colors.border)
+                                // Expand / Tools Toggle Icon
+                                IconButton(
+                                    onClick = {
+                                        expandedLineIndex = if (isExpanded) null else index
+                                    },
+                                    modifier = Modifier.size(26.dp)
                                 ) {
-                                    Text(
-                                        text = "Only Line",
-                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                                        color = colors.textPrimary
+                                    Icon(
+                                        imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.MoreVert,
+                                        contentDescription = "More tools",
+                                        tint = if (isExpanded) colors.accentCyan else colors.textSecondary,
+                                        modifier = Modifier.size(16.dp)
                                     )
                                 }
+                            }
 
-                                // 3. Micro nudges
-                                OutlinedButton(
-                                    onClick = { onShiftSingle(index, -200L) },
-                                    shape = RoundedCornerShape(8.dp),
-                                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 4.dp),
-                                    border = BorderStroke(1.dp, colors.border)
+                            // Expandable Tools Drawer for this specific line
+                            AnimatedVisibility(
+                                visible = isExpanded,
+                                enter = fadeIn() + expandVertically(),
+                                exit = fadeOut() + shrinkVertically()
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 4.dp)
                                 ) {
-                                    Text("-0.2s", style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp), color = colors.textSecondary)
-                                }
-                                OutlinedButton(
-                                    onClick = { onShiftSingle(index, 200L) },
-                                    shape = RoundedCornerShape(8.dp),
-                                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 4.dp),
-                                    border = BorderStroke(1.dp, colors.border)
-                                ) {
-                                    Text("+0.2s", style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp), color = colors.textSecondary)
-                                }
+                                    HorizontalDivider(
+                                        color = colors.border.copy(alpha = 0.5f),
+                                        modifier = Modifier.padding(bottom = 4.dp)
+                                    )
 
-                                // 4. Clear tag
-                                if (line.timeMs != null) {
-                                    IconButton(
-                                        onClick = { onClearLineTag(index) },
-                                        modifier = Modifier.size(28.dp)
+                                    // Shift Delta Preview if paused
+                                    if (!isPlaying && line.timeMs != null) {
+                                        val deltaMs = currentPosition - line.timeMs
+                                        if (deltaMs != 0L) {
+                                            val deltaSec = deltaMs / 1000.0
+                                            val deltaSign = if (deltaMs >= 0) "+${String.format(Locale.US, "%.2f", deltaSec)}s" else "${String.format(Locale.US, "%.2f", deltaSec)}s"
+                                            Text(
+                                                text = "Aligning will shift entire song from here by $deltaSign",
+                                                style = MaterialTheme.typography.labelSmall.copy(
+                                                    fontSize = 10.sp,
+                                                    fontFamily = FontFamily.Monospace
+                                                ),
+                                                color = colors.accentCyan,
+                                                modifier = Modifier.padding(bottom = 4.dp)
+                                            )
+                                        }
+                                    }
+
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                                     ) {
-                                        Icon(Icons.Default.Close, contentDescription = "Clear", tint = Color(0xFFFF5252), modifier = Modifier.size(16.dp))
+                                        // 1. Tag only this single line
+                                        OutlinedButton(
+                                            onClick = { onTagSingleLine(index, currentPosition) },
+                                            shape = RoundedCornerShape(6.dp),
+                                            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
+                                            modifier = Modifier.height(26.dp),
+                                            border = BorderStroke(1.dp, colors.border)
+                                        ) {
+                                            Text(
+                                                text = "Only Line",
+                                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                                color = colors.textPrimary
+                                            )
+                                        }
+
+                                        // 2. Micro nudges
+                                        OutlinedButton(
+                                            onClick = { onShiftSingle(index, -200L) },
+                                            shape = RoundedCornerShape(6.dp),
+                                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp),
+                                            modifier = Modifier.height(26.dp),
+                                            border = BorderStroke(1.dp, colors.border)
+                                        ) {
+                                            Text("-0.2s", style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp), color = colors.textSecondary)
+                                        }
+                                        OutlinedButton(
+                                            onClick = { onShiftSingle(index, 200L) },
+                                            shape = RoundedCornerShape(6.dp),
+                                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp),
+                                            modifier = Modifier.height(26.dp),
+                                            border = BorderStroke(1.dp, colors.border)
+                                        ) {
+                                            Text("+0.2s", style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp), color = colors.textSecondary)
+                                        }
+
+                                        Spacer(modifier = Modifier.weight(1f))
+
+                                        // 3. Test / Audition
+                                        if (line.timeMs != null) {
+                                            IconButton(
+                                                onClick = { onAuditionLine(line.timeMs) },
+                                                modifier = Modifier.size(26.dp)
+                                            ) {
+                                                Icon(Icons.Default.PlayArrow, contentDescription = "Test 3s", tint = colors.accentCyan, modifier = Modifier.size(16.dp))
+                                            }
+                                        }
+
+                                        // 4. Edit Line Text
+                                        IconButton(
+                                            onClick = { onEditLine(line) },
+                                            modifier = Modifier.size(26.dp)
+                                        ) {
+                                            Icon(Icons.Default.Edit, contentDescription = "Edit text", tint = colors.textSecondary, modifier = Modifier.size(16.dp))
+                                        }
+
+                                        // 5. Delete Line
+                                        IconButton(
+                                            onClick = { onDeleteLine(index) },
+                                            modifier = Modifier.size(26.dp)
+                                        ) {
+                                            Icon(Icons.Default.DeleteOutline, contentDescription = "Delete line", tint = colors.textSecondary, modifier = Modifier.size(16.dp))
+                                        }
+
+                                        // 6. Clear tag
+                                        if (line.timeMs != null) {
+                                            IconButton(
+                                                onClick = { onClearLineTag(index) },
+                                                modifier = Modifier.size(26.dp)
+                                            ) {
+                                                Icon(Icons.Default.Close, contentDescription = "Clear tag", tint = Color(0xFFFF5252), modifier = Modifier.size(16.dp))
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -498,15 +494,15 @@ fun SyncAndKaraokeView(
         // BOTTOM DOCK: GLOBAL OFFSET CALIBRATION & SAVE
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+            shape = RoundedCornerShape(topStart = 14.dp, topEnd = 14.dp),
             color = colors.surface,
             border = BorderStroke(1.dp, colors.border)
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 // Global Song Offset Row
                 Row(
@@ -515,7 +511,7 @@ fun SyncAndKaraokeView(
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Text(
-                        text = "Song Offset:",
+                        text = "Offset:",
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, fontWeight = FontWeight.Bold),
                         color = colors.textSecondary
                     )
@@ -543,16 +539,16 @@ fun SyncAndKaraokeView(
                                     textAlign = TextAlign.Center
                                 ),
                                 color = colors.accentCyan,
-                                modifier = Modifier.padding(vertical = 4.dp)
+                                modifier = Modifier.padding(vertical = 3.dp)
                             )
                         }
                     }
 
                     IconButton(
                         onClick = onShowGlobalShiftDialog,
-                        modifier = Modifier.size(28.dp)
+                        modifier = Modifier.size(26.dp)
                     ) {
-                        Icon(Icons.Default.Tune, contentDescription = "Custom shift", tint = colors.accentCyan, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Tune, contentDescription = "Custom shift", tint = colors.accentCyan, modifier = Modifier.size(15.dp))
                     }
                 }
 
@@ -560,29 +556,29 @@ fun SyncAndKaraokeView(
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     OutlinedButton(
                         onClick = onAddLine,
                         modifier = Modifier.weight(1f),
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 4.dp),
                         shape = RoundedCornerShape(8.dp)
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Add Line", style = MaterialTheme.typography.labelMedium)
+                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(3.dp))
+                        Text("Add Line", style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp))
                     }
 
                     if (canUndo) {
                         OutlinedButton(
                             onClick = onUndo,
                             modifier = Modifier.weight(0.8f),
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+                            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 4.dp),
                             shape = RoundedCornerShape(8.dp)
                         ) {
-                            Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Undo", style = MaterialTheme.typography.labelMedium)
+                            Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = null, modifier = Modifier.size(14.dp))
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text("Undo", style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp))
                         }
                     }
 
@@ -593,12 +589,12 @@ fun SyncAndKaraokeView(
                             containerColor = colors.accentLime,
                             contentColor = Color.Black
                         ),
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                         shape = RoundedCornerShape(8.dp)
                     ) {
-                        Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Save & Apply", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold))
+                        Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(3.dp))
+                        Text("Save & Apply", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold, fontSize = 12.sp))
                     }
                 }
             }

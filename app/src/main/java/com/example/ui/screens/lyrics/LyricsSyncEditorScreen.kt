@@ -524,100 +524,12 @@ fun LyricsSyncEditorScreen(
                     .fillMaxSize()
                     .padding(innerPadding)
             ) {
-                // TRACK HEADER & MINI WAVEFORM DOCK
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 14.dp, vertical = 4.dp),
-                    shape = RoundedCornerShape(14.dp),
-                    color = colors.surface,
-                    border = BorderStroke(1.dp, colors.border)
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(8.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(colors.surfaceVariant)
-                            ) {
-                                ArtworkThumbnail(
-                                    songId = song.id,
-                                    title = song.title,
-                                    artist = song.artist,
-                                    genre = song.genre,
-                                    path = song.path,
-                                    size = 40f
-                                )
-                            }
-
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = song.title,
-                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                                    color = colors.textPrimary,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                Text(
-                                    text = "${song.artist} • ${formatPositionTime(position)} / ${formatPositionTime(songDuration)}",
-                                    style = MaterialTheme.typography.bodySmall.copy(
-                                        fontSize = 11.sp,
-                                        fontFamily = FontFamily.Monospace
-                                    ),
-                                    color = colors.accentCyan
-                                )
-                            }
-
-                            // Synced lines counter badge
-                            val syncedCount = linesList.count { it.timeMs != null }
-                            Surface(
-                                shape = RoundedCornerShape(6.dp),
-                                color = if (syncedCount == linesList.size && linesList.isNotEmpty()) colors.accentLime.copy(alpha = 0.2f) else colors.accentCyan.copy(alpha = 0.15f)
-                            ) {
-                                Text(
-                                    text = if (linesList.isNotEmpty()) "$syncedCount / ${linesList.size} SYNCED" else "EMPTY",
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 9.sp,
-                                        fontFamily = FontFamily.Monospace
-                                    ),
-                                    color = if (syncedCount == linesList.size && linesList.isNotEmpty()) colors.accentLime else colors.accentCyan,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(6.dp))
-
-                        // Interactive Waveform Seekbar
-                        PowerampWaveformBar(
-                            currentPosition = position,
-                            duration = songDuration,
-                            isPlaying = isPlaying,
-                            onSeek = { targetMs -> viewModel.seekTo(targetMs) },
-                            accentColor = colors.accentCyan,
-                            seedKey = song.id.toString(),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(28.dp)
-                        )
-                    }
-                }
-
                 // MODE SELECTOR TABS
                 PrimaryTabRow(
                     selectedTabIndex = currentMode.ordinal,
                     containerColor = Color.Transparent,
                     contentColor = colors.accentCyan,
-                    modifier = Modifier.padding(horizontal = 14.dp)
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 2.dp)
                 ) {
                     LyricsEditorMode.entries.forEach { mode ->
                         val isSelected = currentMode == mode
