@@ -537,46 +537,39 @@ fun NowPlayingScreen(
                                 // Quick Action Dock
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
-                                    FilledTonalButton(
-                                        onClick = { isLyricsViewActive = !isLyricsViewActive },
-                                        shape = CircleShape,
-                                        colors = ButtonDefaults.filledTonalButtonColors(
-                                            containerColor = if (isLyricsViewActive) accentColor.copy(alpha = 0.22f) else MaterialTheme.colorScheme.surfaceContainerHigh
-                                        ),
-                                        modifier = Modifier.weight(1f)
-                                    ) {
-                                        Icon(
-                                            imageVector = if (isLyricsViewActive) Icons.Filled.Lyrics else Icons.Outlined.Lyrics,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(16.dp),
-                                            tint = if (isLyricsViewActive) accentColor else MaterialTheme.colorScheme.onSurface
-                                        )
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text("Lyrics", fontSize = 12.sp)
-                                    }
-
                                     FilledTonalButton(
                                         onClick = { showQueueSheet = true },
                                         shape = CircleShape,
-                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                                        modifier = Modifier.height(34.dp).weight(1f)
+                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                                        colors = ButtonDefaults.filledTonalButtonColors(
+                                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                                        ),
+                                        modifier = Modifier.height(36.dp).weight(1f)
                                     ) {
                                         Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = null, modifier = Modifier.size(16.dp))
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text("Queue", fontSize = 12.sp)
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text("Queue", fontSize = 12.sp, fontWeight = FontWeight.Medium)
                                     }
 
                                     FilledTonalButton(
                                         onClick = { showTimerDialog = true },
                                         shape = CircleShape,
-                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                                        modifier = Modifier.height(34.dp).weight(1f)
+                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                                        colors = ButtonDefaults.filledTonalButtonColors(
+                                            containerColor = if (sleepTimerLeft > 0) accentColor.copy(alpha = 0.22f) else MaterialTheme.colorScheme.surfaceContainerHigh
+                                        ),
+                                        modifier = Modifier.height(36.dp).weight(1f)
                                     ) {
-                                        Icon(Icons.Default.Timer, contentDescription = null, modifier = Modifier.size(16.dp))
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text("Timer", fontSize = 12.sp)
+                                        Icon(
+                                            Icons.Default.Timer,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp),
+                                            tint = if (sleepTimerLeft > 0) accentColor else MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text("Timer", fontSize = 12.sp, fontWeight = FontWeight.Medium)
                                     }
                                 }
                             }
@@ -878,61 +871,48 @@ fun NowPlayingScreen(
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    // Quick Action Dock with Round Capsule Buttons
+                    // Quick Action Dock with Clean Compact Capsule Buttons
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            .padding(horizontal = 6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        FilledTonalButton(
-                            onClick = { isLyricsViewActive = !isLyricsViewActive },
-                            shape = CircleShape,
-                            colors = ButtonDefaults.filledTonalButtonColors(
-                                containerColor = if (isLyricsViewActive) accentColor.copy(alpha = 0.22f) else MaterialTheme.colorScheme.surfaceContainerHigh
-                            ),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Icon(
-                                imageVector = if (isLyricsViewActive) Icons.Filled.Lyrics else Icons.Outlined.Lyrics,
-                                contentDescription = null,
-                                modifier = Modifier.size(17.dp),
-                                tint = if (isLyricsViewActive) accentColor else MaterialTheme.colorScheme.onSurface
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                "Lyrics",
-                                color = if (isLyricsViewActive) accentColor else MaterialTheme.colorScheme.onSurface,
-                                fontWeight = if (isLyricsViewActive) FontWeight.Bold else FontWeight.Medium
-                            )
-                        }
-
                         FilledTonalButton(
                             onClick = { showQueueSheet = true },
                             shape = CircleShape,
-                            modifier = Modifier.weight(1f)
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                            colors = ButtonDefaults.filledTonalButtonColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                            ),
+                            modifier = Modifier
+                                .height(38.dp)
+                                .weight(1f)
                         ) {
-                            Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = null, modifier = Modifier.size(17.dp))
+                            Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Queue", fontWeight = FontWeight.Medium)
+                            Text("Queue", fontSize = 13.sp, fontWeight = FontWeight.Medium)
                         }
 
                         FilledTonalButton(
                             onClick = { showTimerDialog = true },
                             shape = CircleShape,
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
                             colors = ButtonDefaults.filledTonalButtonColors(
                                 containerColor = if (sleepTimerLeft > 0) accentColor.copy(alpha = 0.22f) else MaterialTheme.colorScheme.surfaceContainerHigh
                             ),
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier
+                                .height(38.dp)
+                                .weight(1f)
                         ) {
                             Icon(
                                 Icons.Default.Timer,
                                 contentDescription = null,
-                                modifier = Modifier.size(17.dp),
+                                modifier = Modifier.size(16.dp),
                                 tint = if (sleepTimerLeft > 0) accentColor else MaterialTheme.colorScheme.onSurface
                             )
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Timer", fontWeight = FontWeight.Medium)
+                            Text("Timer", fontSize = 13.sp, fontWeight = FontWeight.Medium)
                         }
                     }
                 }
@@ -1607,6 +1587,33 @@ private fun ArtworkMainStage(
                     modifier = Modifier.fillMaxSize(),
                     size = 280f
                 )
+
+                // Quick Tap-for-Lyrics Hint Badge
+                Surface(
+                    shape = CircleShape,
+                    color = Color.Black.copy(alpha = 0.65f),
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Lyrics,
+                            contentDescription = "Tap artwork for lyrics",
+                            tint = if (lyrics.isNotEmpty()) accentColor else Color.White.copy(alpha = 0.85f),
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Lyrics",
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.SemiBold),
+                            color = Color.White
+                        )
+                    }
+                }
             }
         }
 

@@ -136,42 +136,51 @@ fun SoundboxInsightsScreen(
                     subtitle = "Your daily listening habits breakdown",
                     icon = Icons.Default.AccessTime
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        ListeningHabitColumn(
-                            label = "Morning",
-                            hours = "06:00 - 12:00",
-                            percentage = insights.habits.morningPercent,
-                            icon = Icons.Default.WbSunny,
-                            color = Color(0xFFFFB300),
-                            modifier = Modifier.weight(1f)
-                        )
-                        ListeningHabitColumn(
-                            label = "Afternoon",
-                            hours = "12:00 - 18:00",
-                            percentage = insights.habits.afternoonPercent,
-                            icon = Icons.Default.Brightness5,
-                            color = Color(0xFFFF7043),
-                            modifier = Modifier.weight(1f)
-                        )
-                        ListeningHabitColumn(
-                            label = "Evening",
-                            hours = "18:00 - 23:00",
-                            percentage = insights.habits.eveningPercent,
-                            icon = Icons.Default.NightsStay,
-                            color = Color(0xFF7E57C2),
-                            modifier = Modifier.weight(1f)
-                        )
-                        ListeningHabitColumn(
-                            label = "Night",
-                            hours = "23:00 - 06:00",
-                            percentage = insights.habits.lateNightPercent,
-                            icon = Icons.Default.Bedtime,
-                            color = Color(0xFF29B6F6),
-                            modifier = Modifier.weight(1f)
-                        )
+                    val hasHabits = insights.habits.morningPercent > 0 || 
+                                    insights.habits.afternoonPercent > 0 || 
+                                    insights.habits.eveningPercent > 0 || 
+                                    insights.habits.lateNightPercent > 0
+
+                    if (!hasHabits) {
+                        EmptyStatsNotice("No listening history recorded yet. Play songs to see your peak listening hours.")
+                    } else {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            ListeningHabitColumn(
+                                label = "Morning",
+                                hours = "06:00 - 12:00",
+                                percentage = insights.habits.morningPercent,
+                                icon = Icons.Default.WbSunny,
+                                color = Color(0xFFFFB300),
+                                modifier = Modifier.weight(1f)
+                            )
+                            ListeningHabitColumn(
+                                label = "Afternoon",
+                                hours = "12:00 - 18:00",
+                                percentage = insights.habits.afternoonPercent,
+                                icon = Icons.Default.Brightness5,
+                                color = Color(0xFFFF7043),
+                                modifier = Modifier.weight(1f)
+                            )
+                            ListeningHabitColumn(
+                                label = "Evening",
+                                hours = "18:00 - 23:00",
+                                percentage = insights.habits.eveningPercent,
+                                icon = Icons.Default.NightsStay,
+                                color = Color(0xFF7E57C2),
+                                modifier = Modifier.weight(1f)
+                            )
+                            ListeningHabitColumn(
+                                label = "Night",
+                                hours = "23:00 - 06:00",
+                                percentage = insights.habits.lateNightPercent,
+                                icon = Icons.Default.Bedtime,
+                                color = Color(0xFF29B6F6),
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
                     }
                 }
             }
@@ -206,25 +215,10 @@ fun HeroPlaytimeCard(
     Card(
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color.Transparent
+            containerColor = colors.surfaceElevated
         ),
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
-            .background(
-                Brush.linearGradient(
-                    colors = listOf(
-                        colors.accentCyan.copy(alpha = 0.22f),
-                        colors.accentAmber.copy(alpha = 0.18f),
-                        colors.surfaceElevated
-                    )
-                )
-            )
-            .border(
-                width = 1.dp,
-                color = colors.accentCyan.copy(alpha = 0.35f),
-                shape = RoundedCornerShape(20.dp)
-            )
+        border = androidx.compose.foundation.BorderStroke(1.dp, colors.accentCyan.copy(alpha = 0.35f)),
+        modifier = Modifier.fillMaxWidth()
     ) {
         Column(
             modifier = Modifier

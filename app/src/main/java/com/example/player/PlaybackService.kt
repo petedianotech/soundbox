@@ -40,9 +40,13 @@ class PlaybackService : MediaSessionService() {
         super.onCreate()
         createNotificationChannel()
 
-        // Bind to the single ExoPlayer instance in PlaybackManager
+        // Bind to the active ExoPlayer instance in PlaybackManager
         val pbManager = PlaybackManager.getInstance(this)
-        val sharedPlayer = pbManager.player
+        val initialPlayer = pbManager.player
+
+        pbManager.onActivePlayerChanged = { activeP ->
+            mediaSession?.setPlayer(activeP)
+        }
 
         // Create launch intent for notification click
         val launchIntent = Intent(this, MainActivity::class.java).apply {
@@ -74,7 +78,7 @@ class PlaybackService : MediaSessionService() {
             .setIconResId(R.drawable.ic_forward_10)
             .build()
             
-        mediaSession = MediaSession.Builder(this, sharedPlayer)
+        mediaSession = MediaSession.Builder(this, initialPlayer)
             .setSessionActivity(pendingIntent)
             .setCustomLayout(listOf(rewindButton, initialLikeButton, forwardButton))
             .setCallback(object : MediaSession.Callback {
@@ -98,6 +102,7 @@ class PlaybackService : MediaSessionService() {
                     customCommand: SessionCommand,
                     args: Bundle
                 ): ListenableFuture<SessionResult> {
+                    val currentPlayer = pbManager.player
                     when (customCommand.customAction) {
                         ACTION_TOGGLE_FAVORITE -> {
                             val currentSong = pbManager.currentSong.value
@@ -106,15 +111,15 @@ class PlaybackService : MediaSessionService() {
                             }
                         }
                         ACTION_FORWARD_10 -> {
-                            val cur = sharedPlayer.currentPosition
-                            val dur = sharedPlayer.duration.coerceAtLeast(0L)
+                            val cur = currentPlayer.currentPosition
+                            val dur = currentPlayer.duration.coerceAtLeast(0L)
                             val target = if (dur > 0) (cur + 10000).coerceAtMost(dur) else cur + 10000
-                            sharedPlayer.seekTo(target)
+                            currentPlayer.seekTo(target)
                         }
                         ACTION_REWIND_10 -> {
-                            val cur = sharedPlayer.currentPosition
+                            val cur = currentPlayer.currentPosition
                             val target = (cur - 10000).coerceAtLeast(0L)
-                            sharedPlayer.seekTo(target)
+                            currentPlayer.seekTo(target)
                         }
                     }
                     return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))

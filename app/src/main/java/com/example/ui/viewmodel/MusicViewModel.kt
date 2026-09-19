@@ -383,12 +383,14 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
     // Soundbox Insights (Listening Statistics)
     val insights: StateFlow<SoundboxInsights> = repository.allSongs.map { songs ->
-        val totalPlays = songs.sumOf { it.playCount }
-        val totalDurationMs = songs.filter { it.playCount > 0 }.sumOf { it.duration * it.playCount.coerceAtLeast(1) }
-        val uniqueArtists = songs.map { it.artist }.distinct().size
-        val uniqueGenres = songs.map { it.genre }.filter { it.isNotBlank() && it.lowercase() != "unknown" }.distinct().size
+        val playedSongs = songs.filter { it.playCount > 0 }
+        val totalPlays = playedSongs.sumOf { it.playCount }
+        val totalDurationMs = playedSongs.sumOf { it.duration * it.playCount.toLong() }
+        val uniqueArtists = playedSongs.map { it.artist }.filter { it.isNotBlank() && it.lowercase() != "unknown" }.distinct().size
+        val uniqueGenres = playedSongs.map { it.genre }.filter { it.isNotBlank() && it.lowercase() != "unknown" }.distinct().size
 
-        val artistMap = songs.groupBy { it.artist }
+        // Only include artists with real plays
+        val artistMap = playedSongs.groupBy { it.artist }.filter { it.key.isNotBlank() && it.key.lowercase() != "unknown" }
         val topArtists = artistMap.map { (artist, list) ->
             val plays = list.sumOf { it.playCount }
             ArtistStat(
@@ -397,46 +399,53 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                 trackCount = list.size,
                 percentage = if (totalPlays > 0) (plays.toFloat() / totalPlays.toFloat()) else 0f
             )
-        }.sortedByDescending { it.playCount }.take(5)
+        }.filter { it.playCount > 0 }.sortedByDescending { it.playCount }.take(5)
 
-        val genreMap = songs.groupBy { it.genre }.filter { it.key.isNotBlank() && it.key.lowercase() != "unknown" }
+        // Only include genres with real plays
+        val genreMap = playedSongs.groupBy { it.genre }.filter { it.key.isNotBlank() && it.key.lowercase() != "unknown" }
+        val totalGenrePlays = genreMap.values.sumOf { list -> list.sumOf { it.playCount } }
         val topGenres = genreMap.map { (genre, list) ->
-            val plays = list.sumOf { it.playCount }.coerceAtLeast(list.size)
+            val plays = list.sumOf { it.playCount }
             GenreStat(
                 genreName = genre,
                 playCount = plays,
-                percentage = if (songs.isNotEmpty()) (list.size.toFloat() / songs.size.toFloat()) else 0f
+                percentage = if (totalGenrePlays > 0) (plays.toFloat() / totalGenrePlays.toFloat()) else 0f
             )
-        }.sortedByDescending { it.playCount }.take(5)
+        }.filter { it.playCount > 0 }.sortedByDescending { it.playCount }.take(5)
 
-        val playedSongs = songs.filter { it.lastPlayedTime > 0 }
-        val habits = if (playedSongs.isNotEmpty()) {
-            val morningCount = playedSongs.count { 
+        // Real listening habits calculated from actual lastPlayedTime timestamps
+        val songsWithHistory = playedSongs.filter { it.lastPlayedTime > 0 }
+        val habits = if (songsWithHistory.isNotEmpty()) {
+            val morningCount = songsWithHistory.count { 
                 val cal = java.util.Calendar.getInstance().apply { timeInMillis = it.lastPlayedTime }
                 cal.get(java.util.Calendar.HOUR_OF_DAY) in 6..11 
             }
-            val afternoonCount = playedSongs.count { 
+            val afternoonCount = songsWithHistory.count { 
                 val cal = java.util.Calendar.getInstance().apply { timeInMillis = it.lastPlayedTime }
                 cal.get(java.util.Calendar.HOUR_OF_DAY) in 12..17 
             }
-            val eveningCount = playedSongs.count { 
+            val eveningCount = songsWithHistory.count { 
                 val cal = java.util.Calendar.getInstance().apply { timeInMillis = it.lastPlayedTime }
                 cal.get(java.util.Calendar.HOUR_OF_DAY) in 18..22 
             }
-            val nightCount = playedSongs.count { 
+            val nightCount = songsWithHistory.count { 
                 val cal = java.util.Calendar.getInstance().apply { timeInMillis = it.lastPlayedTime }
                 val h = cal.get(java.util.Calendar.HOUR_OF_DAY)
                 h in 23..24 || h in 0..5
             }
-            val total = (morningCount + afternoonCount + eveningCount + nightCount).coerceAtLeast(1)
-            ListeningHabits(
-                morningPercent = (morningCount * 100) / total,
-                afternoonPercent = (afternoonCount * 100) / total,
-                eveningPercent = (eveningCount * 100) / total,
-                lateNightPercent = (nightCount * 100) / total
-            )
+            val total = (morningCount + afternoonCount + eveningCount + nightCount)
+            if (total > 0) {
+                ListeningHabits(
+                    morningPercent = (morningCount * 100) / total,
+                    afternoonPercent = (afternoonCount * 100) / total,
+                    eveningPercent = (eveningCount * 100) / total,
+                    lateNightPercent = (nightCount * 100) / total
+                )
+            } else {
+                ListeningHabits(0, 0, 0, 0)
+            }
         } else {
-            ListeningHabits(morningPercent = 25, afternoonPercent = 35, eveningPercent = 25, lateNightPercent = 15)
+            ListeningHabits(0, 0, 0, 0)
         }
 
         val milestones = listOf(
@@ -444,10 +453,10 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                 id = "m1",
                 title = "Audiophile Explorer",
                 description = "Listen to at least 25 different songs in high quality",
-                progress = (songs.count { it.playCount > 0 }.toFloat() / 25f).coerceIn(0f, 1f),
-                currentFormatted = "${songs.count { it.playCount > 0 }} tracks",
+                progress = (playedSongs.size.toFloat() / 25f).coerceIn(0f, 1f),
+                currentFormatted = "${playedSongs.size} tracks",
                 targetFormatted = "25 tracks",
-                isAchieved = songs.count { it.playCount > 0 } >= 25
+                isAchieved = playedSongs.size >= 25
             ),
             ListeningMilestone(
                 id = "m2",
@@ -488,7 +497,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             habits = habits,
             milestones = milestones
         )
-    }.stateIn(viewModelScope, SharingStarted.Lazily, SoundboxInsights(0, 0, 0, 0, emptyList(), emptyList(), ListeningHabits(25, 25, 25, 25), emptyList()))
+    }.stateIn(viewModelScope, SharingStarted.Lazily, SoundboxInsights(0, 0, 0, 0, emptyList(), emptyList(), ListeningHabits(0, 0, 0, 0), emptyList()))
 
     // Library Cleaner Summary (Duplicates & Low-Quality Files)
     val cleanerSummary: StateFlow<CleanerSummary> = repository.allSongs.map { songs ->
