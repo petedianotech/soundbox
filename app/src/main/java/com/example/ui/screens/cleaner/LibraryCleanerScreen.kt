@@ -1,5 +1,9 @@
 package com.example.ui.screens.cleaner
 
+import android.app.Activity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -39,6 +43,27 @@ fun LibraryCleanerScreen(
     var selectedTab by remember { mutableIntStateOf(0) } // 0: Duplicates, 1: Low Quality
     var snackbarMessage by remember { mutableStateOf<String?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
+
+    val pendingDeleteSender by viewModel.pendingDeleteSender.collectAsState()
+    val deleteRequestLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            viewModel.confirmPendingDeletion {
+                snackbarMessage = "Files permanently deleted from storage"
+            }
+        } else {
+            viewModel.cancelPendingDeletion()
+            snackbarMessage = "Deletion cancelled"
+        }
+    }
+
+    LaunchedEffect(pendingDeleteSender) {
+        pendingDeleteSender?.let { sender ->
+            deleteRequestLauncher.launch(IntentSenderRequest.Builder(sender).build())
+            viewModel.clearPendingDeleteSender()
+        }
+    }
 
     LaunchedEffect(snackbarMessage) {
         snackbarMessage?.let { msg ->

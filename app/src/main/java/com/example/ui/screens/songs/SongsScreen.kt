@@ -1,6 +1,10 @@
 package com.example.ui.screens.songs
 
+import android.app.Activity
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -52,6 +56,49 @@ fun SongsScreen(
     val scanNotification by viewModel.scanNotification.collectAsState()
     val currentSong by viewModel.currentSong.collectAsState()
     val playlists by viewModel.allPlaylists.collectAsState()
+
+    val pendingDeleteSender by viewModel.pendingDeleteSender.collectAsState()
+    val pendingWriteSender by viewModel.pendingWriteSender.collectAsState()
+
+    val deleteRequestLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            viewModel.confirmPendingDeletion {
+                Toast.makeText(context, "Track permanently deleted from device storage", Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            viewModel.cancelPendingDeletion()
+            Toast.makeText(context, "Deletion cancelled", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    val writeRequestLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            viewModel.confirmPendingWrite {
+                Toast.makeText(context, "ID3 tags and details saved permanently to file", Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            viewModel.cancelPendingWrite()
+            Toast.makeText(context, "Tag editing cancelled", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    LaunchedEffect(pendingDeleteSender) {
+        pendingDeleteSender?.let { sender ->
+            deleteRequestLauncher.launch(IntentSenderRequest.Builder(sender).build())
+            viewModel.clearPendingDeleteSender()
+        }
+    }
+
+    LaunchedEffect(pendingWriteSender) {
+        pendingWriteSender?.let { sender ->
+            writeRequestLauncher.launch(IntentSenderRequest.Builder(sender).build())
+            viewModel.clearPendingWriteSender()
+        }
+    }
 
     var songToManage by remember { mutableStateOf<Song?>(null) }
     var songToDelete by remember { mutableStateOf<Song?>(null) }
@@ -668,8 +715,9 @@ fun SongsScreen(
                                 genre = editGenre,
                                 rating = editRating
                             )
-                            viewModel.updateSongMetadata(updatedSong)
-                            Toast.makeText(context, "ID3 tags and details saved permanently to file", Toast.LENGTH_SHORT).show()
+                            viewModel.updateSongMetadata(updatedSong) {
+                                Toast.makeText(context, "ID3 tags and details saved permanently to file", Toast.LENGTH_SHORT).show()
+                            }
                             showTagEditor = false
                             songToManage = null
                         }
@@ -814,8 +862,9 @@ fun SongsScreen(
                                 album = if (applyAlbum && batchAlbum.isNotBlank()) batchAlbum else null,
                                 genre = if (applyGenre && batchGenre.isNotBlank()) batchGenre else null,
                                 rating = if (applyRating) batchRating else null
-                            )
-                            Toast.makeText(context, "Tags updated permanently across ${selectedSongs.size} tracks on storage", Toast.LENGTH_SHORT).show()
+                            ) {
+                                Toast.makeText(context, "Tags updated permanently across ${selectedSongs.size} tracks on storage", Toast.LENGTH_SHORT).show()
+                            }
                             showBatchTagEditor = false
                             selectedSongIds = emptySet()
                         }

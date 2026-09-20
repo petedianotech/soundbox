@@ -37,7 +37,8 @@ object AudioTagWriter {
         newAlbum: String? = null,
         newGenre: String? = null,
         newTrackNumber: Int? = null,
-        newLyrics: String? = null
+        newLyrics: String? = null,
+        targetUri: Uri? = null
     ): Boolean {
         val title = newTitle?.trim() ?: song.title
         val artist = newArtist?.trim() ?: song.artist
@@ -47,7 +48,7 @@ object AudioTagWriter {
 
         var physicalSuccess = false
 
-        // 1. Write physical ID3 tags to the audio file if it is a local file
+        // 1. Write physical ID3 tags to the audio file if it is a local file with direct POSIX access
         if (song.path.startsWith("/") && !song.path.contains("://")) {
             val audioFile = File(song.path)
             if (audioFile.exists() && audioFile.canWrite()) {
@@ -68,7 +69,21 @@ object AudioTagWriter {
             }
         }
 
-        // 2. Synchronize companion .lrc file if lyrics are provided or already exist
+        // 2. If direct POSIX write did not succeed, write via Uri and ParcelFileDescriptor (Scoped Storage / Android 10/11+)
+        if (!physicalSuccess && targetUri != null) {
+            physicalSuccess = writeMp3Id3v2TagsViaUri(
+                context = context,
+                songUri = targetUri,
+                title = title,
+                artist = artist,
+                album = album,
+                genre = genre,
+                track = track,
+                lyrics = newLyrics
+            )
+        }
+
+        // 3. Synchronize companion .lrc file if lyrics are provided or already exist
         try {
             val lyricsToSave = newLyrics ?: LyricsManager.loadLyrics(context, song)
             if (!lyricsToSave.isNullOrBlank()) {
@@ -78,10 +93,10 @@ object AudioTagWriter {
             Log.w(TAG, "Could not update companion LRC: ${e.message}")
         }
 
-        // 3. Update Android MediaStore records
-        updateMediaStore(context, song, title, artist, album, genre, track)
+        // 4. Update Android MediaStore records
+        updateMediaStore(context, song, title, artist, album, genre, track, targetUri)
 
-        // 4. Force system MediaScanner refresh on the file
+        // 5. Force system MediaScanner refresh on the file
         try {
             MediaScannerConnection.scanFile(
                 context.applicationContext,
@@ -95,6 +110,72 @@ object AudioTagWriter {
         }
 
         return physicalSuccess
+    }
+
+    /**
+     * Writes ID3v2.3 tag frames (TIT2, TPE1, TALB, TCON, TRCK, USLT) directly to an audio file
+     * accessed via MediaStore Uri and ParcelFileDescriptor. Works seamlessly on Android 10, 11, 12, 13, 14, and 15
+     * after user grant or write permission.
+     */
+    fun writeMp3Id3v2TagsViaUri(
+        context: Context,
+        songUri: Uri,
+        title: String,
+        artist: String,
+        album: String,
+        genre: String,
+        track: Int,
+        lyrics: String?
+    ): Boolean {
+        return try {
+            val pfd = context.contentResolver.openFileDescriptor(songUri, "rw") ?: return false
+            pfd.use { parcelFd ->
+                val id3TagBytes = buildId3v2Tag(title, artist, album, genre, track, lyrics)
+                val tempFile = File(context.cacheDir, "tag_tmp_${System.currentTimeMillis()}.mp3")
+
+                FileInputStream(parcelFd.fileDescriptor).use { input ->
+                    val header = ByteArray(10)
+                    var audioDataStart = 0L
+                    val readLen = input.read(header)
+                    if (readLen == 10 && header[0] == 'I'.code.toByte() && header[1] == 'D'.code.toByte() && header[2] == '3'.code.toByte()) {
+                        val size = ((header[6].toInt() and 0x7F) shl 21) or
+                                ((header[7].toInt() and 0x7F) shl 14) or
+                                ((header[8].toInt() and 0x7F) shl 7) or
+                                (header[9].toInt() and 0x7F)
+                        audioDataStart = (10 + size).toLong()
+                    }
+
+                    // Seek to audio payload
+                    input.channel.position(audioDataStart)
+
+                    FileOutputStream(tempFile).use { out ->
+                        out.write(id3TagBytes)
+                        val buffer = ByteArray(64 * 1024)
+                        var bytesRead: Int
+                        while (input.read(buffer).also { bytesRead = it } != -1) {
+                            out.write(buffer, 0, bytesRead)
+                        }
+                    }
+                }
+
+                // Copy tempFile back into parcelFd and truncate
+                FileOutputStream(parcelFd.fileDescriptor).use { out ->
+                    val channel = out.channel
+                    channel.truncate(0)
+                    channel.position(0)
+                    FileInputStream(tempFile).use { tempIn ->
+                        tempIn.channel.transferTo(0, tempIn.channel.size(), channel)
+                    }
+                    channel.force(true)
+                }
+                tempFile.delete()
+                Log.d(TAG, "ID3v2 tags successfully written via Uri: $songUri")
+                true
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed writing physical ID3v2 tags via Uri: ${e.message}", e)
+            false
+        }
     }
 
     /**
@@ -276,17 +357,18 @@ object AudioTagWriter {
     /**
      * Updates MediaStore provider metadata entries.
      */
-    private fun updateMediaStore(
+    fun updateMediaStore(
         context: Context,
         song: Song,
         title: String,
         artist: String,
         album: String,
         genre: String,
-        track: Int
+        track: Int,
+        resolvedUri: Uri? = null
     ) {
         try {
-            val contentUri: Uri = try {
+            val contentUri: Uri = resolvedUri ?: try {
                 val longId = song.id.toLong()
                 ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, longId)
             } catch (e: Exception) {

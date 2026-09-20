@@ -58,9 +58,91 @@ class MusicRepository(private val context: Context) {
         }
     }
 
-    suspend fun updateSongMetadata(song: Song, newLyrics: String? = null) {
-        withContext(Dispatchers.IO) {
-            // 1. Write actual ID3v2 tags directly into the audio file & update MediaStore
+    data class TagEditResult(
+        val success: Boolean,
+        val intentSender: IntentSender? = null,
+        val updatedSong: Song? = null,
+        val updatedSongs: List<Song> = emptyList(),
+        val newLyrics: String? = null
+    )
+
+    fun getSongUri(song: Song): Uri? {
+        if (song.path.startsWith("content://")) {
+            return Uri.parse(song.path)
+        }
+        val longId = song.id.toLongOrNull()
+        if (longId != null && longId > 0) {
+            return ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, longId)
+        }
+        try {
+            context.contentResolver.query(
+                MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                arrayOf(MediaStore.Audio.Media._ID),
+                "${MediaStore.Audio.Media.DATA} = ?",
+                arrayOf(song.path),
+                null
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID))
+                    return ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id)
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Error resolving MediaStore Uri for ${song.path}: ${e.message}")
+        }
+        return null
+    }
+
+    suspend fun updateSongMetadata(song: Song, newLyrics: String? = null): TagEditResult {
+        return withContext(Dispatchers.IO) {
+            val file = if (song.path.startsWith("/") && !song.path.contains("://")) File(song.path) else null
+            if (file != null && file.exists() && file.canWrite()) {
+                com.example.util.AudioTagWriter.writeTags(
+                    context = context,
+                    song = song,
+                    newTitle = song.title,
+                    newArtist = song.artist,
+                    newAlbum = song.album,
+                    newGenre = song.genre,
+                    newTrackNumber = song.trackNumber,
+                    newLyrics = newLyrics
+                )
+                songDao.updateSong(song)
+                return@withContext TagEditResult(success = true, updatedSong = song)
+            }
+
+            // Scoped Storage check on Android 10/11+
+            val uri = getSongUri(song)
+            if (uri != null) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    try {
+                        val pendingIntent = MediaStore.createWriteRequest(context.contentResolver, listOf(uri))
+                        return@withContext TagEditResult(
+                            success = false,
+                            intentSender = pendingIntent.intentSender,
+                            updatedSong = song,
+                            newLyrics = newLyrics
+                        )
+                    } catch (e: Exception) {
+                        Log.w(TAG, "createWriteRequest failed: ${e.message}")
+                    }
+                } else if (Build.VERSION.SDK_INT == Build.VERSION_CODES.Q) {
+                    try {
+                        context.contentResolver.openFileDescriptor(uri, "rw")?.close()
+                    } catch (secEx: SecurityException) {
+                        if (secEx is android.app.RecoverableSecurityException) {
+                            return@withContext TagEditResult(
+                                success = false,
+                                intentSender = secEx.userAction.actionIntent.intentSender,
+                                updatedSong = song,
+                                newLyrics = newLyrics
+                            )
+                        }
+                    } catch (ignored: Exception) {}
+                }
+            }
+
+            // Direct fallback write
             com.example.util.AudioTagWriter.writeTags(
                 context = context,
                 song = song,
@@ -69,10 +151,30 @@ class MusicRepository(private val context: Context) {
                 newAlbum = song.album,
                 newGenre = song.genre,
                 newTrackNumber = song.trackNumber,
-                newLyrics = newLyrics
+                newLyrics = newLyrics,
+                targetUri = uri
             )
-            // 2. Persist in local Room database
             songDao.updateSong(song)
+            TagEditResult(success = true, updatedSong = song)
+        }
+    }
+
+    suspend fun confirmPendingWrite(song: Song, newLyrics: String? = null): Boolean {
+        return withContext(Dispatchers.IO) {
+            val uri = getSongUri(song)
+            val written = com.example.util.AudioTagWriter.writeTags(
+                context = context,
+                song = song,
+                newTitle = song.title,
+                newArtist = song.artist,
+                newAlbum = song.album,
+                newGenre = song.genre,
+                newTrackNumber = song.trackNumber,
+                newLyrics = newLyrics,
+                targetUri = uri
+            )
+            songDao.updateSong(song)
+            written
         }
     }
 
@@ -129,13 +231,88 @@ class MusicRepository(private val context: Context) {
         withContext(Dispatchers.IO) {
             // Write physical audio tags for all updated songs
             songs.forEach { song ->
+                val uri = getSongUri(song)
                 com.example.util.AudioTagWriter.writeTags(
                     context = context,
                     song = song,
                     newTitle = song.title,
                     newArtist = song.artist,
                     newAlbum = song.album,
-                    newGenre = song.genre
+                    newGenre = song.genre,
+                    targetUri = uri
+                )
+            }
+            songDao.updateSongs(songs)
+        }
+    }
+
+    suspend fun batchUpdateMetadata(songs: List<Song>): TagEditResult {
+        return withContext(Dispatchers.IO) {
+            val urisRequiringConsent = mutableListOf<Uri>()
+            val songsRequiringConsent = mutableListOf<Song>()
+            val directSongs = mutableListOf<Song>()
+
+            for (song in songs) {
+                val file = if (song.path.startsWith("/") && !song.path.contains("://")) File(song.path) else null
+                if (file != null && file.exists() && file.canWrite()) {
+                    directSongs.add(song)
+                } else {
+                    val uri = getSongUri(song)
+                    if (uri != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        urisRequiringConsent.add(uri)
+                        songsRequiringConsent.add(song)
+                    } else {
+                        directSongs.add(song)
+                    }
+                }
+            }
+
+            // Write direct songs immediately
+            for (song in directSongs) {
+                val uri = getSongUri(song)
+                com.example.util.AudioTagWriter.writeTags(
+                    context = context,
+                    song = song,
+                    newTitle = song.title,
+                    newArtist = song.artist,
+                    newAlbum = song.album,
+                    newGenre = song.genre,
+                    targetUri = uri
+                )
+            }
+            if (directSongs.isNotEmpty()) {
+                songDao.updateSongs(directSongs)
+            }
+
+            if (urisRequiringConsent.isNotEmpty() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                try {
+                    val pendingIntent = MediaStore.createWriteRequest(context.contentResolver, urisRequiringConsent)
+                    return@withContext TagEditResult(
+                        success = false,
+                        intentSender = pendingIntent.intentSender,
+                        updatedSongs = songsRequiringConsent
+                    )
+                } catch (e: Exception) {
+                    Log.w(TAG, "batch createWriteRequest failed: ${e.message}")
+                }
+            }
+
+            TagEditResult(success = true, updatedSongs = songs)
+        }
+    }
+
+    suspend fun confirmPendingBatchWrite(songs: List<Song>) {
+        withContext(Dispatchers.IO) {
+            for (song in songs) {
+                val uri = getSongUri(song)
+                com.example.util.AudioTagWriter.writeTags(
+                    context = context,
+                    song = song,
+                    newTitle = song.title,
+                    newArtist = song.artist,
+                    newAlbum = song.album,
+                    newGenre = song.genre,
+                    targetUri = uri
                 )
             }
             songDao.updateSongs(songs)
@@ -168,75 +345,59 @@ class MusicRepository(private val context: Context) {
                 var physicalDeleted = false
                 val file = if (song.path.startsWith("/") && !song.path.contains("://")) File(song.path) else null
 
-                // 1. Direct POSIX file deletion
-                if (file != null && file.exists()) {
+                // 1. Direct POSIX file deletion if writable
+                if (file != null && file.exists() && file.canWrite()) {
                     try {
                         physicalDeleted = file.delete()
-                        if (!physicalDeleted && file.canWrite()) {
-                            try {
-                                java.io.RandomAccessFile(file, "rw").setLength(0)
-                                physicalDeleted = file.delete()
-                            } catch (ignored: Exception) {}
-                        }
                     } catch (ignored: Exception) {}
                 }
 
-                // 2. Delete companion .lrc lyrics files
-                try {
-                    com.example.player.LyricsManager.deleteLyrics(context, song)
-                } catch (ignored: Exception) {}
-
-                // 3. Delete from Android MediaStore
-                val uri = when {
-                    song.path.startsWith("content://") -> Uri.parse(song.path)
-                    else -> {
-                        val longId = song.id.toLongOrNull()
-                        if (longId != null && longId > 0) {
-                            ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, longId)
-                        } else null
-                    }
-                }
-
-                if (uri != null) {
+                if (physicalDeleted) {
                     try {
-                        val rows = context.contentResolver.delete(uri, null, null)
-                        if (rows > 0) physicalDeleted = true
-                    } catch (secEx: SecurityException) {
-                        if (Build.VERSION.SDK_INT == Build.VERSION_CODES.Q && secEx is android.app.RecoverableSecurityException) {
-                            return@withContext DeleteResult(
-                                success = false,
-                                intentSender = secEx.userAction.actionIntent.intentSender,
-                                deletedSongIds = successfullyDeletedIds,
-                                pendingSongIds = listOf(song.id)
-                            )
-                        } else {
-                            urisRequiringConsent.add(uri)
-                            songsRequiringConsent.add(song)
+                        com.example.player.LyricsManager.deleteLyrics(context, song)
+                    } catch (ignored: Exception) {}
+                    try {
+                        val uri = getSongUri(song)
+                        if (uri != null) {
+                            context.contentResolver.delete(uri, null, null)
                         }
                     } catch (ignored: Exception) {}
+                    successfullyDeletedIds.add(song.id)
+                    continue
                 }
 
-                // Try query DATA delete
-                try {
-                    context.contentResolver.delete(
-                        MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
-                        "${MediaStore.Audio.Media.DATA} = ?",
-                        arrayOf(song.path)
-                    )
-                } catch (ignored: Exception) {}
-
-                // Scan file to inform Android OS
-                try {
-                    android.media.MediaScannerConnection.scanFile(
-                        context.applicationContext,
-                        arrayOf(song.path),
-                        null,
-                        null
-                    )
-                } catch (ignored: Exception) {}
-
-                if (physicalDeleted || (file != null && !file.exists())) {
-                    successfullyDeletedIds.add(song.id)
+                // 2. Scoped Storage / MediaStore resolution
+                val uri = getSongUri(song)
+                if (uri != null) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        urisRequiringConsent.add(uri)
+                        songsRequiringConsent.add(song)
+                    } else if (Build.VERSION.SDK_INT == Build.VERSION_CODES.Q) {
+                        try {
+                            val rows = context.contentResolver.delete(uri, null, null)
+                            if (rows > 0) {
+                                successfullyDeletedIds.add(song.id)
+                                try { com.example.player.LyricsManager.deleteLyrics(context, song) } catch (ignored: Exception) {}
+                            }
+                        } catch (secEx: SecurityException) {
+                            if (secEx is android.app.RecoverableSecurityException) {
+                                return@withContext DeleteResult(
+                                    success = false,
+                                    intentSender = secEx.userAction.actionIntent.intentSender,
+                                    deletedSongIds = successfullyDeletedIds,
+                                    pendingSongIds = listOf(song.id)
+                                )
+                            }
+                        }
+                    } else {
+                        try {
+                            val rows = context.contentResolver.delete(uri, null, null)
+                            if (rows > 0) {
+                                successfullyDeletedIds.add(song.id)
+                                try { com.example.player.LyricsManager.deleteLyrics(context, song) } catch (ignored: Exception) {}
+                            }
+                        } catch (ignored: Exception) {}
+                    }
                 }
             }
 
@@ -258,16 +419,36 @@ class MusicRepository(private val context: Context) {
                 }
             }
 
-            // Remove all processed songs from Room
-            val allToDelete = songs.map { it.id }
-            if (allToDelete.isNotEmpty()) {
-                songDao.deleteSongsByIds(allToDelete)
+            if (successfullyDeletedIds.isNotEmpty()) {
+                songDao.deleteSongsByIds(successfullyDeletedIds)
             }
 
             DeleteResult(
                 success = true,
-                deletedSongIds = allToDelete
+                deletedSongIds = successfullyDeletedIds
             )
+        }
+    }
+
+    suspend fun confirmPendingDeletion(songIds: List<String>) {
+        withContext(Dispatchers.IO) {
+            for (id in songIds) {
+                val song = songDao.getSongById(id)
+                if (song != null) {
+                    try {
+                        com.example.player.LyricsManager.deleteLyrics(context, song)
+                    } catch (ignored: Exception) {}
+                    try {
+                        android.media.MediaScannerConnection.scanFile(
+                            context.applicationContext,
+                            arrayOf(song.path),
+                            null,
+                            null
+                        )
+                    } catch (ignored: Exception) {}
+                }
+            }
+            songDao.deleteSongsByIds(songIds)
         }
     }
 

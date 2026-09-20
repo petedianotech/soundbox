@@ -23,6 +23,7 @@ import com.example.util.SettingsManager
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.ui.graphics.Color
+import android.content.IntentSender
 
 class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -30,6 +31,17 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     private val playbackManager = PlaybackManager.getInstance(application)
     
     val settingsManager = SettingsManager(application)
+
+    // Scoped Storage IntentSender flows for system deletion and write consent dialogs
+    private val _pendingDeleteSender = MutableStateFlow<IntentSender?>(null)
+    val pendingDeleteSender: StateFlow<IntentSender?> = _pendingDeleteSender.asStateFlow()
+    private val _pendingDeleteIds = MutableStateFlow<List<String>>(emptyList())
+
+    private val _pendingWriteSender = MutableStateFlow<IntentSender?>(null)
+    val pendingWriteSender: StateFlow<IntentSender?> = _pendingWriteSender.asStateFlow()
+    private val _pendingWriteSong = MutableStateFlow<Song?>(null)
+    private val _pendingWriteLyrics = MutableStateFlow<String?>(null)
+    private val _pendingBatchWriteSongs = MutableStateFlow<List<Song>>(emptyList())
 
     // Search history delegation
     val searchHistory: StateFlow<List<String>> = settingsManager.searchHistoryFlow
@@ -646,11 +658,52 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun updateSongMetadata(updatedSong: Song, newLyrics: String? = null) {
+    fun updateSongMetadata(updatedSong: Song, newLyrics: String? = null, onComplete: (() -> Unit)? = null) {
         viewModelScope.launch {
-            repository.updateSongMetadata(updatedSong, newLyrics)
-            playbackManager.refreshCurrentSongMetadata(updatedSong)
+            val result = repository.updateSongMetadata(updatedSong, newLyrics)
+            if (result.intentSender != null) {
+                _pendingWriteSong.value = updatedSong
+                _pendingWriteLyrics.value = newLyrics
+                _pendingWriteSender.value = result.intentSender
+            } else if (result.success) {
+                playbackManager.refreshCurrentSongMetadata(updatedSong)
+                onComplete?.invoke()
+            }
         }
+    }
+
+    fun confirmPendingWrite(onSuccess: (() -> Unit)? = null) {
+        viewModelScope.launch {
+            val singleSong = _pendingWriteSong.value
+            val batchSongs = _pendingBatchWriteSongs.value
+            if (singleSong != null) {
+                repository.confirmPendingWrite(singleSong, _pendingWriteLyrics.value)
+                playbackManager.refreshCurrentSongMetadata(singleSong)
+                _pendingWriteSong.value = null
+                _pendingWriteLyrics.value = null
+                onSuccess?.invoke()
+            } else if (batchSongs.isNotEmpty()) {
+                repository.confirmPendingBatchWrite(batchSongs)
+                currentSong.value?.let { curr ->
+                    batchSongs.find { it.id == curr.id }?.let { updatedCurr ->
+                        playbackManager.refreshCurrentSongMetadata(updatedCurr)
+                    }
+                }
+                _pendingBatchWriteSongs.value = emptyList()
+                onSuccess?.invoke()
+            }
+        }
+    }
+
+    fun cancelPendingWrite() {
+        _pendingWriteSong.value = null
+        _pendingWriteLyrics.value = null
+        _pendingBatchWriteSongs.value = emptyList()
+        _pendingWriteSender.value = null
+    }
+
+    fun clearPendingWriteSender() {
+        _pendingWriteSender.value = null
     }
 
     fun cutAndReplaceSong(
@@ -699,7 +752,8 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         artist: String?,
         album: String?,
         genre: String?,
-        rating: Int?
+        rating: Int?,
+        onComplete: (() -> Unit)? = null
     ) {
         viewModelScope.launch {
             val updatedList = songsToUpdate.map { song ->
@@ -710,11 +764,17 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                     rating = rating?.coerceIn(0, 5) ?: song.rating
                 )
             }
-            repository.updateSongsBatch(updatedList)
-            currentSong.value?.let { curr ->
-                updatedList.find { it.id == curr.id }?.let { updatedCurr ->
-                    playbackManager.refreshCurrentSongMetadata(updatedCurr)
+            val result = repository.batchUpdateMetadata(updatedList)
+            if (result.intentSender != null) {
+                _pendingBatchWriteSongs.value = result.updatedSongs
+                _pendingWriteSender.value = result.intentSender
+            } else {
+                currentSong.value?.let { curr ->
+                    updatedList.find { it.id == curr.id }?.let { updatedCurr ->
+                        playbackManager.refreshCurrentSongMetadata(updatedCurr)
+                    }
                 }
+                onComplete?.invoke()
             }
         }
     }
@@ -733,8 +793,13 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                     playbackManager.clearQueue()
                 }
             }
-            repository.deleteSongCompletely(song)
-            onComplete?.invoke()
+            val result = repository.deleteSongsPermanently(listOf(song))
+            if (result.intentSender != null) {
+                _pendingDeleteIds.value = result.pendingSongIds
+                _pendingDeleteSender.value = result.intentSender
+            } else if (result.success) {
+                onComplete?.invoke()
+            }
         }
     }
 
@@ -749,15 +814,38 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                     playbackManager.clearQueue()
                 }
             }
-            repository.deleteSongsBatchCompletely(songsToDelete)
-            onComplete?.invoke()
+            val result = repository.deleteSongsPermanently(songsToDelete)
+            if (result.intentSender != null) {
+                _pendingDeleteIds.value = result.pendingSongIds
+                _pendingDeleteSender.value = result.intentSender
+            } else if (result.success) {
+                onComplete?.invoke()
+            }
         }
     }
 
-    fun deleteSongs(songsToDelete: List<Song>) {
+    fun confirmPendingDeletion(onSuccess: (() -> Unit)? = null) {
         viewModelScope.launch {
-            repository.deleteSongsBatchCompletely(songsToDelete)
+            val ids = _pendingDeleteIds.value
+            if (ids.isNotEmpty()) {
+                repository.confirmPendingDeletion(ids)
+                _pendingDeleteIds.value = emptyList()
+                onSuccess?.invoke()
+            }
         }
+    }
+
+    fun cancelPendingDeletion() {
+        _pendingDeleteIds.value = emptyList()
+        _pendingDeleteSender.value = null
+    }
+
+    fun clearPendingDeleteSender() {
+        _pendingDeleteSender.value = null
+    }
+
+    fun deleteSongs(songsToDelete: List<Song>) {
+        deleteSongsBatchFromDevice(songsToDelete)
     }
 
     fun cleanDuplicateGroup(group: DuplicateGroup, keepBest: Boolean = true) {
