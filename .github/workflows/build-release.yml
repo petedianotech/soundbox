@@ -41,7 +41,7 @@ jobs:
             echo "Generated fallback debug.keystore for CI builds"
           fi
 
-      - name: Build Release and Debug APKs
+      - name: Build Release APK
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
@@ -49,7 +49,7 @@ jobs:
           STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEYSTORE_PATH: my-upload-key.jks
           GITHUB_RUN_NUMBER: ${{ github.run_number }}
-        run: gradle assembleRelease assembleDebug --no-daemon
+        run: gradle :app:assembleRelease --no-daemon -Djava.awt.headless=true
 
       - name: Upload Release APK
         uses: actions/upload-artifact@v4
@@ -57,12 +57,4 @@ jobs:
         with:
           name: Soundbox-Release-APK
           path: app/build/outputs/apk/release/*.apk
-          retention-days: 14
-
-      - name: Upload Debug APK
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: Soundbox-Debug-APK
-          path: app/build/outputs/apk/debug/*.apk
           retention-days: 14
