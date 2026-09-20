@@ -382,9 +382,6 @@ class MusicRepository(private val context: Context) {
             val queryUri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
 
             try {
-                val currentBatch = mutableListOf<Song>()
-                val existingIds = songDao.getAllSongIds().toSet()
-
                 context.contentResolver.query(
                     queryUri,
                     projection.toTypedArray(),
@@ -419,7 +416,6 @@ class MusicRepository(private val context: Context) {
                             genre = "Music"
                         }
 
-                        // Fast string-based folder parsing avoiding slow File allocations
                         val lastSlash = path.lastIndexOf('/')
                         val folderPath = if (lastSlash > 0) path.substring(0, lastSlash) else "/storage/emulated/0/Music"
                         val folderName = if (folderPath.contains('/')) folderPath.substringAfterLast('/') else "Music"
@@ -441,18 +437,6 @@ class MusicRepository(private val context: Context) {
                         )
 
                         fetchedSongs.add(song)
-                        currentBatch.add(song)
-
-                        // Stream immediately to Room in chunks of 50 tracks for instant UI rendering (<50ms)
-                        if (currentBatch.size >= 50) {
-                            songDao.insertSongs(currentBatch.toList())
-                            currentBatch.clear()
-                        }
-                    }
-
-                    if (currentBatch.isNotEmpty()) {
-                        songDao.insertSongs(currentBatch.toList())
-                        currentBatch.clear()
                     }
                 }
             } catch (e: Exception) {
@@ -461,20 +445,32 @@ class MusicRepository(private val context: Context) {
 
             Log.d(TAG, "Scan completed: Found ${fetchedSongs.size} songs on disk.")
 
-            var newSongsCount = 0
-            if (fetchedSongs.isNotEmpty()) {
-                val existingIds = songDao.getAllSongIds().toSet()
-                val newSongs = fetchedSongs.filter { it.id !in existingIds }
-                newSongsCount = newSongs.size
-
-                // Final sync and cleanup of songs that are no longer present on physical storage
-                val paths = fetchedSongs.map { it.path }
-                songDao.deleteStaleSongs(paths)
+            if (fetchedSongs.isEmpty()) {
+                return@withContext 0
             }
-            // CRITICAL: If fetchedSongs is empty (e.g. MediaStore query returned 0 during app resume or test),
-            // NEVER clear the database! Keep existing cached songs so the app never loses its library.
 
-            newSongsCount
+            val existingIds = songDao.getAllSongIds().toSet()
+            val fetchedIdSet = fetchedSongs.map { it.id }.toSet()
+
+            // 1. Identify and insert new tracks only (avoids constant Room invalidation loop)
+            val newSongs = fetchedSongs.filter { it.id !in existingIds }
+            if (newSongs.isNotEmpty()) {
+                newSongs.chunked(250).forEach { batch ->
+                    songDao.insertSongs(batch)
+                }
+            }
+
+            // 2. Identify stale tracks that were deleted from physical storage
+            if (existingIds.isNotEmpty()) {
+                val staleIds = existingIds.filter { it !in fetchedIdSet }
+                if (staleIds.isNotEmpty()) {
+                    staleIds.chunked(250).forEach { chunk ->
+                        songDao.deleteSongsByIds(chunk)
+                    }
+                }
+            }
+
+            newSongs.size
         }
     }
 }

@@ -290,6 +290,23 @@ class SettingsManager(context: Context) {
         prefs.edit().putInt("eq_reverb_preset", presetId).apply()
     }
 
+    private val _totalListeningTimeMs = MutableStateFlow(prefs.getLong("total_listening_time_ms", 0L))
+    val totalListeningTimeMs: StateFlow<Long> = _totalListeningTimeMs
+
+    fun addListeningTimeMs(deltaMs: Long) {
+        if (deltaMs <= 0L) return
+        val updated = _totalListeningTimeMs.value + deltaMs
+        prefs.edit().putLong("total_listening_time_ms", updated).apply()
+        _totalListeningTimeMs.value = updated
+    }
+
+    fun getTotalListeningTimeMs(): Long = _totalListeningTimeMs.value
+
+    fun resetInsightsData() {
+        prefs.edit().putLong("total_listening_time_ms", 0L).apply()
+        _totalListeningTimeMs.value = 0L
+    }
+
     companion object {
         @Volatile
         private var INSTANCE: SettingsManager? = null
