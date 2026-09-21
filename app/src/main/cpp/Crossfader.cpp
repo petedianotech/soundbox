@@ -1,4 +1,5 @@
 #include "Crossfader.h"
+#include <limits>
 
 namespace soundbox {
 
@@ -44,7 +45,9 @@ void Crossfader::mix(
     float progress,
     CrossfadeCurve curve
 ) {
-    if (!dst || frameCount <= 0 || channelCount <= 0) {
+    if (!dst || frameCount <= 0 || channelCount <= 0 ||
+        static_cast<int64_t>(frameCount) >
+            (std::numeric_limits<int32_t>::max() / channelCount)) {
         return;
     }
 

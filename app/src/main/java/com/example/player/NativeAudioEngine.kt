@@ -116,9 +116,17 @@ object NativeAudioEngine {
         progress: Float,
         curveType: Int = 0
     ) {
+        if (frameCount <= 0 || channelCount <= 0) return
+
+        val requestedBytes = frameCount.toLong() * channelCount.toLong() * 2L
+        val outputCanHoldData = requestedBytes <= outputBuffer.capacity().toLong()
+        val sourcesCanHoldData = (bufferA == null || requestedBytes <= bufferA.capacity().toLong()) &&
+            (bufferB == null || requestedBytes <= bufferB.capacity().toLong())
+
         if (isNativeAvailable && outputBuffer.isDirect &&
             (bufferA == null || bufferA.isDirect) &&
-            (bufferB == null || bufferB.isDirect)
+            (bufferB == null || bufferB.isDirect) &&
+            outputCanHoldData && sourcesCanHoldData
         ) {
             try {
                 nativeMixCrossfadePcm16Direct(
@@ -137,6 +145,8 @@ object NativeAudioEngine {
                 Log.w(TAG, "nativeMixCrossfadePcm16Direct failed, falling back to Kotlin: ${t.message}")
             }
         }
+
+        if (!outputCanHoldData) return
 
         // Fallback mixing in Kotlin
         mixCrossfadeFallback(

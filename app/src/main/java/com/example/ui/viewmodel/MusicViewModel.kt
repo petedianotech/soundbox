@@ -580,6 +580,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun scanStorage() {
+        if (_isScanning.value) return
         viewModelScope.launch {
             _isScanning.value = true
             try {

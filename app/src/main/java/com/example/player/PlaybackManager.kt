@@ -751,6 +751,14 @@ class PlaybackManager private constructor(private val context: Context) {
             return
         }
 
+        // Never start a second transition while the player roles are being swapped.
+        // Cancelling and immediately reusing the standby player can race with ExoPlayer
+        // callbacks and leave both players in an invalid state.
+        if (isCrossfading) {
+            playSongDirect(nextSong, customQueue)
+            return
+        }
+
         // Safely cancel any in-flight transition job
         transitionJob?.cancel()
 
@@ -787,6 +795,14 @@ class PlaybackManager private constructor(private val context: Context) {
                 standbyPlayer.volume = 0f
                 standbyPlayer.prepare()
                 standbyPlayer.playWhenReady = true
+
+                // Do not begin the fade until the incoming player has decoded its
+                // first buffer. This prevents a silent/uneven transition on slow storage.
+                withTimeoutOrNull(3000L) {
+                    while (standbyPlayer.playbackState != Player.STATE_READY) {
+                        delay(10L)
+                    }
+                }
 
                 val totalSteps = (fadeDurationMs / stepIntervalMs).toInt().coerceAtLeast(1)
 
