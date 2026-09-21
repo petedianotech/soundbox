@@ -138,29 +138,19 @@ fun SongsScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         if (songs.isEmpty()) {
-            if (!isInitialLoadComplete || isScanning) {
+            if (!isInitialLoadComplete) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        CircularProgressIndicator(
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(36.dp)
-                        )
-                        Text(
-                            text = "Loading music library...",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                    CircularProgressIndicator(
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(32.dp)
+                    )
                 }
             } else {
                 EmptyPlaceholder(
                     title = "No songs found",
-                    subtitle = "Tap below to scan your device for music files.",
+                    subtitle = "Add audio files to your device storage or tap below to refresh.",
                     icon = Icons.Default.MusicNote,
-                    actionText = "Scan for Music",
+                    actionText = "Refresh Library",
                     onActionClick = { viewModel.scanStorage() }
                 )
             }

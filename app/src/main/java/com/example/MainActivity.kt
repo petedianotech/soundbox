@@ -26,8 +26,9 @@ class MainActivity : ComponentActivity() {
       val viewModel: MusicViewModel = viewModel()
       musicViewModel = viewModel
       val themeFlow by viewModel.settingsManager.themeFlow.collectAsState()
+      val fontFlow by viewModel.settingsManager.fontFlow.collectAsState()
       
-      MyApplicationTheme(themeConfig = themeFlow) {
+      MyApplicationTheme(themeConfig = themeFlow, fontConfig = fontFlow) {
         SoundboxNavGraph(viewModel)
       }
     }

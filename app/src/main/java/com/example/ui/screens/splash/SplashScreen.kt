@@ -26,15 +26,32 @@ import androidx.compose.ui.unit.sp
 import com.example.R
 import com.example.ui.theme.Poweramp_Cyan
 import com.example.ui.theme.Poweramp_Lime
+import com.example.ui.viewmodel.MusicViewModel
 import kotlinx.coroutines.delay
 
 @Composable
-fun SplashScreen(onNavigateToHome: () -> Unit) {
+fun SplashScreen(
+    viewModel: MusicViewModel,
+    onNavigateToHome: () -> Unit
+) {
+    val isInitialLoadComplete by viewModel.isInitialLoadComplete.collectAsState()
+    val isScanning by viewModel.isScanning.collectAsState()
+    val allSongs by viewModel.allSongs.collectAsState()
+
     var startAnims by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         startAnims = true
-        delay(2000)
+    }
+
+    LaunchedEffect(isInitialLoadComplete, isScanning, allSongs.size) {
+        // Allow splash branding animation to play smoothly while library loads in background
+        delay(1800)
+        var elapsed = 1800
+        while ((!isInitialLoadComplete || isScanning) && allSongs.isEmpty() && elapsed < 3500) {
+            delay(150)
+            elapsed += 150
+        }
         onNavigateToHome()
     }
 

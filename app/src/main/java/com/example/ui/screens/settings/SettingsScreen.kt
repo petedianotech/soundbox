@@ -44,6 +44,7 @@ fun SettingsScreen(
     val isScanning by viewModel.isScanning.collectAsState()
     val sleepTimerLeft by viewModel.sleepTimerMillis.collectAsState()
     val currentTheme by viewModel.settingsManager.themeFlow.collectAsState()
+    val currentFont by viewModel.settingsManager.fontFlow.collectAsState()
     val visibleTabs by viewModel.settingsManager.visibleTabsFlow.collectAsState()
 
     val gaplessEnabled by viewModel.settingsManager.gaplessPlayback.collectAsState()
@@ -67,6 +68,7 @@ fun SettingsScreen(
 
     var showTimerDialog by remember { mutableStateOf(false) }
     var showThemeDialog by remember { mutableStateOf(false) }
+    var showFontDialog by remember { mutableStateOf(false) }
     var showTabsDialog by remember { mutableStateOf(false) }
     var showReplayGainDialog by remember { mutableStateOf(false) }
     var showVisualizerDialog by remember { mutableStateOf(false) }
@@ -330,6 +332,15 @@ fun SettingsScreen(
                     subtitle = if (currentTheme == "LIGHT") "Light Theme" else "Dark Theme (Default)",
                     icon = Icons.Default.ColorLens,
                     onClick = { showThemeDialog = true }
+                )
+                SettingsDivider()
+                SettingsCardRow(
+                    title = "App Font & Typography",
+                    subtitle = com.example.ui.theme.AppFont.fromId(currentFont).let { "${it.displayName} • ${it.subtitle}" },
+                    icon = Icons.Default.FontDownload,
+                    badge = com.example.ui.theme.AppFont.fromId(currentFont).displayName.uppercase(),
+                    badgeColor = colors.accentCyan,
+                    onClick = { showFontDialog = true }
                 )
                 SettingsDivider()
                 SettingsToggleRow(
@@ -845,6 +856,99 @@ fun SettingsScreen(
             confirmButton = {
                 TextButton(
                     onClick = { showThemeDialog = false },
+                    colors = ButtonDefaults.textButtonColors(contentColor = colors.accentCyan)
+                ) {
+                    Text("Close")
+                }
+            }
+        )
+    }
+
+    if (showFontDialog) {
+        AlertDialog(
+            containerColor = colors.dialogBackground,
+            titleContentColor = colors.textPrimary,
+            textContentColor = colors.textSecondary,
+            onDismissRequest = { showFontDialog = false },
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(Icons.Default.FontDownload, contentDescription = null, tint = colors.accentCyan)
+                    Text("App Typography Style", fontWeight = FontWeight.Bold)
+                }
+            },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    com.example.ui.theme.AppFont.entries.forEach { font ->
+                        val isSelected = currentFont.equals(font.id, ignoreCase = true)
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .clickable {
+                                    viewModel.settingsManager.setFont(font.id)
+                                    showFontDialog = false
+                                },
+                            color = if (isSelected) colors.accentCyan.copy(alpha = 0.12f) else colors.surface,
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                if (isSelected) colors.accentCyan else colors.border
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                RadioButton(
+                                    selected = isSelected,
+                                    onClick = null,
+                                    colors = RadioButtonDefaults.colors(selectedColor = colors.accentCyan)
+                                )
+                                Spacer(Modifier.width(10.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = font.displayName,
+                                        style = MaterialTheme.typography.titleSmall.copy(
+                                            fontFamily = font.fontFamily,
+                                            fontWeight = FontWeight.Bold
+                                        ),
+                                        color = if (isSelected) colors.accentCyan else colors.textPrimary
+                                    )
+                                    Spacer(Modifier.height(2.dp))
+                                    Text(
+                                        text = font.subtitle,
+                                        style = MaterialTheme.typography.bodySmall.copy(
+                                            fontFamily = font.fontFamily
+                                        ),
+                                        color = colors.textSecondary
+                                    )
+                                    Spacer(Modifier.height(4.dp))
+                                    Text(
+                                        text = "The quick brown fox jumps over the lazy dog • 1234567890",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontFamily = font.fontFamily,
+                                            fontSize = 9.sp
+                                        ),
+                                        color = colors.textMuted
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { showFontDialog = false },
                     colors = ButtonDefaults.textButtonColors(contentColor = colors.accentCyan)
                 ) {
                     Text("Close")

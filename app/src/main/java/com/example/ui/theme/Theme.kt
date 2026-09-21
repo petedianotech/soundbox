@@ -123,6 +123,7 @@ private val DarkColors = darkColorScheme(
 @Composable
 fun MyApplicationTheme(
     themeConfig: String = "DARK",
+    fontConfig: String = "PLUS_JAKARTA_SANS",
     content: @Composable () -> Unit,
 ) {
     val skin = when (themeConfig) {
@@ -135,7 +136,10 @@ fun MyApplicationTheme(
         else -> DarkColors
     }
 
+    val selectedFont = AppFont.fromId(fontConfig)
+    val dynamicTypography = createAppTypography(selectedFont.fontFamily)
+
     CompositionLocalProvider(LocalSoundboxSkin provides skin) {
-        MaterialTheme(colorScheme = colorScheme, typography = Typography, content = content)
+        MaterialTheme(colorScheme = colorScheme, typography = dynamicTypography, content = content)
     }
 }

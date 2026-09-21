@@ -79,6 +79,50 @@ fun HomeScreen(
     }
 
     val colors = SoundboxTheme.colors
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    val pendingDeleteSender by viewModel.pendingDeleteSender.collectAsState()
+    val pendingWriteSender by viewModel.pendingWriteSender.collectAsState()
+
+    val deleteRequestLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            viewModel.confirmPendingDeletion {
+                android.widget.Toast.makeText(context, "Track(s) permanently deleted from storage", android.widget.Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            viewModel.cancelPendingDeletion()
+            android.widget.Toast.makeText(context, "Deletion cancelled", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    val writeRequestLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            viewModel.confirmPendingWrite {
+                android.widget.Toast.makeText(context, "Track details updated permanently", android.widget.Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            viewModel.cancelPendingWrite()
+            android.widget.Toast.makeText(context, "Update cancelled", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    LaunchedEffect(pendingDeleteSender) {
+        pendingDeleteSender?.let { sender ->
+            deleteRequestLauncher.launch(androidx.activity.result.IntentSenderRequest.Builder(sender).build())
+            viewModel.clearPendingDeleteSender()
+        }
+    }
+
+    LaunchedEffect(pendingWriteSender) {
+        pendingWriteSender?.let { sender ->
+            writeRequestLauncher.launch(androidx.activity.result.IntentSenderRequest.Builder(sender).build())
+            viewModel.clearPendingWriteSender()
+        }
+    }
 
     if (isLandscape) {
         // Landscape Split: NavigationRail on the left, Content & MiniPlayer on the right

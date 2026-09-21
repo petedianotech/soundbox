@@ -345,10 +345,35 @@ class MusicRepository(private val context: Context) {
                 var physicalDeleted = false
                 val file = if (song.path.startsWith("/") && !song.path.contains("://")) File(song.path) else null
 
-                // 1. Direct POSIX file deletion if writable
-                if (file != null && file.exists() && file.canWrite()) {
+                // 1. Direct POSIX file deletion if writable/accessible
+                if (file != null && file.exists()) {
                     try {
                         physicalDeleted = file.delete()
+                    } catch (ignored: Exception) {}
+                }
+
+                // 2. Direct ContentResolver deletion
+                val uri = getSongUri(song)
+                if (!physicalDeleted && uri != null) {
+                    try {
+                        val rows = context.contentResolver.delete(uri, null, null)
+                        if (rows > 0) {
+                            physicalDeleted = true
+                        }
+                    } catch (secEx: SecurityException) {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                            if (!urisRequiringConsent.contains(uri)) {
+                                urisRequiringConsent.add(uri)
+                                songsRequiringConsent.add(song)
+                            }
+                        } else if (secEx is android.app.RecoverableSecurityException) {
+                            return@withContext DeleteResult(
+                                success = false,
+                                intentSender = secEx.userAction.actionIntent.intentSender,
+                                deletedSongIds = successfullyDeletedIds,
+                                pendingSongIds = listOf(song.id)
+                            )
+                        }
                     } catch (ignored: Exception) {}
                 }
 
@@ -357,51 +382,26 @@ class MusicRepository(private val context: Context) {
                         com.example.player.LyricsManager.deleteLyrics(context, song)
                     } catch (ignored: Exception) {}
                     try {
-                        val uri = getSongUri(song)
                         if (uri != null) {
                             context.contentResolver.delete(uri, null, null)
                         }
                     } catch (ignored: Exception) {}
+                    try {
+                        android.media.MediaScannerConnection.scanFile(
+                            context.applicationContext,
+                            arrayOf(song.path),
+                            null,
+                            null
+                        )
+                    } catch (ignored: Exception) {}
                     successfullyDeletedIds.add(song.id)
-                    continue
-                }
-
-                // 2. Scoped Storage / MediaStore resolution
-                val uri = getSongUri(song)
-                if (uri != null) {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                        urisRequiringConsent.add(uri)
-                        songsRequiringConsent.add(song)
-                    } else if (Build.VERSION.SDK_INT == Build.VERSION_CODES.Q) {
-                        try {
-                            val rows = context.contentResolver.delete(uri, null, null)
-                            if (rows > 0) {
-                                successfullyDeletedIds.add(song.id)
-                                try { com.example.player.LyricsManager.deleteLyrics(context, song) } catch (ignored: Exception) {}
-                            }
-                        } catch (secEx: SecurityException) {
-                            if (secEx is android.app.RecoverableSecurityException) {
-                                return@withContext DeleteResult(
-                                    success = false,
-                                    intentSender = secEx.userAction.actionIntent.intentSender,
-                                    deletedSongIds = successfullyDeletedIds,
-                                    pendingSongIds = listOf(song.id)
-                                )
-                            }
-                        }
-                    } else {
-                        try {
-                            val rows = context.contentResolver.delete(uri, null, null)
-                            if (rows > 0) {
-                                successfullyDeletedIds.add(song.id)
-                                try { com.example.player.LyricsManager.deleteLyrics(context, song) } catch (ignored: Exception) {}
-                            }
-                        } catch (ignored: Exception) {}
-                    }
+                } else if (uri != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !urisRequiringConsent.contains(uri)) {
+                    urisRequiringConsent.add(uri)
+                    songsRequiringConsent.add(song)
                 }
             }
 
-            // Android 11+ (API 30+) Scoped Storage consent request
+            // Android 11+ (API 30+) Scoped Storage consent request for media files not owned by app
             if (urisRequiringConsent.isNotEmpty() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 try {
                     val pendingIntent = MediaStore.createDeleteRequest(context.contentResolver, urisRequiringConsent)
@@ -424,7 +424,7 @@ class MusicRepository(private val context: Context) {
             }
 
             DeleteResult(
-                success = true,
+                success = successfullyDeletedIds.isNotEmpty() || songs.isEmpty(),
                 deletedSongIds = successfullyDeletedIds
             )
         }
@@ -436,7 +436,19 @@ class MusicRepository(private val context: Context) {
                 val song = songDao.getSongById(id)
                 if (song != null) {
                     try {
+                        val file = File(song.path)
+                        if (file.exists()) {
+                            file.delete()
+                        }
+                    } catch (ignored: Exception) {}
+                    try {
                         com.example.player.LyricsManager.deleteLyrics(context, song)
+                    } catch (ignored: Exception) {}
+                    try {
+                        val uri = getSongUri(song)
+                        if (uri != null) {
+                            context.contentResolver.delete(uri, null, null)
+                        }
                     } catch (ignored: Exception) {}
                     try {
                         android.media.MediaScannerConnection.scanFile(

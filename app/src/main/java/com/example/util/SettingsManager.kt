@@ -11,6 +11,9 @@ class SettingsManager(context: Context) {
     private val _themeFlow = MutableStateFlow(prefs.getString("theme", "DARK") ?: "DARK")
     val themeFlow: StateFlow<String> = _themeFlow
 
+    private val _fontFlow = MutableStateFlow(prefs.getString("app_font", "PLUS_JAKARTA_SANS") ?: "PLUS_JAKARTA_SANS")
+    val fontFlow: StateFlow<String> = _fontFlow
+
     private val _visibleTabsFlow = MutableStateFlow(getVisibleTabs())
     val visibleTabsFlow: StateFlow<Set<String>> = _visibleTabsFlow
 
@@ -180,6 +183,11 @@ class SettingsManager(context: Context) {
     fun setTheme(theme: String) {
         prefs.edit().putString("theme", theme).apply()
         _themeFlow.value = theme
+    }
+
+    fun setFont(font: String) {
+        prefs.edit().putString("app_font", font).apply()
+        _fontFlow.value = font
     }
 
     fun toggleTabVisibility(tab: String, isVisible: Boolean) {
