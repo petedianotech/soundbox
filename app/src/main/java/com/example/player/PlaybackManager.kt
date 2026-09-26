@@ -272,9 +272,10 @@ class PlaybackManager private constructor(private val context: Context) {
                         val maxFade = (dur / 2).coerceAtLeast(1000L)
                         val triggerWindow = (crossfadeSec * 1000L).coerceAtMost(maxFade).coerceIn(1000L, 15000L)
                         // If within the crossfade window before track ends
-                        if (remainingMs in 100L..triggerWindow) {
+                        if (remainingMs in 50L..triggerWindow) {
                             val currentQueue = _queue.value
-                            val currentIndex = activePlayer.currentMediaItemIndex
+                            val currentIndex = currentQueue.indexOfFirst { it.id == _currentSong.value?.id }
+                                .takeIf { it >= 0 } ?: activePlayer.currentMediaItemIndex
                             val nextSong = when {
                                 _shuffleMode.value && currentQueue.size > 1 -> {
                                     currentQueue.filter { it.id != _currentSong.value?.id }.randomOrNull()
@@ -381,11 +382,16 @@ class PlaybackManager private constructor(private val context: Context) {
                     }
                 } else if (playbackState == Player.STATE_ENDED) {
                     val currentQueue = _queue.value
+                    val currentIndex = currentQueue.indexOfFirst { it.id == _currentSong.value?.id }
+                        .takeIf { it >= 0 } ?: activePlayer.currentMediaItemIndex
                     if (_repeatMode.value == Player.REPEAT_MODE_ALL && currentQueue.isNotEmpty()) {
                         val firstSong = currentQueue.first()
                         playSongDirect(firstSong, currentQueue)
                     } else if (_shuffleMode.value && currentQueue.size > 1) {
                         val nextSong = currentQueue.filter { it.id != _currentSong.value?.id }.randomOrNull() ?: currentQueue.first()
+                        playSongDirect(nextSong, currentQueue)
+                    } else if (currentIndex >= 0 && currentIndex + 1 < currentQueue.size) {
+                        val nextSong = currentQueue[currentIndex + 1]
                         playSongDirect(nextSong, currentQueue)
                     } else {
                         _isPlaying.value = false
@@ -565,11 +571,11 @@ class PlaybackManager private constructor(private val context: Context) {
     fun getTargetMasterVolume(): Float {
         val preampDb = _preampGain.value
         // Real-time digital headroom/boost: 0dB = 1.0f, +6dB ~ 1.41f, -6dB ~ 0.5f
-        return Math.pow(10.0, (preampDb / 20.0).toDouble()).toFloat().coerceIn(0.05f, 1.8f)
+        return Math.pow(10.0, (preampDb / 20.0).toDouble()).toFloat().coerceIn(0.05f, 1.0f)
     }
 
     private fun updatePlayerVolume() {
-        val target = (getTargetMasterVolume() * fadeVolumeMultiplier).coerceIn(0.05f, 1.8f)
+        val target = (getTargetMasterVolume() * fadeVolumeMultiplier).coerceIn(0.05f, 1.0f)
         crossfadeEngine.masterVolume = target
     }
 
@@ -680,9 +686,8 @@ class PlaybackManager private constructor(private val context: Context) {
         _queue.value = currentList
 
         val userSec = settingsManager.crossfadeSeconds.value
-        val fadeDurationMs = (userSec * 1000L).coerceAtMost(
-            (nextSong.duration / 2).coerceAtLeast(1000L)
-        ).coerceIn(1000L, 15000L)
+        val maxFade = if (nextSong.duration > 3000L) (nextSong.duration / 2) else 15000L
+        val fadeDurationMs = (userSec * 1000L).coerceAtMost(maxFade).coerceIn(1000L, 15000L)
 
         _currentSong.value = nextSong
         _duration.value = nextSong.duration
@@ -908,7 +913,8 @@ class PlaybackManager private constructor(private val context: Context) {
         mainScope.launch(Dispatchers.Main) {
             val isCrossfadeOn = settingsManager.crossfadeEnabled.value && settingsManager.crossfadeSeconds.value > 0
             val currentQueue = _queue.value
-            val currentIndex = activePlayer.currentMediaItemIndex
+            val currentIndex = currentQueue.indexOfFirst { it.id == _currentSong.value?.id }
+                .takeIf { it >= 0 } ?: activePlayer.currentMediaItemIndex
 
             val nextSong = when {
                 _shuffleMode.value && currentQueue.size > 1 -> {
@@ -954,7 +960,8 @@ class PlaybackManager private constructor(private val context: Context) {
         mainScope.launch(Dispatchers.Main) {
             val isCrossfadeOn = settingsManager.crossfadeEnabled.value && settingsManager.crossfadeSeconds.value > 0
             val currentQueue = _queue.value
-            val currentIndex = activePlayer.currentMediaItemIndex
+            val currentIndex = currentQueue.indexOfFirst { it.id == _currentSong.value?.id }
+                .takeIf { it >= 0 } ?: activePlayer.currentMediaItemIndex
 
             if (crossfadeEngine.getCurrentPosition() > 3000L) {
                 crossfadeEngine.seekTo(0L)

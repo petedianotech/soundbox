@@ -544,52 +544,82 @@ fun MiniPlayer(
 
                         // OPTIONAL LIKE QUICK TOGGLE
                         if (onFavoriteToggle != null) {
-                            IconButton(
+                            Surface(
                                 onClick = onFavoriteToggle,
+                                shape = CircleShape,
+                                shadowElevation = 3.dp,
+                                color = colors.surfaceElevated,
                                 modifier = Modifier.size(36.dp)
                             ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = if (isFavorite) Icons.Default.ThumbUp else Icons.Outlined.ThumbUp,
+                                        contentDescription = if (isFavorite) "Unlike song" else "Like song",
+                                        tint = if (isFavorite) colors.accentCyan else colors.textMuted,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.width(6.dp))
+                        }
+
+                        // PREVIOUS BUTTON (If handler provided)
+                        if (onSkipPrevious != null) {
+                            Surface(
+                                onClick = onSkipPrevious,
+                                shape = CircleShape,
+                                shadowElevation = 3.dp,
+                                color = colors.surfaceElevated,
+                                modifier = Modifier.size(38.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Default.SkipPrevious,
+                                        contentDescription = "Previous Song",
+                                        tint = colors.textPrimary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.width(6.dp))
+                        }
+
+                        // PLAY / PAUSE BUTTON (High Contrast Elevated Circle)
+                        Surface(
+                            onClick = onPlayPause,
+                            shape = CircleShape,
+                            shadowElevation = 6.dp,
+                            color = colors.accentCyan,
+                            modifier = Modifier.size(44.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
                                 Icon(
-                                    imageVector = if (isFavorite) Icons.Default.ThumbUp else Icons.Outlined.ThumbUp,
-                                    contentDescription = if (isFavorite) "Unlike song" else "Like song",
-                                    tint = if (isFavorite) colors.accentCyan else colors.textMuted,
-                                    modifier = Modifier.size(20.dp)
+                                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                    contentDescription = if (isPlaying) "Pause" else "Play",
+                                    tint = Color.Black,
+                                    modifier = Modifier.size(24.dp)
                                 )
                             }
                         }
 
-                        // PLAY / PAUSE BUTTON (High Contrast)
-                        FilledIconButton(
-                            onClick = onPlayPause,
-                            colors = IconButtonDefaults.filledIconButtonColors(
-                                containerColor = colors.accentCyan,
-                                contentColor = Color.Black
-                            ),
-                            modifier = Modifier.size(42.dp)
-                        ) {
-                            Icon(
-                                imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                contentDescription = if (isPlaying) "Pause" else "Play",
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
+                        Spacer(modifier = Modifier.width(6.dp))
 
-                        Spacer(modifier = Modifier.width(4.dp))
-
-                        // SKIP NEXT BUTTON
-                        FilledTonalIconButton(
+                        // SKIP NEXT BUTTON (Elevated Circle)
+                        Surface(
                             onClick = onSkipNext,
                             shape = CircleShape,
-                            colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                containerColor = colors.surfaceElevated,
-                                contentColor = colors.textPrimary
-                            ),
-                            modifier = Modifier.size(42.dp)
+                            shadowElevation = 3.dp,
+                            color = colors.surfaceElevated,
+                            modifier = Modifier.size(38.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.SkipNext,
-                                contentDescription = "Next Song",
-                                modifier = Modifier.size(22.dp)
-                            )
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.SkipNext,
+                                    contentDescription = "Next Song",
+                                    tint = colors.textPrimary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
                         }
                     }
                 }

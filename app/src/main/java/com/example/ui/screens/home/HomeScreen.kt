@@ -192,33 +192,63 @@ fun HomeScreen(
                     // Action Icons at the bottom of the rail
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.padding(bottom = 12.dp)
                     ) {
-                        IconButton(onClick = onNavigateToInsights) {
-                            Icon(Icons.Default.Insights, contentDescription = "Insights", tint = colors.accentCyan)
+                        Surface(
+                            onClick = onNavigateToInsights,
+                            shape = CircleShape,
+                            shadowElevation = 2.dp,
+                            color = colors.surfaceElevated,
+                            modifier = Modifier.size(38.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(Icons.Default.Insights, contentDescription = "Insights", tint = colors.accentCyan, modifier = Modifier.size(20.dp))
+                            }
                         }
-                        IconButton(onClick = onNavigateToEqualizer) {
-                            Box(contentAlignment = Alignment.TopEnd) {
-                                Icon(
-                                    Icons.Default.Equalizer,
-                                    contentDescription = "Equalizer",
-                                    tint = if (equalizerEnabled) colors.accentCyan else colors.textSecondary
-                                )
-                                if (equalizerEnabled) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(6.dp)
-                                            .clip(CircleShape)
-                                            .background(colors.accentLime)
+                        Surface(
+                            onClick = onNavigateToEqualizer,
+                            shape = CircleShape,
+                            shadowElevation = 2.dp,
+                            color = colors.surfaceElevated,
+                            modifier = Modifier.size(38.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                BadgedBox(badge = {
+                                    if (equalizerEnabled) {
+                                        Badge(containerColor = colors.accentLime)
+                                    }
+                                }) {
+                                    Icon(
+                                        Icons.Default.Equalizer,
+                                        contentDescription = "Equalizer",
+                                        tint = if (equalizerEnabled) colors.accentCyan else colors.textSecondary,
+                                        modifier = Modifier.size(20.dp)
                                     )
                                 }
                             }
                         }
-                        IconButton(onClick = onNavigateToSearch) {
-                            Icon(Icons.Default.Search, contentDescription = "Search", tint = colors.textPrimary)
+                        Surface(
+                            onClick = onNavigateToSearch,
+                            shape = CircleShape,
+                            shadowElevation = 2.dp,
+                            color = colors.surfaceElevated,
+                            modifier = Modifier.size(38.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(Icons.Default.Search, contentDescription = "Search", tint = colors.textPrimary, modifier = Modifier.size(20.dp))
+                            }
                         }
-                        IconButton(onClick = onNavigateToSettings) {
-                            Icon(Icons.Default.Settings, contentDescription = "Settings", tint = colors.textPrimary)
+                        Surface(
+                            onClick = onNavigateToSettings,
+                            shape = CircleShape,
+                            shadowElevation = 2.dp,
+                            color = colors.surfaceElevated,
+                            modifier = Modifier.size(38.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(Icons.Default.Settings, contentDescription = "Settings", tint = colors.textPrimary, modifier = Modifier.size(20.dp))
+                            }
                         }
                     }
                 }
@@ -282,35 +312,68 @@ fun HomeScreen(
                         }
                     },
                     actions = {
-                        IconButton(onClick = onNavigateToInsights) {
-                            Icon(
-                                Icons.Default.Insights,
-                                contentDescription = "Soundbox Insights",
-                                tint = colors.accentCyan
-                            )
-                        }
-                        IconButton(onClick = onNavigateToEqualizer) {
-                            Box(contentAlignment = Alignment.TopEnd) {
+                        Surface(
+                            onClick = onNavigateToInsights,
+                            shape = CircleShape,
+                            shadowElevation = 2.dp,
+                            color = colors.surfaceElevated,
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
                                 Icon(
-                                    Icons.Default.Equalizer,
-                                    contentDescription = "Equalizer",
-                                    tint = if (equalizerEnabled) colors.accentCyan else colors.textSecondary
+                                    Icons.Default.Insights,
+                                    contentDescription = "Soundbox Insights",
+                                    tint = colors.accentCyan,
+                                    modifier = Modifier.size(18.dp)
                                 )
-                                if (equalizerEnabled) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(6.dp)
-                                            .clip(CircleShape)
-                                            .background(colors.accentLime)
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Surface(
+                            onClick = onNavigateToEqualizer,
+                            shape = CircleShape,
+                            shadowElevation = 2.dp,
+                            color = colors.surfaceElevated,
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                BadgedBox(badge = {
+                                    if (equalizerEnabled) {
+                                        Badge(containerColor = colors.accentLime)
+                                    }
+                                }) {
+                                    Icon(
+                                        Icons.Default.Equalizer,
+                                        contentDescription = "Equalizer",
+                                        tint = if (equalizerEnabled) colors.accentCyan else colors.textSecondary,
+                                        modifier = Modifier.size(18.dp)
                                     )
                                 }
                             }
                         }
-                        IconButton(onClick = onNavigateToSearch) {
-                            Icon(Icons.Default.Search, contentDescription = "Search songs", tint = MaterialTheme.colorScheme.onSurface)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Surface(
+                            onClick = onNavigateToSearch,
+                            shape = CircleShape,
+                            shadowElevation = 2.dp,
+                            color = colors.surfaceElevated,
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(Icons.Default.Search, contentDescription = "Search songs", tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(18.dp))
+                            }
                         }
-                        IconButton(onClick = onNavigateToSettings) {
-                            Icon(Icons.Default.Settings, contentDescription = "Settings", tint = MaterialTheme.colorScheme.onSurface)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Surface(
+                            onClick = onNavigateToSettings,
+                            shape = CircleShape,
+                            shadowElevation = 2.dp,
+                            color = colors.surfaceElevated,
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(Icons.Default.Settings, contentDescription = "Settings", tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(18.dp))
+                            }
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -319,39 +382,51 @@ fun HomeScreen(
                 )
             },
             bottomBar = {
-                NavigationBar(
-                    containerColor = colors.surface,
-                    tonalElevation = 6.dp
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                    shape = RoundedCornerShape(32.dp),
+                    color = colors.surface.copy(alpha = 0.96f),
+                    shadowElevation = 10.dp,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, colors.border.copy(alpha = 0.6f))
                 ) {
-                    visibleTabs.forEach { tab ->
-                        val selected = selectedTab == tab
-                        NavigationBarItem(
-                            selected = selected,
-                            onClick = { selectedTab = tab },
-                            icon = {
-                                Icon(
-                                    imageVector = tab.icon,
-                                    contentDescription = tab.title
-                                )
-                            },
-                            label = {
-                                Text(
-                                    text = tab.title.uppercase(),
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontWeight = if (selected) FontWeight.Black else FontWeight.Medium,
-                                        letterSpacing = 0.5.sp,
-                                        fontFamily = FontFamily.Monospace
+                    NavigationBar(
+                        containerColor = Color.Transparent,
+                        tonalElevation = 0.dp,
+                        modifier = Modifier.height(60.dp)
+                    ) {
+                        visibleTabs.forEach { tab ->
+                            val selected = selectedTab == tab
+                            NavigationBarItem(
+                                selected = selected,
+                                onClick = { selectedTab = tab },
+                                icon = {
+                                    Icon(
+                                        imageVector = tab.icon,
+                                        contentDescription = tab.title
                                     )
+                                },
+                                label = {
+                                    Text(
+                                        text = tab.title.uppercase(),
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontWeight = if (selected) FontWeight.Black else FontWeight.Medium,
+                                            letterSpacing = 0.5.sp,
+                                            fontFamily = FontFamily.Monospace
+                                        )
+                                    )
+                                },
+                                colors = NavigationBarItemDefaults.colors(
+                                    selectedIconColor = if (colors.isDark) Color.Black else Color.White,
+                                    selectedTextColor = colors.accentCyan,
+                                    indicatorColor = colors.accentCyan,
+                                    unselectedIconColor = colors.textMuted,
+                                    unselectedTextColor = colors.textMuted
                                 )
-                            },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = if (colors.isDark) Color.Black else Color.White,
-                                selectedTextColor = colors.accentCyan,
-                                indicatorColor = colors.accentCyan,
-                                unselectedIconColor = colors.textMuted,
-                                unselectedTextColor = colors.textMuted
                             )
-                        )
+                        }
                     }
                 }
             }

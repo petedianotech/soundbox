@@ -43,6 +43,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.painterResource
+import com.example.R
 import android.content.res.Configuration
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontFamily
@@ -96,6 +98,7 @@ fun NowPlayingScreen(
     val virtualizerStrength by viewModel.virtualizerStrength.collectAsState()
     val audioSessionId by viewModel.audioSessionId.collectAsState()
     val queue by viewModel.queue.collectAsState()
+    val playbackSpeed by viewModel.playbackSpeed.collectAsState()
 
     val context = LocalContext.current
     val currentView = LocalView.current
@@ -110,6 +113,7 @@ fun NowPlayingScreen(
     // View & Overlay states
     var isLyricsViewActive by remember { mutableStateOf(false) }
     var showTimerDialog by remember { mutableStateOf(false) }
+    var showSpeedDialog by remember { mutableStateOf(false) }
     var showSoundCutterDialog by remember { mutableStateOf(false) }
     var showEffectsSheet by remember { mutableStateOf(false) }
     var showQueueSheet by remember { mutableStateOf(false) }
@@ -271,38 +275,73 @@ fun NowPlayingScreen(
                     }
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(
-                            imageVector = Icons.Default.KeyboardArrowDown,
-                            contentDescription = "Collapse Player",
-                            modifier = Modifier.size(30.dp),
-                            tint = colors.textPrimary
-                        )
+                    Surface(
+                        onClick = onBackClick,
+                        shape = CircleShape,
+                        shadowElevation = 3.dp,
+                        color = colors.surfaceElevated.copy(alpha = 0.9f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, colors.border.copy(alpha = 0.4f)),
+                        modifier = Modifier
+                            .padding(start = 12.dp)
+                            .size(38.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Default.KeyboardArrowDown,
+                                contentDescription = "Collapse Player",
+                                modifier = Modifier.size(24.dp),
+                                tint = colors.textPrimary
+                            )
+                        }
                     }
                 },
                 actions = {
                     // Equalizer & Audio Effects
-                    IconButton(onClick = onNavigateToEqualizer) {
-                        BadgedBox(badge = {
-                            if (eqEnabled || bassStrength > 0 || virtualizerStrength > 0) {
-                                Badge(containerColor = colors.accentLime) { Text("DSP", color = Color.Black) }
+                    Surface(
+                        onClick = onNavigateToEqualizer,
+                        shape = CircleShape,
+                        shadowElevation = 3.dp,
+                        color = colors.surfaceElevated.copy(alpha = 0.9f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, colors.border.copy(alpha = 0.4f)),
+                        modifier = Modifier.size(38.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            BadgedBox(badge = {
+                                if (eqEnabled || bassStrength > 0 || virtualizerStrength > 0) {
+                                    Badge(containerColor = colors.accentLime) { Text("DSP", color = Color.Black) }
+                                }
+                            }) {
+                                Icon(
+                                    imageVector = Icons.Default.Equalizer,
+                                    contentDescription = "Equalizer & DSP",
+                                    tint = if (eqEnabled || bassStrength > 0 || virtualizerStrength > 0) colors.accentCyan else colors.textPrimary,
+                                    modifier = Modifier.size(20.dp)
+                                )
                             }
-                        }) {
-                            Icon(
-                                imageVector = Icons.Default.Equalizer,
-                                contentDescription = "Equalizer & DSP",
-                                tint = if (eqEnabled || bassStrength > 0 || virtualizerStrength > 0) colors.accentCyan else colors.textPrimary
-                            )
                         }
                     }
 
+                    Spacer(modifier = Modifier.width(8.dp))
+
                     // More Menu (Song & Playlist Options)
-                    IconButton(onClick = { showLyricsOptionsSheet = true }) {
-                        Icon(
-                            imageVector = Icons.Default.MoreVert,
-                            contentDescription = "Song & Options",
-                            tint = colors.textPrimary
-                        )
+                    Surface(
+                        onClick = { showLyricsOptionsSheet = true },
+                        shape = CircleShape,
+                        shadowElevation = 3.dp,
+                        color = colors.surfaceElevated.copy(alpha = 0.9f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, colors.border.copy(alpha = 0.4f)),
+                        modifier = Modifier
+                            .padding(end = 12.dp)
+                            .size(38.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Default.MoreVert,
+                                contentDescription = "Song & Options",
+                                tint = colors.textPrimary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -435,33 +474,143 @@ fun NowPlayingScreen(
                                     )
                                 }
 
-                                // Playback Controls Row
+                                // Secondary controls in Landscape
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceEvenly,
+                                    horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Surface(
                                         onClick = { viewModel.setShuffleMode(!shuffleMode) },
                                         shape = CircleShape,
-                                        color = if (shuffleMode) accentColor.copy(alpha = 0.16f) else Color.Transparent,
-                                        modifier = Modifier.size(42.dp)
+                                        shadowElevation = 3.dp,
+                                        color = if (shuffleMode) accentColor.copy(alpha = 0.22f) else MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.7f),
+                                        border = androidx.compose.foundation.BorderStroke(
+                                            1.dp,
+                                            if (shuffleMode) accentColor else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                                        ),
+                                        modifier = Modifier.size(38.dp)
                                     ) {
                                         Box(contentAlignment = Alignment.Center) {
                                             Icon(
                                                 imageVector = Icons.Default.Shuffle,
                                                 contentDescription = "Shuffle",
                                                 tint = if (shuffleMode) accentColor else MaterialTheme.colorScheme.onSurfaceVariant,
-                                                modifier = Modifier.size(20.dp)
+                                                modifier = Modifier.size(18.dp)
                                             )
                                         }
                                     }
 
                                     Surface(
+                                        onClick = { showSpeedDialog = true },
+                                        shape = CircleShape,
+                                        shadowElevation = 3.dp,
+                                        color = if (playbackSpeed != 1.0f) accentColor.copy(alpha = 0.22f) else MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.7f),
+                                        border = androidx.compose.foundation.BorderStroke(
+                                            1.dp,
+                                            if (playbackSpeed != 1.0f) accentColor else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                                        ),
+                                        modifier = Modifier.height(32.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 10.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(Icons.Default.Speed, contentDescription = null, modifier = Modifier.size(14.dp))
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("${String.format(Locale.getDefault(), "%.1f", playbackSpeed)}x", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+
+                                    Surface(
+                                        onClick = { showTimerDialog = true },
+                                        shape = CircleShape,
+                                        shadowElevation = 3.dp,
+                                        color = if (sleepTimerLeft > 0) accentColor.copy(alpha = 0.22f) else MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.7f),
+                                        border = androidx.compose.foundation.BorderStroke(
+                                            1.dp,
+                                            if (sleepTimerLeft > 0) accentColor else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                                        ),
+                                        modifier = Modifier.height(32.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 10.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(Icons.Default.Timer, contentDescription = null, modifier = Modifier.size(14.dp), tint = if (sleepTimerLeft > 0) accentColor else MaterialTheme.colorScheme.onSurface)
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text(if (sleepTimerLeft > 0) "${(sleepTimerLeft / 60000)}m" else "Timer", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+
+                                    Surface(
+                                        onClick = {
+                                            val nextMode = when (repeatMode) {
+                                                 Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ALL
+                                                 Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE
+                                                 else -> Player.REPEAT_MODE_OFF
+                                            }
+                                            viewModel.setRepeatMode(nextMode)
+                                        },
+                                        shape = CircleShape,
+                                        shadowElevation = 3.dp,
+                                        color = if (repeatMode != Player.REPEAT_MODE_OFF) accentColor.copy(alpha = 0.22f) else MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.7f),
+                                        border = androidx.compose.foundation.BorderStroke(
+                                            1.dp,
+                                            if (repeatMode != Player.REPEAT_MODE_OFF) accentColor else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                                        ),
+                                        modifier = Modifier.size(38.dp)
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            val icon = when (repeatMode) {
+                                                Player.REPEAT_MODE_ONE -> Icons.Default.RepeatOne
+                                                else -> Icons.Default.Repeat
+                                            }
+                                            Icon(
+                                                imageVector = icon,
+                                                contentDescription = "Repeat Mode",
+                                                tint = if (repeatMode != Player.REPEAT_MODE_OFF) accentColor else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                // Primary Circular Playback Controls Row (Landscape: SkipBack, Prev, Hero Play/Pause, Next, SkipForward)
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceEvenly,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    // Skip Back (-10s) Circular Button
+                                    Surface(
+                                        onClick = { viewModel.seekBackward(10000L) },
+                                        shape = CircleShape,
+                                        shadowElevation = 3.dp,
+                                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, colors.border.copy(alpha = 0.5f)),
+                                        modifier = Modifier.size(42.dp)
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(
+                                                painter = painterResource(R.drawable.ic_replay_10),
+                                                contentDescription = "Rewind 10s",
+                                                tint = MaterialTheme.colorScheme.onSurface,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+                                    }
+
+                                    // Previous Song Circular Button
+                                    Surface(
                                         onClick = { viewModel.skipPrevious() },
                                         shape = CircleShape,
-                                        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.85f),
-                                        modifier = Modifier.size(48.dp)
+                                        shadowElevation = 5.dp,
+                                        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, colors.border.copy(alpha = 0.6f)),
+                                        modifier = Modifier.size(50.dp)
                                     ) {
                                         Box(contentAlignment = Alignment.Center) {
                                             Icon(
@@ -473,28 +622,32 @@ fun NowPlayingScreen(
                                         }
                                     }
 
+                                    // Play/Pause Hero Circular Button (Largest in center)
                                     Surface(
                                         onClick = { viewModel.playPause() },
                                         shape = CircleShape,
-                                        color = accentColor,
                                         shadowElevation = 8.dp,
-                                        modifier = Modifier.size(60.dp)
+                                        color = accentColor,
+                                        modifier = Modifier.size(66.dp)
                                     ) {
                                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                             Icon(
                                                 imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                                                 contentDescription = if (isPlaying) "Pause" else "Play",
                                                 tint = MaterialTheme.colorScheme.onPrimary,
-                                                modifier = Modifier.size(32.dp)
+                                                modifier = Modifier.size(34.dp)
                                             )
                                         }
                                     }
 
+                                    // Next Song Circular Button
                                     Surface(
                                         onClick = { viewModel.skipNext() },
                                         shape = CircleShape,
-                                        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.85f),
-                                        modifier = Modifier.size(48.dp)
+                                        shadowElevation = 5.dp,
+                                        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, colors.border.copy(alpha = 0.6f)),
+                                        modifier = Modifier.size(50.dp)
                                     ) {
                                         Box(contentAlignment = Alignment.Center) {
                                             Icon(
@@ -506,28 +659,20 @@ fun NowPlayingScreen(
                                         }
                                     }
 
+                                    // Skip Forward (+10s) Circular Button
                                     Surface(
-                                        onClick = {
-                                            val nextMode = when (repeatMode) {
-                                                Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ALL
-                                                Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE
-                                                else -> Player.REPEAT_MODE_OFF
-                                            }
-                                            viewModel.setRepeatMode(nextMode)
-                                        },
+                                        onClick = { viewModel.seekForward(10000L) },
                                         shape = CircleShape,
-                                        color = if (repeatMode != Player.REPEAT_MODE_OFF) accentColor.copy(alpha = 0.16f) else Color.Transparent,
+                                        shadowElevation = 3.dp,
+                                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, colors.border.copy(alpha = 0.5f)),
                                         modifier = Modifier.size(42.dp)
                                     ) {
                                         Box(contentAlignment = Alignment.Center) {
-                                            val icon = when (repeatMode) {
-                                                Player.REPEAT_MODE_ONE -> Icons.Default.RepeatOne
-                                                else -> Icons.Default.Repeat
-                                            }
                                             Icon(
-                                                imageVector = icon,
-                                                contentDescription = "Repeat Mode",
-                                                tint = if (repeatMode != Player.REPEAT_MODE_OFF) accentColor else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                painter = painterResource(R.drawable.ic_forward_10),
+                                                contentDescription = "Forward 10s",
+                                                tint = MaterialTheme.colorScheme.onSurface,
                                                 modifier = Modifier.size(20.dp)
                                             )
                                         }
@@ -748,64 +893,199 @@ fun NowPlayingScreen(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
-                    // Core Playback Controls Row (Smooth Rounded Shapes)
+                    // Secondary Controls: Shuffle, Speed, Sleep Timer, Repeat (Modern Circular / Pill Controls)
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 10.dp),
-                        horizontalArrangement = Arrangement.SpaceEvenly,
+                            .padding(horizontal = 14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Shuffle Button (Round pill)
+                        // Shuffle Button (Fully Circular Pill with Elevation)
                         Surface(
                             onClick = { viewModel.setShuffleMode(!shuffleMode) },
                             shape = CircleShape,
-                            color = if (shuffleMode) accentColor.copy(alpha = 0.16f) else Color.Transparent,
-                            modifier = Modifier.size(46.dp)
+                            shadowElevation = 3.dp,
+                            color = if (shuffleMode) accentColor.copy(alpha = 0.22f) else MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.7f),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                if (shuffleMode) accentColor else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                            ),
+                            modifier = Modifier.size(44.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
                                     imageVector = Icons.Default.Shuffle,
                                     contentDescription = "Shuffle",
                                     tint = if (shuffleMode) accentColor else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(22.dp)
+                                    modifier = Modifier.size(20.dp)
                                 )
                             }
                         }
 
-                        // Skip Previous (Round circle button)
+                        // Playback Speed Pill Button
                         Surface(
-                            onClick = { viewModel.skipPrevious() },
+                            onClick = { showSpeedDialog = true },
                             shape = CircleShape,
-                            color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.85f),
-                            modifier = Modifier.size(54.dp)
+                            shadowElevation = 3.dp,
+                            color = if (playbackSpeed != 1.0f) accentColor.copy(alpha = 0.22f) else MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.7f),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                if (playbackSpeed != 1.0f) accentColor else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                            ),
+                            modifier = Modifier.height(36.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Speed,
+                                    contentDescription = "Playback Speed",
+                                    tint = if (playbackSpeed != 1.0f) accentColor else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "${String.format(Locale.getDefault(), "%.1f", playbackSpeed)}x",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = if (playbackSpeed != 1.0f) accentColor else MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+
+                        // Sleep Timer Pill Button
+                        Surface(
+                            onClick = { showTimerDialog = true },
+                            shape = CircleShape,
+                            shadowElevation = 3.dp,
+                            color = if (sleepTimerLeft > 0) accentColor.copy(alpha = 0.22f) else MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.7f),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                if (sleepTimerLeft > 0) accentColor else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                            ),
+                            modifier = Modifier.height(36.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Timer,
+                                    contentDescription = "Sleep Timer",
+                                    tint = if (sleepTimerLeft > 0) accentColor else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = if (sleepTimerLeft > 0) "${(sleepTimerLeft / 60000)}m" else "Timer",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = if (sleepTimerLeft > 0) accentColor else MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+
+                        // Repeat Button (Fully Circular with Elevation)
+                        Surface(
+                            onClick = {
+                                val nextMode = when (repeatMode) {
+                                    Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ALL
+                                    Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE
+                                    else -> Player.REPEAT_MODE_OFF
+                                }
+                                viewModel.setRepeatMode(nextMode)
+                            },
+                            shape = CircleShape,
+                            shadowElevation = 3.dp,
+                            color = if (repeatMode != Player.REPEAT_MODE_OFF) accentColor.copy(alpha = 0.22f) else MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.7f),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                if (repeatMode != Player.REPEAT_MODE_OFF) accentColor else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                            ),
+                            modifier = Modifier.size(44.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                val icon = when (repeatMode) {
+                                    Player.REPEAT_MODE_ONE -> Icons.Default.RepeatOne
+                                    else -> Icons.Default.Repeat
+                                }
+                                Icon(
+                                    imageVector = icon,
+                                    contentDescription = "Repeat Mode",
+                                    tint = if (repeatMode != Player.REPEAT_MODE_OFF) accentColor else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Primary Playback Controls Deck: 5 Circular Buttons with Elevation
+                    // [Skip Back 10s] - [Previous] - [PLAY/PAUSE HERO] - [Next] - [Skip Forward 10s]
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // 1. Skip Back (-10s) Circular Button
+                        Surface(
+                            onClick = { viewModel.seekBackward(10000L) },
+                            shape = CircleShape,
+                            shadowElevation = 4.dp,
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, colors.border.copy(alpha = 0.5f)),
+                            modifier = Modifier.size(48.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
-                                    imageVector = Icons.Default.SkipPrevious,
-                                    contentDescription = "Previous Song",
-                                    modifier = Modifier.size(30.dp),
+                                    painter = painterResource(R.drawable.ic_replay_10),
+                                    contentDescription = "Rewind 10 Seconds",
+                                    modifier = Modifier.size(22.dp),
                                     tint = MaterialTheme.colorScheme.onSurface
                                 )
                             }
                         }
 
-                        // Hero Play/Pause Button (Dynamic Elevated Circle)
+                        // 2. Previous Song Circular Button
+                        Surface(
+                            onClick = { viewModel.skipPrevious() },
+                            shape = CircleShape,
+                            shadowElevation = 6.dp,
+                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, colors.border.copy(alpha = 0.6f)),
+                            modifier = Modifier.size(58.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.SkipPrevious,
+                                    contentDescription = "Previous Song",
+                                    modifier = Modifier.size(28.dp),
+                                    tint = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+
+                        // 3. Play/Pause Hero Circular Button (Largest in center)
                         Surface(
                             onClick = { viewModel.playPause() },
                             shape = CircleShape,
-                            color = accentColor,
                             shadowElevation = 10.dp,
-                            modifier = Modifier.size(72.dp)
+                            color = accentColor,
+                            modifier = Modifier.size(78.dp)
                         ) {
                             Box(
                                 modifier = Modifier.fillMaxSize(),
                                 contentAlignment = Alignment.Center
                             ) {
                                 val playIconScale by animateFloatAsState(
-                                    targetValue = if (isPlaying) 1.1f else 1.0f,
+                                    targetValue = if (isPlaying) 1.08f else 1.0f,
                                     animationSpec = spring(dampingRatio = 0.5f),
                                     label = "PlayIconScale"
                                 )
@@ -823,47 +1103,40 @@ fun NowPlayingScreen(
                             }
                         }
 
-                        // Skip Next (Smooth Round Circle Button - Not Sharp!)
+                        // 4. Next Song Circular Button
                         Surface(
                             onClick = { viewModel.skipNext() },
                             shape = CircleShape,
-                            color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.85f),
-                            modifier = Modifier.size(54.dp)
+                            shadowElevation = 6.dp,
+                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, colors.border.copy(alpha = 0.6f)),
+                            modifier = Modifier.size(58.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
                                     imageVector = Icons.Default.SkipNext,
                                     contentDescription = "Next Song",
-                                    modifier = Modifier.size(30.dp),
+                                    modifier = Modifier.size(28.dp),
                                     tint = MaterialTheme.colorScheme.onSurface
                                 )
                             }
                         }
 
-                        // Repeat Button (Round pill)
+                        // 5. Skip Forward (+10s) Circular Button
                         Surface(
-                            onClick = {
-                                val nextMode = when (repeatMode) {
-                                    Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ALL
-                                    Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE
-                                    else -> Player.REPEAT_MODE_OFF
-                                }
-                                viewModel.setRepeatMode(nextMode)
-                            },
+                            onClick = { viewModel.seekForward(10000L) },
                             shape = CircleShape,
-                            color = if (repeatMode != Player.REPEAT_MODE_OFF) accentColor.copy(alpha = 0.16f) else Color.Transparent,
-                            modifier = Modifier.size(46.dp)
+                            shadowElevation = 4.dp,
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, colors.border.copy(alpha = 0.5f)),
+                            modifier = Modifier.size(48.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
-                                val icon = when (repeatMode) {
-                                    Player.REPEAT_MODE_ONE -> Icons.Default.RepeatOne
-                                    else -> Icons.Default.Repeat
-                                }
                                 Icon(
-                                    imageVector = icon,
-                                    contentDescription = "Repeat Mode",
-                                    tint = if (repeatMode != Player.REPEAT_MODE_OFF) accentColor else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(22.dp)
+                                    painter = painterResource(R.drawable.ic_forward_10),
+                                    contentDescription = "Forward 10 Seconds",
+                                    modifier = Modifier.size(22.dp),
+                                    tint = MaterialTheme.colorScheme.onSurface
                                 )
                             }
                         }
@@ -871,48 +1144,61 @@ fun NowPlayingScreen(
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    // Quick Action Dock with Clean Compact Capsule Buttons
+                    // Bottom Capsule Action Pill Buttons
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 6.dp),
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        FilledTonalButton(
+                        Surface(
                             onClick = { showQueueSheet = true },
                             shape = CircleShape,
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-                            colors = ButtonDefaults.filledTonalButtonColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-                            ),
+                            shadowElevation = 3.dp,
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, colors.border.copy(alpha = 0.5f)),
                             modifier = Modifier
-                                .height(38.dp)
+                                .height(40.dp)
                                 .weight(1f)
                         ) {
-                            Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Queue", fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                            Row(
+                                modifier = Modifier.fillMaxSize(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Queue (${queue.size})", fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                            }
                         }
 
-                        FilledTonalButton(
-                            onClick = { showTimerDialog = true },
+                        Surface(
+                            onClick = { isLyricsViewActive = !isLyricsViewActive },
                             shape = CircleShape,
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-                            colors = ButtonDefaults.filledTonalButtonColors(
-                                containerColor = if (sleepTimerLeft > 0) accentColor.copy(alpha = 0.22f) else MaterialTheme.colorScheme.surfaceContainerHigh
+                            shadowElevation = 3.dp,
+                            color = if (isLyricsViewActive) accentColor.copy(alpha = 0.22f) else MaterialTheme.colorScheme.surfaceContainerHigh,
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                if (isLyricsViewActive) accentColor else colors.border.copy(alpha = 0.5f)
                             ),
                             modifier = Modifier
-                                .height(38.dp)
+                                .height(40.dp)
                                 .weight(1f)
                         ) {
-                            Icon(
-                                Icons.Default.Timer,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                                tint = if (sleepTimerLeft > 0) accentColor else MaterialTheme.colorScheme.onSurface
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Timer", fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                            Row(
+                                modifier = Modifier.fillMaxSize(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    Icons.Default.Lyrics,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp),
+                                    tint = if (isLyricsViewActive) accentColor else MaterialTheme.colorScheme.onSurface
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Lyrics", fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                            }
                         }
                     }
                 }
@@ -1387,6 +1673,99 @@ fun NowPlayingScreen(
         )
     }
 
+    // PLAYBACK SPEED DIALOG
+    if (showSpeedDialog) {
+        AlertDialog(
+            onDismissRequest = { showSpeedDialog = false },
+            title = {
+                Text(
+                    "Playback Speed",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    val speeds = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        speeds.take(4).forEach { speed ->
+                            val isSelected = (playbackSpeed == speed)
+                            Surface(
+                                onClick = {
+                                    viewModel.setPlaybackSpeed(speed)
+                                    showSpeedDialog = false
+                                },
+                                shape = CircleShape,
+                                shadowElevation = if (isSelected) 4.dp else 1.dp,
+                                color = if (isSelected) accentColor else MaterialTheme.colorScheme.surfaceContainerHigh,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(38.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text(
+                                        text = "${speed}x",
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                                        fontSize = 12.sp
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        speeds.drop(4).forEach { speed ->
+                            val isSelected = (playbackSpeed == speed)
+                            Surface(
+                                onClick = {
+                                    viewModel.setPlaybackSpeed(speed)
+                                    showSpeedDialog = false
+                                },
+                                shape = CircleShape,
+                                shadowElevation = if (isSelected) 4.dp else 1.dp,
+                                color = if (isSelected) accentColor else MaterialTheme.colorScheme.surfaceContainerHigh,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(38.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text(
+                                        text = "${speed}x",
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                                        fontSize = 12.sp
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Surface(
+                    onClick = { showSpeedDialog = false },
+                    shape = CircleShape,
+                    shadowElevation = 2.dp,
+                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    modifier = Modifier.height(36.dp)
+                ) {
+                    Box(modifier = Modifier.padding(horizontal = 18.dp), contentAlignment = Alignment.Center) {
+                        Text("Close", style = MaterialTheme.typography.labelLarge)
+                    }
+                }
+            },
+            shape = RoundedCornerShape(24.dp)
+        )
+    }
+
     // SOUND CUTTER DIALOG
     if (showSoundCutterDialog) {
         SoundCutterDialog(
@@ -1544,8 +1923,10 @@ private fun ArtworkMainStage(
     activeVerseIndex: Int,
     onToggleLyrics: () -> Unit,
     onToggleFavorite: () -> Unit,
+    onMoreOptions: () -> Unit = {},
     accentColor: Color
 ) {
+    val colors = SoundboxTheme.colors
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -1617,56 +1998,118 @@ private fun ArtworkMainStage(
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
-        // Song Title & Artist Header with Favorite Button
+        // Capsule Pill Action Row: Like/Dislike joined pill on Left + 3-Dot More Circle on Right
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = song.title,
-                    style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "${song.artist} • ${song.album}",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+            // Joined Capsule Pill for Thumbs Up / Thumbs Down
+            Surface(
+                shape = CircleShape,
+                color = colors.surfaceElevated.copy(alpha = 0.95f),
+                shadowElevation = 3.dp,
+                border = androidx.compose.foundation.BorderStroke(1.dp, colors.border.copy(alpha = 0.5f))
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    val likeScale by animateFloatAsState(
+                        targetValue = if (song.isFavorite) 1.2f else 1.0f,
+                        animationSpec = spring(dampingRatio = 0.4f),
+                        label = "LikeScale"
+                    )
+                    IconButton(
+                        onClick = onToggleFavorite,
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (song.isFavorite) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp,
+                            contentDescription = if (song.isFavorite) "Liked" else "Like song",
+                            tint = if (song.isFavorite) accentColor else colors.textSecondary,
+                            modifier = Modifier
+                                .size(20.dp)
+                                .graphicsLayer {
+                                    scaleX = likeScale
+                                    scaleY = likeScale
+                                }
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .width(1.dp)
+                            .height(18.dp)
+                            .background(colors.border.copy(alpha = 0.6f))
+                    )
+
+                    IconButton(
+                        onClick = { /* Dislike feedback */ },
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.ThumbDown,
+                            contentDescription = "Dislike song",
+                            tint = colors.textMuted,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
             }
 
-            // Animated Like Button
-            IconButton(
-                onClick = onToggleFavorite,
-                modifier = Modifier.size(48.dp)
+            // Circular More Options Button
+            Surface(
+                onClick = onMoreOptions,
+                shape = CircleShape,
+                color = colors.surfaceElevated.copy(alpha = 0.95f),
+                shadowElevation = 3.dp,
+                border = androidx.compose.foundation.BorderStroke(1.dp, colors.border.copy(alpha = 0.5f)),
+                modifier = Modifier.size(44.dp)
             ) {
-                val likeScale by animateFloatAsState(
-                    targetValue = if (song.isFavorite) 1.2f else 1.0f,
-                    animationSpec = spring(dampingRatio = 0.4f),
-                    label = "LikeScale"
-                )
-                Icon(
-                    imageVector = if (song.isFavorite) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp,
-                    contentDescription = if (song.isFavorite) "Liked" else "Like song",
-                    tint = if (song.isFavorite) accentColor else MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier
-                        .size(28.dp)
-                        .graphicsLayer {
-                            scaleX = likeScale
-                            scaleY = likeScale
-                        }
-                )
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = "More Options",
+                        tint = colors.textPrimary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
         }
 
-        Spacer(modifier = Modifier.height(18.dp))
+        Spacer(modifier = Modifier.height(14.dp))
+
+        // Song Title & Artist Header
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.Start
+        ) {
+            Text(
+                text = song.title,
+                style = MaterialTheme.typography.headlineMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 24.sp
+                ),
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "${song.artist} • ${song.album.ifEmpty { "Single" }}",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+
+        Spacer(modifier = Modifier.height(14.dp))
 
         // Mini Live Lyrics Strip (Shows active verse and expands on tap)
         Surface(
@@ -2089,8 +2532,10 @@ private fun OptionMenuItem(
 ) {
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(14.dp),
+        shape = CircleShape,
+        shadowElevation = 2.dp,
         color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.7f),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(

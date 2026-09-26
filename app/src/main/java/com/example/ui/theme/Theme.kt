@@ -12,6 +12,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 
 data class SoundboxSkinColors(
     val isDark: Boolean,
@@ -120,6 +121,14 @@ private val DarkColors = darkColorScheme(
     outlineVariant = Color(0xFF1A2536)
 )
 
+val CircularPillShapes = androidx.compose.material3.Shapes(
+    extraSmall = androidx.compose.foundation.shape.CircleShape,
+    small = androidx.compose.foundation.shape.CircleShape,
+    medium = androidx.compose.foundation.shape.CircleShape,
+    large = androidx.compose.foundation.shape.CircleShape,
+    extraLarge = androidx.compose.foundation.shape.RoundedCornerShape(32.dp)
+)
+
 @Composable
 fun MyApplicationTheme(
     themeConfig: String = "DARK",
@@ -140,6 +149,11 @@ fun MyApplicationTheme(
     val dynamicTypography = createAppTypography(selectedFont.fontFamily)
 
     CompositionLocalProvider(LocalSoundboxSkin provides skin) {
-        MaterialTheme(colorScheme = colorScheme, typography = dynamicTypography, content = content)
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = dynamicTypography,
+            shapes = CircularPillShapes,
+            content = content
+        )
     }
 }

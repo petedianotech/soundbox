@@ -5,20 +5,18 @@ import android.util.Log
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.DefaultLoadControl
-import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
-import androidx.media3.exoplayer.audio.AudioSink
-import androidx.media3.exoplayer.audio.DefaultAudioSink
 import kotlinx.coroutines.*
 import kotlin.math.max
 
 /**
  * Production-grade dual-player crossfade engine using Media3 (ExoPlayer).
- * Uses two ExoPlayer instances with volume ramping on Dispatchers.Main.immediate.
+ * Uses two ExoPlayer instances with equal-power volume ramping on Dispatchers.Main.immediate.
  * Prevents crashes and delivers clean, gapless crossfade transitions between tracks.
  */
 class CrossfadePlayerManager(
@@ -44,22 +42,8 @@ class CrossfadePlayerManager(
         .setPrioritizeTimeOverSizeThresholds(true)
         .build()
 
-    private fun createRenderersFactory(processor: SoundboxDspAudioProcessor): DefaultRenderersFactory {
-        return object : DefaultRenderersFactory(context) {
-            override fun buildAudioSink(
-                context: Context,
-                enableFloatOutput: Boolean,
-                enableAudioTrackPlaybackParams: Boolean
-            ): AudioSink {
-                return DefaultAudioSink.Builder(context)
-                    .setAudioProcessors(arrayOf(processor))
-                    .build()
-            }
-        }
-    }
-
-    private fun createPlayer(processor: SoundboxDspAudioProcessor): ExoPlayer {
-        return ExoPlayer.Builder(context, createRenderersFactory(processor))
+    private fun createPlayer(): ExoPlayer {
+        return ExoPlayer.Builder(context)
             .setLoadControl(lowMemoryLoadControl)
             .setAudioAttributes(
                 AudioAttributes.Builder()
@@ -77,9 +61,9 @@ class CrossfadePlayerManager(
             }
     }
 
-    var playerA: ExoPlayer = createPlayer(dspAudioProcessorA)
+    var playerA: ExoPlayer = createPlayer()
         private set
-    var playerB: ExoPlayer = createPlayer(dspAudioProcessorB)
+    var playerB: ExoPlayer = createPlayer()
         private set
 
     var currentPlayer: ExoPlayer = playerA
@@ -114,7 +98,7 @@ class CrossfadePlayerManager(
 
     var masterVolume: Float = 1.0f
         set(value) {
-            field = value.coerceIn(0.05f, 1.8f)
+            field = value.coerceIn(0.05f, 1.0f)
             if (!isCrossfading) {
                 try {
                     currentPlayer.volume = field
@@ -149,6 +133,13 @@ class CrossfadePlayerManager(
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                 onMediaItemTransition?.invoke(targetPlayer, mediaItem, reason)
             }
+
+            override fun onPlayerError(error: PlaybackException) {
+                Log.e(TAG, "Playback error on ${if (targetPlayer == currentPlayer) "currentPlayer" else "nextPlayer"}: ${error.message}", error)
+                if (targetPlayer == nextPlayer && isCrossfading) {
+                    cancelCrossfadeCleanup()
+                }
+            }
         })
 
         targetPlayer.addAnalyticsListener(object : AnalyticsListener {
@@ -164,7 +155,7 @@ class CrossfadePlayerManager(
     }
 
     /**
-     * Starts playing a new track with smooth volume crossfade.
+     * Starts playing a new track with smooth equal-power volume crossfade.
      * If nothing is currently playing or crossfade is disabled, starts immediately.
      */
     fun playWithCrossfade(
@@ -189,7 +180,7 @@ class CrossfadePlayerManager(
         val itemsToSet = if (queueItems.isNotEmpty()) queueItems else listOf(mediaItem)
         val indexToPlay = if (targetIndex in itemsToSet.indices) targetIndex else 0
 
-        // Prepare next player
+        // Prepare next player at volume 0
         try {
             nextPlayer.stop()
             nextPlayer.clearMediaItems()
@@ -205,33 +196,67 @@ class CrossfadePlayerManager(
 
         crossfadeJob = scope.launch {
             try {
-                val totalSteps = max(1, (fadeDuration / stepMs).toInt())
-                val volumeStep = 1f / totalSteps
+                // Wait briefly for nextPlayer to buffer audio before starting the fade
+                var waitedMs = 0L
+                while (isActive && nextPlayer.playbackState == Player.STATE_BUFFERING && waitedMs < 1500L) {
+                    delay(30L)
+                    waitedMs += 30L
+                }
 
-                // Start next track immediately at volume 0
+                if (!isActive) return@launch
+
+                if (nextPlayer.playerError != null) {
+                    Log.w(TAG, "Next player has error, aborting crossfade: ${nextPlayer.playerError?.message}")
+                    cancelCrossfadeCleanup()
+                    return@launch
+                }
+
                 nextPlayer.play()
+
+                val totalSteps = max(1, (fadeDuration / stepMs).toInt())
+                val targetMaster = masterVolume.coerceIn(0.05f, 1.0f)
 
                 for (i in 1..totalSteps) {
                     if (!isActive) break
 
-                    val progress = i * volumeStep
-                    val outVol = ((1f - progress) * masterVolume).coerceIn(0f, 1.8f)
-                    val inVol = (progress * masterVolume).coerceIn(0f, 1.8f)
+                    val p = (i.toFloat() / totalSteps).coerceIn(0f, 1f)
+                    // Equal-Power crossfade curve: cos(p * pi/2) and sin(p * pi/2)
+                    // Guarantees constant perceived acoustic energy (cos^2 + sin^2 = 1.0)
+                    val outRatio = kotlin.math.cos(p * (Math.PI / 2.0)).toFloat()
+                    val inRatio = kotlin.math.sin(p * (Math.PI / 2.0)).toFloat()
 
-                    if (currentPlayer.playbackState == Player.STATE_READY || currentPlayer.isPlaying) {
+                    val outVol = (outRatio * targetMaster).coerceIn(0f, 1.0f)
+                    val inVol = (inRatio * targetMaster).coerceIn(0f, 1.0f)
+
+                    try {
                         currentPlayer.volume = outVol
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Error updating currentPlayer volume: ${e.message}")
                     }
-                    nextPlayer.volume = inVol
+                    try {
+                        nextPlayer.volume = inVol
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Error updating nextPlayer volume: ${e.message}")
+                    }
 
                     delay(stepMs)
                 }
 
-                // Crossfade finished cleanly
-                currentPlayer.pause()
-                currentPlayer.stop()
-                currentPlayer.clearMediaItems()
-                currentPlayer.volume = 0f
-                nextPlayer.volume = masterVolume
+                // Crossfade finished cleanly: stop old player, bring new player to full master volume
+                try {
+                    currentPlayer.pause()
+                    currentPlayer.stop()
+                    currentPlayer.clearMediaItems()
+                    currentPlayer.volume = 0f
+                } catch (e: Exception) {
+                    Log.w(TAG, "Error stopping currentPlayer after crossfade: ${e.message}")
+                }
+
+                try {
+                    nextPlayer.volume = targetMaster
+                } catch (e: Exception) {
+                    Log.w(TAG, "Error finalizing nextPlayer volume: ${e.message}")
+                }
 
                 // Swap roles
                 val temp = currentPlayer
@@ -258,7 +283,7 @@ class CrossfadePlayerManager(
             nextPlayer.stop()
             nextPlayer.clearMediaItems()
             nextPlayer.volume = 0f
-            currentPlayer.volume = masterVolume
+            currentPlayer.volume = masterVolume.coerceIn(0.05f, 1.0f)
         } catch (e: Exception) {
             Log.w(TAG, "Error during crossfade cancel cleanup: ${e.message}")
         }
@@ -278,7 +303,7 @@ class CrossfadePlayerManager(
             currentPlayer.clearMediaItems()
             val validIndex = if (initialIndex in mediaItems.indices) initialIndex else 0
             currentPlayer.setMediaItems(mediaItems, validIndex, 0L)
-            currentPlayer.volume = masterVolume
+            currentPlayer.volume = masterVolume.coerceIn(0.05f, 1.0f)
             currentPlayer.prepare()
             currentPlayer.playWhenReady = true
             currentPlayer.play()

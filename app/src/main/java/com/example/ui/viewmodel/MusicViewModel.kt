@@ -614,6 +614,17 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     fun skipNext() = playbackManager.skipNext()
     fun skipPrevious() = playbackManager.skipPrevious()
     fun seekTo(position: Long) = playbackManager.seekTo(position)
+    fun seekForward(ms: Long = 10000L) {
+        val current = currentPosition.value
+        val maxDur = duration.value
+        val target = if (maxDur > 0) (current + ms).coerceAtMost(maxDur) else current + ms
+        seekTo(target)
+    }
+    fun seekBackward(ms: Long = 10000L) {
+        val current = currentPosition.value
+        val target = (current - ms).coerceAtLeast(0L)
+        seekTo(target)
+    }
     fun setShuffleMode(enabled: Boolean) = playbackManager.setShuffleMode(enabled)
     fun setRepeatMode(mode: Int) = playbackManager.setRepeatMode(mode)
     fun setPlaybackRate(speed: Float, pitch: Float) = playbackManager.setPlaybackRate(speed, pitch)
