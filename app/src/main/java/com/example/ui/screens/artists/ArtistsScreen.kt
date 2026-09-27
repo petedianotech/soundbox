@@ -35,6 +35,7 @@ fun ArtistsScreen(
     val currentSong by viewModel.currentSong.collectAsState()
 
     var selectedArtist by remember { mutableStateOf<String?>(null) }
+    var selectedSongForMenu by remember { mutableStateOf<Song?>(null) }
     val artistSongs = selectedArtist?.let { artistMap[it] } ?: emptyList()
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -151,12 +152,20 @@ fun ArtistsScreen(
                                     selectedArtist = null
                                 },
                                 onFavoriteToggle = { viewModel.toggleFavorite(song) },
-                                onMenuClick = {}
+                                onMenuClick = { selectedSongForMenu = song }
                             )
                         }
                     }
                 }
             }
+        }
+
+        if (selectedSongForMenu != null) {
+            com.example.ui.components.SongOptionsBottomSheet(
+                song = selectedSongForMenu!!,
+                viewModel = viewModel,
+                onDismiss = { selectedSongForMenu = null }
+            )
         }
     }
 }

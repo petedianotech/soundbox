@@ -5,7 +5,6 @@
 #include <atomic>
 #include <mutex>
 #include "DspProcessor.h"
-#include "Crossfader.h"
 
 namespace soundbox {
 

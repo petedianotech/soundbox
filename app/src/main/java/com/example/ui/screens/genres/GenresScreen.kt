@@ -28,6 +28,7 @@ fun GenresScreen(
     val currentSong by viewModel.currentSong.collectAsState()
 
     var expandedGenre by remember { mutableStateOf<String?>(null) }
+    var selectedSongForMenu by remember { mutableStateOf<Song?>(null) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         if (genreMap.isEmpty()) {
@@ -90,7 +91,7 @@ fun GenresScreen(
                                     viewModel.toggleFavorite(song)
                                 },
                                 onMenuClick = {
-                                    // Add to Playlist logic placeholder
+                                    selectedSongForMenu = song
                                 },
                                 modifier = Modifier.padding(start = 32.dp)
                             )
@@ -98,6 +99,14 @@ fun GenresScreen(
                     }
                 }
             }
+        }
+
+        if (selectedSongForMenu != null) {
+            com.example.ui.components.SongOptionsBottomSheet(
+                song = selectedSongForMenu!!,
+                viewModel = viewModel,
+                onDismiss = { selectedSongForMenu = null }
+            )
         }
     }
 }

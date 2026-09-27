@@ -20,12 +20,6 @@ class SettingsManager(context: Context) {
     private val _searchHistoryFlow = MutableStateFlow(getSearchHistory())
     val searchHistoryFlow: StateFlow<List<String>> = _searchHistoryFlow
 
-    private val _crossfadeEnabled = MutableStateFlow(prefs.getBoolean("crossfade_enabled", false))
-    val crossfadeEnabled: StateFlow<Boolean> = _crossfadeEnabled
-
-    private val _crossfadeSeconds = MutableStateFlow(prefs.getInt("crossfade_sec", 3))
-    val crossfadeSeconds: StateFlow<Int> = _crossfadeSeconds
-
     private val _gaplessPlayback = MutableStateFlow(prefs.getBoolean("gapless_playback", true))
     val gaplessPlayback: StateFlow<Boolean> = _gaplessPlayback
 
@@ -95,16 +89,6 @@ class SettingsManager(context: Context) {
     fun setDynamicThemeFromAlbumArt(enabled: Boolean) {
         prefs.edit().putBoolean("dynamic_album_art_theme", enabled).apply()
         _dynamicThemeFromAlbumArt.value = enabled
-    }
-
-    fun setCrossfadeEnabled(enabled: Boolean) {
-        prefs.edit().putBoolean("crossfade_enabled", enabled).apply()
-        _crossfadeEnabled.value = enabled
-    }
-
-    fun setCrossfadeSeconds(seconds: Int) {
-        prefs.edit().putInt("crossfade_sec", seconds).apply()
-        _crossfadeSeconds.value = seconds
     }
 
     fun setGaplessPlayback(enabled: Boolean) {
@@ -203,8 +187,8 @@ class SettingsManager(context: Context) {
 
     private fun getVisibleTabs(): Set<String> {
         val defaultTabs = setOf("SONGS", "ALBUMS", "ARTISTS", "GENRES", "PLAYLISTS")
-        if (!prefs.contains("visible_tabs_v2")) {
-            prefs.edit().putStringSet("visible_tabs", defaultTabs).putBoolean("visible_tabs_v2", true).apply()
+        if (!prefs.contains("visible_tabs_v4")) {
+            prefs.edit().putStringSet("visible_tabs", defaultTabs).putBoolean("visible_tabs_v4", true).apply()
             return defaultTabs
         }
         return prefs.getStringSet("visible_tabs", defaultTabs) ?: defaultTabs

@@ -48,8 +48,6 @@ fun SettingsScreen(
     val visibleTabs by viewModel.settingsManager.visibleTabsFlow.collectAsState()
 
     val gaplessEnabled by viewModel.settingsManager.gaplessPlayback.collectAsState()
-    val crossfadeEnabled by viewModel.settingsManager.crossfadeEnabled.collectAsState()
-    val crossfadeSeconds by viewModel.settingsManager.crossfadeSeconds.collectAsState()
     val replayGain by viewModel.settingsManager.replayGainMode.collectAsState()
     val hiResEngine by viewModel.settingsManager.hiResAudioEngine.collectAsState()
     val keepScreenOn by viewModel.settingsManager.keepScreenOn.collectAsState()
@@ -221,88 +219,6 @@ fun SettingsScreen(
                     icon = Icons.Default.VolumeUp,
                     onClick = { showReplayGainDialog = true }
                 )
-            }
-
-            // 2. CROSS-FADE TRANSITIONS SECTION
-            SettingsSection(title = "CROSS-FADE TRANSITIONS", sectionIcon = Icons.Default.Shuffle) {
-                SettingsToggleRow(
-                    title = "Enable Cross-Fade",
-                    subtitle = if (crossfadeEnabled) "Seamless dual-player acoustic blending active" else "Cross-fade disabled (standard track end)",
-                    icon = Icons.Default.Transform,
-                    checked = crossfadeEnabled,
-                    onCheckedChange = { viewModel.settingsManager.setCrossfadeEnabled(it) }
-                )
-                if (crossfadeEnabled) {
-                    SettingsDivider()
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 10.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Cross-Fade Duration",
-                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                                color = colors.textPrimary
-                            )
-                            Text(
-                                text = if (crossfadeSeconds == 0) "Off (0s)" else "${crossfadeSeconds}s",
-                                style = MaterialTheme.typography.labelMedium.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = FontFamily.Monospace
-                                ),
-                                color = colors.accentCyan
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = "Smooth acoustic overlap between outgoing and incoming tracks",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = colors.textMuted
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-
-                        val presetDurations = listOf(0, 1, 2, 3, 4, 5, 6, 8, 10, 12, 15)
-                        val currentIdx = presetDurations.indexOf(crossfadeSeconds).let { if (it >= 0) it else 3 }
-
-                        Slider(
-                            value = currentIdx.toFloat(),
-                            onValueChange = { floatVal ->
-                                val selectedSec = presetDurations[floatVal.toInt().coerceIn(0, presetDurations.size - 1)]
-                                viewModel.settingsManager.setCrossfadeSeconds(selectedSec)
-                            },
-                            valueRange = 0f..(presetDurations.size - 1).toFloat(),
-                            steps = presetDurations.size - 2,
-                            colors = SliderDefaults.colors(
-                                thumbColor = colors.accentCyan,
-                                activeTrackColor = colors.accentCyan,
-                                inactiveTrackColor = colors.border
-                            )
-                        )
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            listOf(0, 2, 5, 8, 12, 15).forEach { sec ->
-                                val isChipSelected = crossfadeSeconds == sec
-                                FilterChip(
-                                    selected = isChipSelected,
-                                    onClick = { viewModel.settingsManager.setCrossfadeSeconds(sec) },
-                                    label = { Text(if (sec == 0) "Off" else "${sec}s", fontSize = 11.sp) },
-                                    colors = FilterChipDefaults.filterChipColors(
-                                        selectedContainerColor = colors.accentCyan.copy(alpha = 0.2f),
-                                        selectedLabelColor = colors.accentCyan
-                                    )
-                                )
-                            }
-                        }
-                    }
-                }
             }
 
             // 3. PLAYBACK & SLEEP TIMER SECTION

@@ -13,18 +13,16 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.ui.viewmodel.MusicViewModel
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.core.content.ContextCompat
 
 class MainActivity : ComponentActivity() {
-  private var musicViewModel: MusicViewModel? = null
-
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     enableEdgeToEdge()
 
+    requestPlaybackAndStoragePermissions()
+
     setContent {
       val viewModel: MusicViewModel = viewModel()
-      musicViewModel = viewModel
       val themeFlow by viewModel.settingsManager.themeFlow.collectAsState()
       val fontFlow by viewModel.settingsManager.fontFlow.collectAsState()
       
@@ -32,8 +30,6 @@ class MainActivity : ComponentActivity() {
         SoundboxNavGraph(viewModel)
       }
     }
-
-    requestPlaybackAndStoragePermissions()
   }
 
   private fun requestPlaybackAndStoragePermissions() {
@@ -46,29 +42,22 @@ class MainActivity : ComponentActivity() {
       permissionsToRequest.add(Manifest.permission.READ_EXTERNAL_STORAGE)
     }
 
-    val readPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-      Manifest.permission.READ_MEDIA_AUDIO
-    } else {
-      Manifest.permission.READ_EXTERNAL_STORAGE
-    }
-
-    val permissionLauncher = registerForActivityResult(
-      ActivityResultContracts.RequestMultiplePermissions()
-    ) {
-      if (ContextCompat.checkSelfPermission(this, readPermission) ==
-        android.content.pm.PackageManager.PERMISSION_GRANTED
-      ) {
-        musicViewModel?.scanStorage()
+    try {
+      val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+      ) { results ->
+        // If the needed permissions were granted, run a storage scan so the user sees music immediately
+        val readStorageGranted = results[Manifest.permission.READ_EXTERNAL_STORAGE] == true
+        val readAudioGranted = results[Manifest.permission.READ_MEDIA_AUDIO] == true
+        if (readStorageGranted || readAudioGranted) {
+           val vm = androidx.lifecycle.ViewModelProvider(this@MainActivity)[MusicViewModel::class.java]
+           vm.scanStorage()
+        }
       }
-    }
 
-    if (ContextCompat.checkSelfPermission(this, readPermission) ==
-      android.content.pm.PackageManager.PERMISSION_GRANTED
-    ) {
-      // A previously granted permission does not trigger a result callback.
-      musicViewModel?.scanStorage()
-    } else {
-      permissionLauncher.launch(permissionsToRequest.toTypedArray())
+      requestPermissionLauncher.launch(permissionsToRequest.toTypedArray())
+    } catch (e: Exception) {
+      // Safe fallback failsafe
     }
   }
 }

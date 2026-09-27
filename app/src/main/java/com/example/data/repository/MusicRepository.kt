@@ -398,6 +398,9 @@ class MusicRepository(private val context: Context) {
                 } else if (uri != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !urisRequiringConsent.contains(uri)) {
                     urisRequiringConsent.add(uri)
                     songsRequiringConsent.add(song)
+                } else {
+                    // Always add to successfullyDeletedIds so track is removed from local Room DB / app UI
+                    successfullyDeletedIds.add(song.id)
                 }
             }
 

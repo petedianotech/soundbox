@@ -191,11 +191,33 @@ fun SyncAndKaraokeView(
                         FilterChip(
                             selected = autoScrollEnabled,
                             onClick = { autoScrollEnabled = !autoScrollEnabled },
-                            label = { Text("Scroll", fontSize = 10.sp) },
-                            modifier = Modifier.height(26.dp),
+                            label = {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(3.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = if (autoScrollEnabled) Icons.Default.SwapVert else Icons.Default.PauseCircle,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(12.dp),
+                                        tint = if (autoScrollEnabled) colors.accentCyan else colors.textMuted
+                                    )
+                                    Text(
+                                        text = if (autoScrollEnabled) "Auto-Scroll: ON" else "Auto-Scroll: OFF",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            fontFamily = FontFamily.Monospace
+                                        )
+                                    )
+                                }
+                            },
+                            modifier = Modifier.height(28.dp),
                             colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = colors.surfaceVariant,
-                                selectedLabelColor = colors.accentCyan
+                                selectedContainerColor = colors.accentCyan.copy(alpha = 0.2f),
+                                selectedLabelColor = colors.accentCyan,
+                                containerColor = colors.surfaceVariant,
+                                labelColor = colors.textSecondary
                             )
                         )
                     }

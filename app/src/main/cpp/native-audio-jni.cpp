@@ -2,7 +2,6 @@
 #include <android/log.h>
 #include "AudioEngine.h"
 #include "DspProcessor.h"
-#include "Crossfader.h"
 
 #define TAG "SoundboxJNI"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, TAG, __VA_ARGS__)
@@ -50,43 +49,6 @@ Java_com_example_player_NativeAudioEngine_nativeProcessPcm16Direct(
         balance,
         virtualizerStrength,
         masterVolume
-    );
-}
-
-JNIEXPORT void JNICALL
-Java_com_example_player_NativeAudioEngine_nativeMixCrossfadePcm16Direct(
-    JNIEnv* env,
-    jobject thiz,
-    jobject bufferA,
-    jobject bufferB,
-    jobject outBuffer,
-    jint frameCount,
-    jint channelCount,
-    jfloat progress,
-    jint curveType
-) {
-    if (!outBuffer || frameCount <= 0 || channelCount <= 0) {
-        return;
-    }
-
-    const int16_t* srcA = bufferA ? static_cast<const int16_t*>(env->GetDirectBufferAddress(bufferA)) : nullptr;
-    const int16_t* srcB = bufferB ? static_cast<const int16_t*>(env->GetDirectBufferAddress(bufferB)) : nullptr;
-    auto* dst = static_cast<int16_t*>(env->GetDirectBufferAddress(outBuffer));
-
-    if (!dst) {
-        return;
-    }
-
-    auto curve = static_cast<soundbox::CrossfadeCurve>(curveType);
-
-    soundbox::Crossfader::mix(
-        srcA,
-        srcB,
-        dst,
-        frameCount,
-        channelCount,
-        progress,
-        curve
     );
 }
 

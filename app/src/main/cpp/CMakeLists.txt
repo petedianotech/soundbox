@@ -25,7 +25,6 @@ add_library(
     native-audio-jni.cpp
     AudioEngine.cpp
     DspProcessor.cpp
-    Crossfader.cpp
 )
 
 find_library(

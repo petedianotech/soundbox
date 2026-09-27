@@ -82,25 +82,11 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     val equalizerHardwareBands: StateFlow<Int> = playbackManager.equalizerHardwareBands
     val equalizerStatus: StateFlow<String> = playbackManager.equalizerStatus
 
-    // Crossfade & Gapless Playback
-    val crossfadeEnabled: StateFlow<Boolean> = settingsManager.crossfadeEnabled
-    val crossfadeSeconds: StateFlow<Int> = settingsManager.crossfadeSeconds
+    // Gapless Playback
     val gaplessPlayback: StateFlow<Boolean> = settingsManager.gaplessPlayback
-
-    fun setCrossfadeEnabled(enabled: Boolean) {
-        settingsManager.setCrossfadeEnabled(enabled)
-    }
-
-    fun setCrossfadeSeconds(seconds: Int) {
-        settingsManager.setCrossfadeSeconds(seconds.coerceIn(0, 10))
-    }
 
     fun setGaplessPlayback(enabled: Boolean) {
         settingsManager.setGaplessPlayback(enabled)
-    }
-
-    fun toggleCrossfade(enabled: Boolean) {
-        settingsManager.setCrossfadeEnabled(enabled)
     }
 
     // Scanning states & silent notification
@@ -580,7 +566,6 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun scanStorage() {
-        if (_isScanning.value) return
         viewModelScope.launch {
             _isScanning.value = true
             try {
@@ -614,17 +599,6 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     fun skipNext() = playbackManager.skipNext()
     fun skipPrevious() = playbackManager.skipPrevious()
     fun seekTo(position: Long) = playbackManager.seekTo(position)
-    fun seekForward(ms: Long = 10000L) {
-        val current = currentPosition.value
-        val maxDur = duration.value
-        val target = if (maxDur > 0) (current + ms).coerceAtMost(maxDur) else current + ms
-        seekTo(target)
-    }
-    fun seekBackward(ms: Long = 10000L) {
-        val current = currentPosition.value
-        val target = (current - ms).coerceAtLeast(0L)
-        seekTo(target)
-    }
     fun setShuffleMode(enabled: Boolean) = playbackManager.setShuffleMode(enabled)
     fun setRepeatMode(mode: Int) = playbackManager.setRepeatMode(mode)
     fun setPlaybackRate(speed: Float, pitch: Float) = playbackManager.setPlaybackRate(speed, pitch)

@@ -33,6 +33,7 @@ fun FoldersScreen(
     val currentSong by viewModel.currentSong.collectAsState()
 
     var selectedFolderPath by remember { mutableStateOf<String?>(null) }
+    var selectedSongForMenu by remember { mutableStateOf<Song?>(null) }
     val folderSongs = selectedFolderPath?.let { folderMap[it] } ?: emptyList()
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -179,12 +180,20 @@ fun FoldersScreen(
                                     selectedFolderPath = null
                                 },
                                 onFavoriteToggle = { viewModel.toggleFavorite(song) },
-                                onMenuClick = {}
+                                onMenuClick = { selectedSongForMenu = song }
                             )
                         }
                     }
                 }
             }
+        }
+
+        if (selectedSongForMenu != null) {
+            com.example.ui.components.SongOptionsBottomSheet(
+                song = selectedSongForMenu!!,
+                viewModel = viewModel,
+                onDismiss = { selectedSongForMenu = null }
+            )
         }
     }
 }

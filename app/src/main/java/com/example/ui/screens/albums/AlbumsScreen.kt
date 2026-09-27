@@ -33,6 +33,7 @@ fun AlbumsScreen(
     val currentSong by viewModel.currentSong.collectAsState()
 
     var selectedAlbum by remember { mutableStateOf<String?>(null) }
+    var selectedSongForMenu by remember { mutableStateOf<Song?>(null) }
     val albumSongs = selectedAlbum?.let { albumMap[it] } ?: emptyList()
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -157,12 +158,20 @@ fun AlbumsScreen(
                                     selectedAlbum = null
                                 },
                                 onFavoriteToggle = { viewModel.toggleFavorite(song) },
-                                onMenuClick = {}
+                                onMenuClick = { selectedSongForMenu = song }
                             )
                         }
                     }
                 }
             }
+        }
+
+        if (selectedSongForMenu != null) {
+            com.example.ui.components.SongOptionsBottomSheet(
+                song = selectedSongForMenu!!,
+                viewModel = viewModel,
+                onDismiss = { selectedSongForMenu = null }
+            )
         }
     }
 }
