@@ -838,6 +838,23 @@ class PlaybackManager private constructor(private val context: Context) {
         }
     }
 
+    fun seekBackward(ms: Long = 10000L) {
+        mainScope.launch(Dispatchers.Main) {
+            val newPos = (player.currentPosition - ms).coerceAtLeast(0L)
+            player.seekTo(newPos)
+            _currentPosition.value = newPos
+        }
+    }
+
+    fun seekForward(ms: Long = 10000L) {
+        mainScope.launch(Dispatchers.Main) {
+            val duration = if (player.duration > 0) player.duration else Long.MAX_VALUE
+            val newPos = (player.currentPosition + ms).coerceAtMost(duration)
+            player.seekTo(newPos)
+            _currentPosition.value = newPos
+        }
+    }
+
     fun setShuffleMode(enabled: Boolean) {
         mainScope.launch(Dispatchers.Main) {
             player.shuffleModeEnabled = enabled
