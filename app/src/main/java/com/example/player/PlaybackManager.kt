@@ -650,6 +650,7 @@ class PlaybackManager private constructor(private val context: Context) {
     }
 
     fun play() {
+        android.util.Log.d("PlaybackManager", "play() called")
         mainScope.launch(Dispatchers.Main) {
             requestSystemAudioFocus()
             updatePlayerVolume()
@@ -663,6 +664,7 @@ class PlaybackManager private constructor(private val context: Context) {
     }
 
     fun pause() {
+        android.util.Log.d("PlaybackManager", "pause() called")
         mainScope.launch(Dispatchers.Main) {
             player.pause()
             abandonSystemAudioFocus()

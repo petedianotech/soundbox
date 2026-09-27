@@ -335,6 +335,7 @@ class MusicRepository(private val context: Context) {
      * this returns an IntentSender so the Android system deletion confirmation dialog
      * can be displayed to permanently purge the files from physical disk.
      */
+    @androidx.annotation.RequiresApi(android.os.Build.VERSION_CODES.Q)
     suspend fun deleteSongsPermanently(songs: List<Song>): DeleteResult {
         return withContext(Dispatchers.IO) {
             val successfullyDeletedIds = mutableListOf<String>()

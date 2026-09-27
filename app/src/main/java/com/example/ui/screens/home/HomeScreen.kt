@@ -33,7 +33,7 @@ import com.example.ui.theme.SoundboxTheme
 import com.example.ui.viewmodel.MusicViewModel
 
 enum class HomeTab(val title: String, val icon: ImageVector) {
-    SONGS("Tracks", Icons.Default.MusicNote),
+    SONGS("Songs", Icons.Default.MusicNote),
     ALBUMS("Albums", Icons.Default.Album),
     ARTISTS("Artists", Icons.Default.Person),
     GENRES("Genres", Icons.Default.Category),
