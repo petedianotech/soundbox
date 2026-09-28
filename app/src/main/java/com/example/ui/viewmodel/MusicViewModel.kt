@@ -32,7 +32,6 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     
     val settingsManager = SettingsManager.getInstance(application)
 
-    // Scoped Storage IntentSender flows for system deletion and write consent dialogs
     private val _pendingDeleteSender = MutableStateFlow<IntentSender?>(null)
     val pendingDeleteSender: StateFlow<IntentSender?> = _pendingDeleteSender.asStateFlow()
     private val _pendingDeleteIds = MutableStateFlow<List<String>>(emptyList())
@@ -43,22 +42,11 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     private val _pendingWriteLyrics = MutableStateFlow<String?>(null)
     private val _pendingBatchWriteSongs = MutableStateFlow<List<Song>>(emptyList())
 
-    // Search history delegation
     val searchHistory: StateFlow<List<String>> = settingsManager.searchHistoryFlow
+    fun addSearchQuery(query: String) { settingsManager.addSearchQuery(query) }
+    fun removeSearchQuery(query: String) { settingsManager.removeSearchQuery(query) }
+    fun clearSearchHistory() { settingsManager.clearSearchHistory() }
 
-    fun addSearchQuery(query: String) {
-        settingsManager.addSearchQuery(query)
-    }
-
-    fun removeSearchQuery(query: String) {
-        settingsManager.removeSearchQuery(query)
-    }
-
-    fun clearSearchHistory() {
-        settingsManager.clearSearchHistory()
-    }
-
-    // Player state mapping
     val currentSong: StateFlow<Song?> = playbackManager.currentSong
     val isPlaying: StateFlow<Boolean> = playbackManager.isPlaying
     val currentPosition: StateFlow<Long> = playbackManager.currentPosition
@@ -82,26 +70,16 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     val equalizerHardwareBands: StateFlow<Int> = playbackManager.equalizerHardwareBands
     val equalizerStatus: StateFlow<String> = playbackManager.equalizerStatus
 
-    // Gapless Playback
     val gaplessPlayback: StateFlow<Boolean> = settingsManager.gaplessPlayback
+    fun setGaplessPlayback(enabled: Boolean) { settingsManager.setGaplessPlayback(enabled) }
 
-    fun setGaplessPlayback(enabled: Boolean) {
-        settingsManager.setGaplessPlayback(enabled)
-    }
-
-    // Scanning states & silent notification
     private val _isScanning = MutableStateFlow(false)
     val isScanning: StateFlow<Boolean> = _isScanning.asStateFlow()
-
     private val _isInitialLoadComplete = MutableStateFlow(false)
     val isInitialLoadComplete: StateFlow<Boolean> = _isInitialLoadComplete.asStateFlow()
-
     private val _scanNotification = MutableStateFlow<String?>(null)
     val scanNotification: StateFlow<String?> = _scanNotification.asStateFlow()
-
-    fun clearScanNotification() {
-        _scanNotification.value = null
-    }
+    fun clearScanNotification() { _scanNotification.value = null }
 
     enum class SortOrder(val displayName: String) {
         NEWEST_FIRST("Newest First (Date Added ↓)"),
@@ -117,30 +95,17 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         MOST_PLAYED("Most Played"),
         RATING("Highest Rated (5★)"),
         DATE_ADDED("Newest First");
-
         companion object {
             fun fromString(value: String?): SortOrder {
-                return try {
-                    if (value == null) NEWEST_FIRST
-                    else valueOf(value)
-                } catch (e: Exception) {
-                    NEWEST_FIRST
-                }
+                return try { if (value == null) NEWEST_FIRST else valueOf(value) } catch (e: Exception) { NEWEST_FIRST }
             }
         }
     }
 
-    private val _sortOrder = MutableStateFlow(
-        SortOrder.fromString(settingsManager.songSortOrderFlow.value)
-    )
+    private val _sortOrder = MutableStateFlow(SortOrder.fromString(settingsManager.songSortOrderFlow.value))
     val sortOrder: StateFlow<SortOrder> = _sortOrder.asStateFlow()
+    fun setSortOrder(order: SortOrder) { _sortOrder.value = order; settingsManager.setSongSortOrder(order.name) }
 
-    fun setSortOrder(order: SortOrder) {
-        _sortOrder.value = order
-        settingsManager.setSongSortOrder(order.name)
-    }
-
-    // Core dataset flows
     val allSongs: StateFlow<List<Song>> = combine(repository.allSongs, _sortOrder) { songs, order ->
         when (order) {
             SortOrder.NEWEST_FIRST, SortOrder.DATE_ADDED -> songs.sortedByDescending { it.dateAdded }
@@ -192,24 +157,24 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
     val insights: StateFlow<SoundboxInsights> = combine(repository.allSongs, settingsManager.totalListeningTimeMs) { songs, realDurationMs ->
         val playedSongs = songs.filter { it.playCount > 0 }
-        val totalPlays = playedSongs.sumOf { it.playCount }
+        val totalPlayCount = playedSongs.sumOf { it.playCount }
         SoundboxInsights(
-            totalListeningTimeMs = realDurationMs,
-            totalPlays = totalPlays,
-            uniqueArtists = playedSongs.map { it.artist }.filter { it.isNotBlank() }.distinct().size,
-            uniqueGenres = playedSongs.map { it.genre }.filter { it.isNotBlank() }.distinct().size,
+            totalPlayCount = totalPlayCount,
+            totalPlaytimeMs = realDurationMs,
+            uniqueArtistsCount = playedSongs.map { it.artist }.filter { it.isNotBlank() }.distinct().size,
+            uniqueGenresCount = playedSongs.map { it.genre }.filter { it.isNotBlank() }.distinct().size,
             topArtists = emptyList(),
             topGenres = emptyList(),
             habits = ListeningHabits(0, 0, 0, 0),
             milestones = emptyList()
         )
-    }.stateIn(viewModelScope, SharingStarted.Lazily, SoundboxInsights(0, 0, 0, 0, emptyList(), emptyList(), ListeningHabits(0,0,0,0), emptyList()))
+    }.stateIn(viewModelScope, SharingStarted.Lazily, SoundboxInsights(0, 0L, 0, 0, emptyList(), emptyList(), ListeningHabits(0,0,0,0), emptyList()))
 
     init {
         viewModelScope.launch {
             if (allSongs.value.isEmpty()) {
                 _isScanning.value = true
-                try { repository.scanAndSyncLibrary() } catch (_: Exception) {}
+                try { repository.scanStorage() } catch (_: Exception) {}
                 _isScanning.value = false
             }
             _isInitialLoadComplete.value = true
@@ -220,7 +185,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             _isScanning.value = true
             try {
-                repository.scanAndSyncLibrary()
+                repository.scanStorage()
                 _scanNotification.value = "Library updated"
             } catch (e: Exception) {
                 _scanNotification.value = "Scan failed"
@@ -229,9 +194,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun playSong(song: Song, customQueue: List<Song> = emptyList()) {
-        playbackManager.playSong(song, customQueue)
-    }
+    fun playSong(song: Song, customQueue: List<Song> = emptyList()) { playbackManager.playSong(song, customQueue) }
     fun playNext(song: Song) = playbackManager.playNext(song)
     fun addToQueue(song: Song) = playbackManager.addToQueue(song)
     fun removeFromQueue(index: Int) = playbackManager.removeFromQueue(index)
@@ -319,7 +282,6 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun clearPendingDeleteSender() { _pendingDeleteSender.value = null }
-
     fun deleteSongs(songsToDelete: List<Song>) { deleteSongsBatchFromDevice(songsToDelete) }
 
     fun confirmPendingWrite(onSuccess: (() -> Unit)? = null) {
@@ -328,9 +290,9 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             val lyrics = _pendingWriteLyrics.value
             val batch = _pendingBatchWriteSongs.value
             if (song != null && lyrics != null) {
-                try { repository.writeLyricsAfterConsent(song, lyrics) } catch (_: Exception) {}
+                try { repository.confirmPendingWrite(song, lyrics) } catch (_: Exception) {}
             } else if (batch.isNotEmpty()) {
-                try { repository.writeBatchAfterConsent(batch) } catch (_: Exception) {}
+                try { repository.confirmPendingBatchWrite(batch) } catch (_: Exception) {}
             }
             _pendingWriteSong.value = null
             _pendingWriteLyrics.value = null
@@ -352,8 +314,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     fun deletePlaylist(playlistId: Long) { viewModelScope.launch { repository.deletePlaylist(playlistId) } }
     fun addSongToPlaylist(playlistId: Long, songId: String) { viewModelScope.launch { repository.addSongToPlaylist(playlistId, songId) } }
     fun removeSongFromPlaylist(playlistId: Long, songId: String) { viewModelScope.launch { repository.removeSongFromPlaylist(playlistId, songId) } }
-
-    fun setSongRating(song: Song, rating: Int) { viewModelScope.launch { repository.setSongRating(song.id, rating) } }
+    fun setSongRating(song: Song, rating: Int) { viewModelScope.launch { repository.updateRating(song.id, rating) } }
 
     fun cleanDuplicateGroup(group: DuplicateGroup, keepBest: Boolean = true) {
         viewModelScope.launch {
