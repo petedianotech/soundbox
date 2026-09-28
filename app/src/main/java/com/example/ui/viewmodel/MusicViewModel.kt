@@ -1,1 +1,4 @@
-RESTORE_CONTENT_FROM_FILE
+package com.example.ui.viewmodel
+
+// TEMPORARY STUB - DO NOT USE
+class MusicViewModel
