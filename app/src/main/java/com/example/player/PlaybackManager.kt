@@ -72,8 +72,9 @@ class PlaybackManager private constructor(private val context: Context) {
     private fun buildPlayer(processor: SoundboxDspAudioProcessor): ExoPlayer {
         return ExoPlayer.Builder(context, createRenderersFactory(processor))
             .setLoadControl(lowMemoryLoadControl)
-            .setAudioAttributes(AudioAttributes.Builder().setContentType(C.AUDIO_CONTENT_TYPE_MUSIC).setUsage(C.USAGE_MEDIA).build(), true)
-            .setHandleAudioBecomingNoisy(true)
+            // handleAudioFocus=false: we manage focus via requestSystemAudioFocus() so dual players do not fight.
+            .setAudioAttributes(AudioAttributes.Builder().setContentType(C.AUDIO_CONTENT_TYPE_MUSIC).setUsage(C.USAGE_MEDIA).build(), false)
+            .setHandleAudioBecomingNoisy(false)
             .setWakeMode(C.WAKE_MODE_LOCAL)
             .build()
     }
@@ -94,6 +95,7 @@ class PlaybackManager private constructor(private val context: Context) {
         private set
     private var crossfadeJob: Job? = null
     private var autoCrossfadeArmedForSongId: String? = null
+    private var headsetReceiverRegistered: Boolean = false
 
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     private var hasSystemAudioFocus = false
@@ -163,7 +165,7 @@ class PlaybackManager private constructor(private val context: Context) {
     private val _queue = MutableStateFlow<List<Song>>(emptyList())
     val queue: StateFlow<List<Song>> = _queue.asStateFlow()
 
-    private val settingsManager = SettingsManager(context)
+    private val settingsManager = SettingsManager.getInstance(context)
     private val _sleepTimerMillis = MutableStateFlow(0L)
     val sleepTimerMillis: StateFlow<Long> = _sleepTimerMillis.asStateFlow()
     private val _equalizerEnabled = MutableStateFlow(settingsManager.isEqualizerEnabled())
@@ -291,14 +293,17 @@ class PlaybackManager private constructor(private val context: Context) {
                 if (audioSessionId > 0) { _audioSessionId.value = audioSessionId; initAudioEffects(audioSessionId) }
             }
         })
-        try {
-            val headsetFilter = IntentFilter().apply {
-                addAction(Intent.ACTION_HEADSET_PLUG); addAction(AudioManager.ACTION_AUDIO_BECOMING_NOISY)
-                addAction(BluetoothDevice.ACTION_ACL_CONNECTED); addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED)
-                addAction(BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED)
-            }
-            androidx.core.content.ContextCompat.registerReceiver(context.applicationContext, HeadsetPlugReceiver(), headsetFilter, androidx.core.content.ContextCompat.RECEIVER_EXPORTED)
-        } catch (e: Exception) { Log.w("PlaybackManager", "HeadsetPlugReceiver: ${e.message}") }
+        if (!headsetReceiverRegistered) {
+            try {
+                val headsetFilter = IntentFilter().apply {
+                    addAction(Intent.ACTION_HEADSET_PLUG); addAction(AudioManager.ACTION_AUDIO_BECOMING_NOISY)
+                    addAction(BluetoothDevice.ACTION_ACL_CONNECTED); addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED)
+                    addAction(BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED)
+                }
+                androidx.core.content.ContextCompat.registerReceiver(context.applicationContext, HeadsetPlugReceiver(), headsetFilter, androidx.core.content.ContextCompat.RECEIVER_EXPORTED)
+                headsetReceiverRegistered = true
+            } catch (e: Exception) { Log.w("PlaybackManager", "HeadsetPlugReceiver: ${e.message}") }
+        }
     }
 
     private fun releaseAudioEffects() {
@@ -330,10 +335,10 @@ class PlaybackManager private constructor(private val context: Context) {
         applyHardwareEqualizerBands()
     }
 
-    fun getTargetMasterVolume(): Float = Math.pow(10.0, (_preampGain.value / 20.0).toDouble()).toFloat().coerceIn(0.05f, 1.8f)
+    fun getTargetMasterVolume(): Float = Math.pow(10.0, (_preampGain.value / 20.0).toDouble()).toFloat().coerceIn(0.05f, 1.0f)
 
     private fun updatePlayerVolume() {
-        try { player.volume = (getTargetMasterVolume() * fadeVolumeMultiplier).coerceIn(0.05f, 1.8f) } catch (_: Exception) {}
+        try { player.volume = (getTargetMasterVolume() * fadeVolumeMultiplier).coerceIn(0.05f, 1.0f) } catch (_: Exception) {}
     }
 
     private fun applyHardwareEqualizerBands() {
@@ -391,13 +396,33 @@ class PlaybackManager private constructor(private val context: Context) {
         }
     }
 
+    private fun isCrossfadeEnabledNow(): Boolean {
+        // Always read latest from SharedPreferences so settings apply without restart
+        return try {
+            context.getSharedPreferences("soundbox_settings", Context.MODE_PRIVATE)
+                .getBoolean("crossfade_enabled", settingsManager.crossfadeEnabled.value)
+        } catch (_: Exception) {
+            settingsManager.crossfadeEnabled.value
+        }
+    }
+
+    private fun crossfadeDurationMsNow(): Int {
+        return try {
+            context.getSharedPreferences("soundbox_settings", Context.MODE_PRIVATE)
+                .getInt("crossfade_duration_ms", settingsManager.crossfadeDurationMs.value)
+                .coerceIn(1000, 12000)
+        } catch (_: Exception) {
+            settingsManager.crossfadeDurationMs.value.coerceIn(1000, 12000)
+        }
+    }
+
     private fun maybeStartAutoCrossfade(curPos: Long) {
-        if (_isCrossfading || !settingsManager.crossfadeEnabled.value) return
+        if (_isCrossfading || !isCrossfadeEnabledNow()) return
         val song = _currentSong.value ?: return
         if (autoCrossfadeArmedForSongId == song.id) return
         val dur = player.duration.takeIf { it > 0 } ?: song.duration
         if (dur <= 0L) return
-        val fadeMs = settingsManager.crossfadeDurationMs.value.toLong().coerceIn(1000L, 12000L)
+        val fadeMs = crossfadeDurationMsNow().toLong()
         if (dur <= fadeMs + 1500L) return
         if ((dur - curPos) in 1L..fadeMs) {
             val next = resolveNextSong() ?: return
@@ -414,7 +439,7 @@ class PlaybackManager private constructor(private val context: Context) {
         val currentList = if (customQueue.isNotEmpty()) customQueue else _queue.value.ifEmpty { listOf(nextSong) }
         _queue.value = currentList
         crossfadeJob?.cancel(); _isCrossfading = true; crossfadeActiveSongId = nextSong.id; requestSystemAudioFocus()
-        val fadeMs = settingsManager.crossfadeDurationMs.value.toLong().coerceIn(1000L, 12000L)
+        val fadeMs = crossfadeDurationMsNow().toLong()
         val master = getTargetMasterVolume()
         try {
             incoming.stop(); incoming.clearMediaItems(); incoming.setMediaItem(buildMediaItem(nextSong))
@@ -431,8 +456,8 @@ class PlaybackManager private constructor(private val context: Context) {
                 while (isActive) {
                     val t = ((SystemClock.elapsedRealtime() - started).toFloat() / fadeMs.toFloat()).coerceIn(0f, 1f)
                     try {
-                        outgoing.volume = (master * cos((Math.PI / 2.0) * t).toFloat()).coerceIn(0f, 1.8f)
-                        incoming.volume = (master * sin((Math.PI / 2.0) * t).toFloat()).coerceIn(0f, 1.8f)
+                        outgoing.volume = (master * cos((Math.PI / 2.0) * t).toFloat()).coerceIn(0f, 1.0f)
+                        incoming.volume = (master * sin((Math.PI / 2.0) * t).toFloat()).coerceIn(0f, 1.0f)
                     } catch (_: Exception) {}
                     if (t >= 1f) break
                     delay(16L)
@@ -536,7 +561,7 @@ class PlaybackManager private constructor(private val context: Context) {
         mainScope.launch(Dispatchers.Main) {
             val nextSong = resolveNextSong()
             if (nextSong != null) {
-                if (settingsManager.crossfadeEnabled.value && player.isPlaying) performPowerampCrossfade(nextSong, _queue.value)
+                if (isCrossfadeEnabledNow() && player.isPlaying) performPowerampCrossfade(nextSong, _queue.value)
                 else playSongDirect(nextSong, _queue.value)
             } else if (player.hasNextMediaItem()) player.seekToNext()
         }
