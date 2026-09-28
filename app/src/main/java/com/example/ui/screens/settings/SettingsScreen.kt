@@ -1,1 +1,1 @@
-see file
+FILE_CONTENT_FROM_LOCAL
