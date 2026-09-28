@@ -45,7 +45,7 @@ import java.util.TimerTask
 import kotlin.math.cos
 import kotlin.math.sin
 
-/** Dual-ExoPlayer with Poweramp/Musicolet equal-power crossfade. Full source mirrored in workspace; this restore is the dual-player engine. */
+/** Dual-ExoPlayer with Poweramp/Musicolet equal-power crossfade. */
 class PlaybackManager private constructor(private val context: Context) {
 
     private val repository = MusicRepository.getInstance(context)
@@ -192,6 +192,7 @@ class PlaybackManager private constructor(private val context: Context) {
     val equalizerStatus: StateFlow<String> = _equalizerStatus.asStateFlow()
 
     private var sleepTimer: Timer? = null
+    private var sleepTimerFadeOutEnabled: Boolean = true
     private val handler = Handler(Looper.getMainLooper())
     private var fadeVolumeMultiplier = 1.0f
     private var controllerFuture: ListenableFuture<MediaController>? = null
@@ -562,15 +563,94 @@ class PlaybackManager private constructor(private val context: Context) {
     fun setPlaybackSpeed(speed: Float) { mainScope.launch(Dispatchers.Main) { _playbackSpeed.value = speed; player.playbackParameters = PlaybackParameters(speed, _playbackPitch.value) } }
     fun setPlaybackPitch(pitch: Float) { mainScope.launch(Dispatchers.Main) { _playbackPitch.value = pitch; player.playbackParameters = PlaybackParameters(_playbackSpeed.value, pitch) } }
 
+    fun setPlaybackRate(speed: Float, pitch: Float) {
+        mainScope.launch(Dispatchers.Main) {
+            player.playbackParameters = PlaybackParameters(speed, pitch)
+            _playbackSpeed.value = speed
+            _playbackPitch.value = pitch
+        }
+    }
+
     fun setEqualizerEnabled(enabled: Boolean) { _equalizerEnabled.value = enabled; settingsManager.setEqualizerEnabled(enabled); try { equalizer?.enabled = enabled } catch (_: Exception) {}; applyHardwareEqualizerBands() }
     fun setEqBandLevels(levels: List<Float>) { _eqBandLevels.value = levels; settingsManager.setEqualizerBandLevels(levels); applyHardwareEqualizerBands() }
     fun setPreampGain(gain: Float) { _preampGain.value = gain; settingsManager.setPreampGain(gain); applyHardwareEqualizerBands() }
-    fun setBassBoostStrength(strength: Int) { _bassBoostStrength.value = strength; settingsManager.setBassBoostStrength(strength); try { bassBoost?.setStrength(strength.toShort().coerceIn(0, 1000)); bassBoost?.enabled = strength > 0 } catch (_: Exception) {}; applyHardwareEqualizerBands() }
+    fun setBassBoostStrength(strength: Int) { setBassBoost(strength) }
     fun setTrebleGain(gain: Float) { _trebleGain.value = gain; settingsManager.setTrebleGain(gain); applyHardwareEqualizerBands() }
     fun setVirtualizerStrength(strength: Int) { _virtualizerStrength.value = strength; settingsManager.setVirtualizerStrength(strength); try { virtualizer?.setStrength(strength.toShort().coerceIn(0, 1000)); virtualizer?.enabled = strength > 0 } catch (_: Exception) {}; dspAudioProcessor.virtualizerStrength = strength }
     fun setAudioBalance(balance: Float) { _audioBalance.value = balance; settingsManager.setAudioBalance(balance); dspAudioProcessor.balance = balance }
     fun setReverbPreset(preset: Int) { _reverbPreset.value = preset; settingsManager.setReverbPreset(preset); try { presetReverb?.preset = preset.toShort(); presetReverb?.enabled = preset > 0 } catch (_: Exception) {} }
     fun setEqualizerPresetName(name: String) { _currentPresetName.value = name; settingsManager.setEqualizerPresetName(name) }
+
+    fun toggleEqualizer() {
+        val nextState = !_equalizerEnabled.value
+        _equalizerEnabled.value = nextState
+        settingsManager.setEqualizerEnabled(nextState)
+        try {
+            equalizer?.enabled = nextState
+            if (nextState) applyHardwareEqualizerBands()
+        } catch (e: Exception) {
+            Log.w("PlaybackManager", "Error toggling equalizer: ${e.message}")
+        }
+    }
+
+    fun setEqBandLevel(bandIndex: Int, levelDb: Float) {
+        val current = _eqBandLevels.value.toMutableList()
+        if (bandIndex in current.indices) {
+            current[bandIndex] = levelDb.coerceIn(-15f, 15f)
+            _eqBandLevels.value = current
+            _currentPresetName.value = "Custom"
+            settingsManager.setEqualizerBandLevels(current)
+            settingsManager.setEqualizerPresetName("Custom")
+            applyHardwareEqualizerBands()
+        }
+    }
+
+    fun setBassBoost(strength: Int) {
+        val clamped = strength.coerceIn(0, 1000)
+        _bassBoostStrength.value = clamped
+        settingsManager.setBassBoostStrength(clamped)
+        try {
+            bassBoost?.let { boost ->
+                boost.enabled = clamped > 0
+                if (clamped > 0 && boost.strengthSupported) {
+                    boost.setStrength(clamped.toShort())
+                }
+            }
+        } catch (e: Exception) {
+            Log.w("PlaybackManager", "Error setting bass boost strength: ${e.message}")
+        }
+        applyHardwareEqualizerBands()
+    }
+
+    fun applyPowerampPreset(
+        presetName: String,
+        bandGains: List<Float>,
+        bassBoost: Int = 300,
+        treble: Float = 0f,
+        virtualizer: Int = 0,
+        reverb: Int = PresetReverb.PRESET_NONE.toInt()
+    ) {
+        _currentPresetName.value = presetName
+        _eqBandLevels.value = bandGains
+        settingsManager.setEqualizerPresetName(presetName)
+        settingsManager.setEqualizerBandLevels(bandGains)
+        setBassBoost(bassBoost)
+        setTrebleGain(treble)
+        setVirtualizerStrength(virtualizer)
+        setReverbPreset(reverb)
+        applyHardwareEqualizerBands()
+    }
+
+    fun resetEqualizerToFlat() {
+        applyPowerampPreset(
+            presetName = "Flat",
+            bandGains = listOf(0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f),
+            bassBoost = 0,
+            treble = 0f,
+            virtualizer = 0,
+            reverb = PresetReverb.PRESET_NONE.toInt()
+        )
+    }
 
     fun setSleepTimer(millis: Long) {
         sleepTimer?.cancel(); _sleepTimerMillis.value = millis
@@ -584,6 +664,84 @@ class PlaybackManager private constructor(private val context: Context) {
                 if (left <= 0L) { mainScope.launch(Dispatchers.Main) { pause() }; cancel() }
             }
         }, 0L, 1000L)
+    }
+
+    fun startSleepTimer(minutes: Int, fadeOutAtEnd: Boolean = true) {
+        startSleepTimerSeconds(minutes * 60, fadeOutAtEnd)
+    }
+
+    fun startSleepTimerSeconds(seconds: Int, fadeOutAtEnd: Boolean = true) {
+        sleepTimer?.cancel()
+        sleepTimerFadeOutEnabled = fadeOutAtEnd
+        if (seconds <= 0) {
+            _sleepTimerMillis.value = 0L
+            fadeVolumeMultiplier = 1.0f
+            updatePlayerVolume()
+            return
+        }
+        val totalMs = seconds * 1000L
+        _sleepTimerMillis.value = totalMs
+        sleepTimer = Timer().apply {
+            scheduleAtFixedRate(object : TimerTask() {
+                override fun run() {
+                    handler.post {
+                        val currentLeft = _sleepTimerMillis.value - 1000L
+                        if (currentLeft <= 0) {
+                            fadeVolumeMultiplier = 1.0f
+                            updatePlayerVolume()
+                            player.pause()
+                            _sleepTimerMillis.value = 0L
+                            cancel()
+                        } else {
+                            _sleepTimerMillis.value = currentLeft
+                            if (sleepTimerFadeOutEnabled && currentLeft in 1L..15000L) {
+                                fadeVolumeMultiplier = (currentLeft / 15000f).coerceIn(0.05f, 1.0f)
+                                updatePlayerVolume()
+                            } else if (fadeVolumeMultiplier < 1.0f) {
+                                fadeVolumeMultiplier = 1.0f
+                                updatePlayerVolume()
+                            }
+                        }
+                    }
+                }
+            }, 1000L, 1000L)
+        }
+    }
+
+    fun startSleepTimerEndOfTrack(fadeOutAtEnd: Boolean = true) {
+        val remainingMs = (player.duration - player.currentPosition).coerceAtLeast(1000L)
+        val remainingSec = ((remainingMs + 999L) / 1000L).toInt().coerceAtLeast(5)
+        startSleepTimerSeconds(remainingSec, fadeOutAtEnd)
+    }
+
+    fun extendSleepTimer(minutes: Int = 5) {
+        val current = _sleepTimerMillis.value
+        val additionalMs = minutes * 60 * 1000L
+        val newDurationMs = if (current > 0) current + additionalMs else additionalMs
+        startSleepTimerSeconds((newDurationMs / 1000L).toInt(), sleepTimerFadeOutEnabled)
+    }
+
+    fun stopSleepTimer() {
+        sleepTimer?.cancel()
+        _sleepTimerMillis.value = 0L
+        fadeVolumeMultiplier = 1.0f
+        updatePlayerVolume()
+    }
+
+    fun toggleFavorite(song: Song) {
+        val targetFav = !song.isFavorite
+        if (_currentSong.value?.id == song.id) {
+            _currentSong.value = _currentSong.value?.copy(isFavorite = targetFav)
+        }
+        val currentQueue = _queue.value
+        if (currentQueue.any { it.id == song.id }) {
+            _queue.value = currentQueue.map {
+                if (it.id == song.id) it.copy(isFavorite = targetFav) else it
+            }
+        }
+        mainScope.launch(Dispatchers.IO) {
+            repository.toggleFavorite(song.id, song.isFavorite)
+        }
     }
 
     private fun saveCurrentState(songId: String, position: Long) {
