@@ -29,7 +29,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = MusicRepository.getInstance(application)
     private val playbackManager = PlaybackManager.getInstance(application)
-    
+
     val settingsManager = SettingsManager.getInstance(application)
 
     private val _pendingDeleteSender = MutableStateFlow<IntentSender?>(null)
@@ -169,6 +169,35 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             milestones = emptyList()
         )
     }.stateIn(viewModelScope, SharingStarted.Lazily, SoundboxInsights(0, 0L, 0, 0, emptyList(), emptyList(), ListeningHabits(0,0,0,0), emptyList()))
+
+    val cleanerSummary: StateFlow<CleanerSummary> = allSongs.map { songs ->
+        val groups = songs
+            .groupBy { "${it.title.trim().lowercase()}|${it.artist.trim().lowercase()}" }
+            .filter { it.value.size > 1 }
+            .map { (key, list) ->
+                val first = list.first()
+                DuplicateGroup(
+                    key = key,
+                    title = first.title,
+                    artist = first.artist,
+                    duplicates = list.sortedByDescending { it.size }
+                )
+            }
+            .sortedByDescending { it.totalWastedBytes }
+
+        val lowQuality = songs.filter { it.bitrateKbps in 1..127 }.sortedBy { it.bitrateKbps }
+
+        CleanerSummary(
+            duplicateGroups = groups,
+            lowQualityTracks = lowQuality,
+            totalDuplicateWasteBytes = groups.sumOf { it.totalWastedBytes },
+            totalLowQualityBytes = lowQuality.sumOf { it.size }
+        )
+    }.stateIn(
+        viewModelScope,
+        SharingStarted.Lazily,
+        CleanerSummary(emptyList(), emptyList(), 0L, 0L)
+    )
 
     init {
         viewModelScope.launch {
@@ -315,13 +344,97 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     fun addSongToPlaylist(playlistId: Long, songId: String) { viewModelScope.launch { repository.addSongToPlaylist(playlistId, songId) } }
     fun removeSongFromPlaylist(playlistId: Long, songId: String) { viewModelScope.launch { repository.removeSongFromPlaylist(playlistId, songId) } }
     fun setSongRating(song: Song, rating: Int) { viewModelScope.launch { repository.updateRating(song.id, rating) } }
+    fun updateSongRating(song: Song, rating: Int) = setSongRating(song, rating)
+
+    fun updateSongMetadata(song: Song, newLyrics: String? = null) {
+        viewModelScope.launch {
+            try {
+                repository.updateSongMetadata(song, newLyrics)
+                playbackManager.refreshCurrentSongMetadata(song)
+            } catch (_: Exception) {}
+        }
+    }
+
+    fun cutSong(
+        song: Song,
+        startMs: Long,
+        endMs: Long,
+        targetTitle: String,
+        saveMode: com.example.util.AudioCutter.SaveMode,
+        onComplete: ((Boolean, String?) -> Unit)? = null
+    ) {
+        viewModelScope.launch {
+            try {
+                val result = repository.cutSong(song, startMs, endMs, targetTitle, saveMode)
+                if (result.success) {
+                    result.savedSong?.let { playbackManager.refreshCurrentSongMetadata(it) }
+                    if (saveMode == com.example.util.AudioCutter.SaveMode.REPLACE_ORIGINAL) {
+                        playbackManager.onSongTrimmed(
+                            song.copy(duration = result.newDurationMs, size = result.newSizeBytes)
+                        )
+                    }
+                }
+                onComplete?.invoke(result.success, result.errorMessage)
+            } catch (e: Exception) {
+                onComplete?.invoke(false, e.message)
+            }
+        }
+    }
 
     fun cleanDuplicateGroup(group: DuplicateGroup, keepBest: Boolean = true) {
         viewModelScope.launch {
             if (group.duplicates.size <= 1) return@launch
-            val sorted = group.duplicates.sortedWith(compareByDescending<Song> { it.bitrateKbps }.thenByDescending { it.size }.thenByDescending { it.rating })
+            val sorted = group.duplicates.sortedWith(
+                compareByDescending<Song> { it.bitrateKbps }.thenByDescending { it.size }.thenByDescending { it.rating }
+            )
             val toDelete = if (keepBest) sorted.drop(1) else group.duplicates
             repository.deleteSongsBatch(toDelete.map { it.id })
+        }
+    }
+
+    fun cleanAllDuplicates() {
+        viewModelScope.launch {
+            val groups = cleanerSummary.value.duplicateGroups
+            for (group in groups) {
+                cleanDuplicateGroup(group, keepBest = true)
+            }
+        }
+    }
+
+    fun cleanLowQualityTracks(tracks: List<Song>) {
+        deleteSongsBatchFromDevice(tracks)
+    }
+
+    fun createPlaylistWithSongs(name: String, songIds: List<String>) {
+        viewModelScope.launch {
+            try {
+                repository.createPlaylistWithSongs(name, songIds)
+            } catch (_: Exception) {}
+        }
+    }
+
+    fun autoGenerateSmartPlaylists() {
+        viewModelScope.launch {
+            val smarts = smartPlaylists.value
+            for (sp in smarts) {
+                try {
+                    val ids = sp.songs.map { it.id }
+                    if (ids.isNotEmpty()) {
+                        repository.createPlaylistWithSongs(sp.title, ids)
+                    }
+                } catch (_: Exception) {}
+            }
+        }
+    }
+
+    fun saveSmartPlaylistAsCustom(smart: SmartPlaylist) {
+        viewModelScope.launch {
+            try {
+                val ids = smart.songs.map { it.id }
+                if (ids.isNotEmpty()) {
+                    repository.createPlaylistWithSongs(smart.title, ids)
+                }
+            } catch (_: Exception) {}
         }
     }
 }
