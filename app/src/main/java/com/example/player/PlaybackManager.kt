@@ -397,7 +397,6 @@ class PlaybackManager private constructor(private val context: Context) {
     }
 
     private fun isCrossfadeEnabledNow(): Boolean {
-        // Always read latest from SharedPreferences so settings apply without restart
         return try {
             context.getSharedPreferences("soundbox_settings", Context.MODE_PRIVATE)
                 .getBoolean("crossfade_enabled", settingsManager.crossfadeEnabled.value)
@@ -435,41 +434,78 @@ class PlaybackManager private constructor(private val context: Context) {
     fun performPowerampCrossfade(nextSong: Song, customQueue: List<Song> = emptyList()) {
         val outgoing = player
         val incoming = standbyPlayer
-        if (!outgoing.isPlaying && outgoing.playbackState != Player.STATE_READY) { playSongDirect(nextSong, customQueue); return }
+        if (nextSong.id == _currentSong.value?.id) return
+        if (!outgoing.isPlaying && outgoing.playbackState != Player.STATE_READY) {
+            playSongDirect(nextSong, customQueue)
+            return
+        }
+
         val currentList = if (customQueue.isNotEmpty()) customQueue else _queue.value.ifEmpty { listOf(nextSong) }
         _queue.value = currentList
-        crossfadeJob?.cancel(); _isCrossfading = true; crossfadeActiveSongId = nextSong.id; requestSystemAudioFocus()
-        val fadeMs = crossfadeDurationMsNow().toLong()
-        val master = getTargetMasterVolume()
-        try {
-            incoming.stop(); incoming.clearMediaItems(); incoming.setMediaItem(buildMediaItem(nextSong))
-            incoming.volume = 0f; incoming.prepare(); incoming.playWhenReady = true; incoming.play()
-        } catch (e: Exception) {
-            Log.e("PlaybackManager", "Incoming prepare failed", e); _isCrossfading = false; playSongDirect(nextSong, currentList); return
+        val fadeMs = crossfadeDurationMsNow().coerceAtLeast(1000).toLong()
+        if (fadeMs <= 0L) {
+            playSongDirect(nextSong, currentList)
+            return
         }
-        _currentSong.value = nextSong; _duration.value = nextSong.duration
-        currentSongPlayedMs = 0L; hasCountedPlayForCurrentSong = false; lastTickTimestamp = SystemClock.elapsedRealtime()
-        saveCurrentState(nextSong.id, 0L); startPlaybackService(); com.example.widget.SoundboxAppWidget.updateAllWidgets(context)
+
+        crossfadeJob?.cancel()
+        _isCrossfading = true
+        crossfadeActiveSongId = nextSong.id
+        requestSystemAudioFocus()
+        val master = getTargetMasterVolume()
+
+        try {
+            incoming.stop()
+            incoming.clearMediaItems()
+            incoming.setMediaItem(buildMediaItem(nextSong))
+            incoming.volume = 0f
+            incoming.prepare()
+            incoming.playWhenReady = true
+            incoming.play()
+        } catch (e: Exception) {
+            Log.e("PlaybackManager", "Incoming prepare failed", e)
+            _isCrossfading = false
+            playSongDirect(nextSong, currentList)
+            return
+        }
+
+        _currentSong.value = nextSong
+        _duration.value = nextSong.duration
+        currentSongPlayedMs = 0L
+        hasCountedPlayForCurrentSong = false
+        lastTickTimestamp = SystemClock.elapsedRealtime()
+        saveCurrentState(nextSong.id, 0L)
+        startPlaybackService()
+        com.example.widget.SoundboxAppWidget.updateAllWidgets(context)
+
         crossfadeJob = mainScope.launch(Dispatchers.Main) {
             val started = SystemClock.elapsedRealtime()
             try {
                 while (isActive) {
-                    val t = ((SystemClock.elapsedRealtime() - started).toFloat() / fadeMs.toFloat()).coerceIn(0f, 1f)
+                    val elapsed = SystemClock.elapsedRealtime() - started
+                    val t = (elapsed.toFloat() / fadeMs.toFloat()).coerceIn(0f, 1f)
+                    val fadePhase = (Math.PI / 2.0 * t).toFloat()
+                    val outgoingVolume = (master * cos(fadePhase)).coerceIn(0f, 1.0f)
+                    val incomingVolume = (master * sin(fadePhase)).coerceIn(0f, 1.0f)
                     try {
-                        outgoing.volume = (master * cos((Math.PI / 2.0) * t).toFloat()).coerceIn(0f, 1.0f)
-                        incoming.volume = (master * sin((Math.PI / 2.0) * t).toFloat()).coerceIn(0f, 1.0f)
+                        outgoing.volume = outgoingVolume
+                        incoming.volume = incomingVolume
                     } catch (_: Exception) {}
                     if (t >= 1f) break
                     delay(16L)
                 }
             } finally {
-                try { outgoing.pause(); outgoing.stop(); outgoing.clearMediaItems(); outgoing.volume = master } catch (_: Exception) {}
+                try { outgoing.pause(); outgoing.stop(); outgoing.clearMediaItems() } catch (_: Exception) {}
                 try { incoming.volume = master } catch (_: Exception) {}
-                activeIsA = !activeIsA; fadeVolumeMultiplier = 1.0f; _isCrossfading = false; crossfadeActiveSongId = null
+                activeIsA = !activeIsA
+                fadeVolumeMultiplier = 1.0f
+                _isCrossfading = false
+                crossfadeActiveSongId = null
                 onActivePlayerChanged?.invoke(player)
                 val sid = player.audioSessionId
                 if (sid > 0) { _audioSessionId.value = sid; initAudioEffects(sid) }
-                _isPlaying.value = player.isPlaying; updatePlayerVolume()
+                _isPlaying.value = player.isPlaying
+                updatePlayerVolume()
             }
         }
     }
@@ -601,7 +637,7 @@ class PlaybackManager private constructor(private val context: Context) {
     fun setPreampGain(gain: Float) { _preampGain.value = gain; settingsManager.setPreampGain(gain); applyHardwareEqualizerBands() }
     fun setBassBoostStrength(strength: Int) { setBassBoost(strength) }
     fun setTrebleGain(gain: Float) { _trebleGain.value = gain; settingsManager.setTrebleGain(gain); applyHardwareEqualizerBands() }
-    fun setVirtualizerStrength(strength: Int) { _virtualizerStrength.value = strength; settingsManager.setVirtualizerStrength(strength); try { virtualizer?.setStrength(strength.toShort().coerceIn(0, 1000)); virtualizer?.enabled = strength > 0 } catch (_: Exception) {}; dspAudioProcessor.virtualizerStrength = strength }
+    fun setVirtualizerStrength(strength: Int) { _virtualizerStrength.value = strength; settingsManager.setVirtualizerStrength(strength); try { virtualizer?.setStrength(strength.toShort().coerceIn(0, 1000)) } catch (_: Exception) {} }
     fun setAudioBalance(balance: Float) { _audioBalance.value = balance; settingsManager.setAudioBalance(balance); dspAudioProcessor.balance = balance }
     fun setReverbPreset(preset: Int) { _reverbPreset.value = preset; settingsManager.setReverbPreset(preset); try { presetReverb?.preset = preset.toShort(); presetReverb?.enabled = preset > 0 } catch (_: Exception) {} }
     fun setEqualizerPresetName(name: String) { _currentPresetName.value = name; settingsManager.setEqualizerPresetName(name) }
