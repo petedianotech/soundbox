@@ -44,8 +44,6 @@ fun SettingsScreen(
     val currentFont by viewModel.settingsManager.fontFlow.collectAsState()
     val visibleTabs by viewModel.settingsManager.visibleTabsFlow.collectAsState()
     val gaplessEnabled by viewModel.settingsManager.gaplessPlayback.collectAsState()
-    val crossfadeEnabled by viewModel.settingsManager.crossfadeEnabled.collectAsState()
-    val crossfadeDurationMs by viewModel.settingsManager.crossfadeDurationMs.collectAsState()
     val replayGain by viewModel.settingsManager.replayGainMode.collectAsState()
     val hiResEngine by viewModel.settingsManager.hiResAudioEngine.collectAsState()
     val keepScreenOn by viewModel.settingsManager.keepScreenOn.collectAsState()
@@ -70,9 +68,14 @@ fun SettingsScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(text = "SETTINGS", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Black, letterSpacing = 2.sp, fontFamily = FontFamily.Monospace), color = colors.accentCyan)
-                    }
+                    Text(
+                        text = "Soundbox settings",
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 20.sp
+                        ),
+                        color = colors.textPrimary
+                    )
                 },
                 navigationIcon = { IconButton(onClick = onNavigateBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = colors.textPrimary) } },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = colors.topBarBackground)
@@ -83,7 +86,7 @@ fun SettingsScreen(
             modifier = Modifier.fillMaxSize().padding(innerPadding).verticalScroll(rememberScrollState()).padding(horizontal = 14.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            SettingsSection(title = "AUDIO ENGINE & DSP", sectionIcon = Icons.Default.Tune) {
+            SettingsSection(title = "Audio Engine & DSP", sectionIcon = Icons.Default.Tune) {
                 SettingsCardRow(title = "Graphic Equalizer & Tone FX", subtitle = if (eqEnabled) "10-Band Equalizer is Active" else "Bypassed / Flat Response", icon = Icons.Default.Equalizer, badge = if (eqEnabled) "ON" else "OFF", badgeColor = if (eqEnabled) Poweramp_Lime else Color(0xFF5A697D), onClick = onNavigateToEqualizer)
                 SettingsDivider()
                 SettingsToggleRow(title = "Hi-Res Audio Engine (32-bit)", subtitle = "Direct hardware floating-point audio output pipeline", icon = Icons.Default.HighQuality, checked = hiResEngine, onCheckedChange = { viewModel.settingsManager.setHiResAudioEngine(it) })
@@ -91,21 +94,8 @@ fun SettingsScreen(
                 SettingsCardRow(title = "ReplayGain Normalization", subtitle = when (replayGain) { "TRACK" -> "Track Peak Normalization (-14 LUFS)"; "ALBUM" -> "Album Peak Normalization"; else -> "Disabled" }, icon = Icons.Default.VolumeUp, onClick = { })
             }
 
-            SettingsSection(title = "PLAYBACK & SLEEP TIMER", sectionIcon = Icons.Default.PlayCircle) {
+            SettingsSection(title = "Playback & Sleep Timer", sectionIcon = Icons.Default.PlayCircle) {
                 SettingsToggleRow(title = "Gapless Playback", subtitle = "Seamless track transition without acoustic pauses", icon = Icons.Default.SyncAlt, checked = gaplessEnabled, onCheckedChange = { viewModel.settingsManager.setGaplessPlayback(it) })
-                SettingsDivider()
-                SettingsToggleRow(title = "Crossfade Between Songs", subtitle = if (crossfadeEnabled) "Overlap outgoing and incoming tracks like Poweramp" else "Hard cut / gapless only", icon = Icons.Default.GraphicEq, checked = crossfadeEnabled, onCheckedChange = { viewModel.settingsManager.setCrossfadeEnabled(it) })
-                if (crossfadeEnabled) {
-                    SettingsDivider()
-                    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp)) {
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            Text(text = "Crossfade Length", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold), color = colors.textPrimary)
-                            Text(text = "${crossfadeDurationMs / 1000}s", style = MaterialTheme.typography.labelMedium.copy(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold), color = colors.accentCyan)
-                        }
-                        Slider(value = crossfadeDurationMs / 1000f, onValueChange = { viewModel.settingsManager.setCrossfadeDurationMs((it * 1000).toInt()) }, valueRange = 1f..12f, steps = 21, colors = SliderDefaults.colors(thumbColor = colors.accentCyan, activeTrackColor = colors.accentCyan, inactiveTrackColor = colors.surfaceVariant))
-                        Text(text = "Incoming song starts quietly while the current song fades out", style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp), color = colors.textSecondary)
-                    }
-                }
                 SettingsDivider()
                 SettingsCardRow(title = "Sleep Timer", subtitle = if (sleepTimerLeft > 0) "${(sleepTimerLeft / 1000) / 60}m remaining until pause" else "Timer inactive", icon = Icons.Default.Timer, badge = if (sleepTimerLeft > 0) "ACTIVE" else null, badgeColor = Poweramp_Amber, onClick = { showTimerDialog = true })
             }

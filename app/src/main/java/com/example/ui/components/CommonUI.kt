@@ -530,8 +530,7 @@ fun MiniPlayer(
                                         text = if (song.path.endsWith(".flac", ignoreCase = true)) "FLAC 24-BIT" else "320 KBPS",
                                         style = MaterialTheme.typography.labelSmall.copy(
                                             fontSize = 8.5.sp,
-                                            fontWeight = FontWeight.Black,
-                                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                                            fontWeight = FontWeight.Bold
                                         ),
                                         color = colors.accentCyan,
                                         modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)

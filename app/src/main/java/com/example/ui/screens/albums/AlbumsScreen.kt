@@ -67,37 +67,39 @@ fun AlbumsScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable { selectedAlbum = albumName },
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                        )
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+                        ),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                     ) {
                         Column(
-                            modifier = Modifier.padding(12.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                            modifier = Modifier.padding(10.dp),
+                            horizontalAlignment = Alignment.Start
                         ) {
                             val firstSongId = songsInAlbum.firstOrNull()?.id
                             com.example.ui.components.ArtworkThumbnail(
                                 songId = firstSongId,
                                 title = albumName,
+                                isCircle = false,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .aspectRatio(1f),
-                                size = 120f
+                                size = 130f
                             )
-                            Spacer(modifier = Modifier.height(12.dp))
+                            Spacer(modifier = Modifier.height(10.dp))
                             Text(
                                 text = albumName,
-                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                                 maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.align(Alignment.Start)
+                                overflow = TextOverflow.Ellipsis
                             )
+                            Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = artistName,
-                                style = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurfaceVariant),
+                                style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant),
                                 maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.align(Alignment.Start)
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }

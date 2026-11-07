@@ -71,16 +71,14 @@ fun SongsScreen(
                 ) {
                     Column {
                         Text(
-                            text = "ALL TRACKS",
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Black,
-                                letterSpacing = 1.2.sp,
-                                fontFamily = FontFamily.Monospace
+                            text = "All Songs",
+                            style = MaterialTheme.typography.titleLarge.copy(
+                                fontWeight = FontWeight.Bold
                             ),
                             color = colors.textPrimary
                         )
                         Text(
-                            text = "${allSongs.size} tracks • ${allSongs.sumOf { it.duration } / 60000} mins",
+                            text = "${allSongs.size} songs • ${allSongs.sumOf { it.duration } / 60000} mins",
                             style = MaterialTheme.typography.bodySmall,
                             color = colors.textSecondary
                         )
@@ -103,14 +101,20 @@ fun SongsScreen(
                             DropdownMenu(
                                 expanded = showSortMenu,
                                 onDismissRequest = { showSortMenu = false },
-                                modifier = Modifier.background(colors.surfaceElevated)
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(colors.surfaceElevated)
+                                    .border(1.dp, colors.border, RoundedCornerShape(16.dp))
+                                    .widthIn(min = 220.dp, max = 280.dp)
                             ) {
                                 MusicViewModel.SortOrder.values().forEach { order ->
                                     DropdownMenuItem(
                                         text = {
                                             Text(
                                                 text = order.displayName,
-                                                fontWeight = if (sortOrder == order) FontWeight.Bold else FontWeight.Normal,
+                                                style = MaterialTheme.typography.bodyMedium.copy(
+                                                    fontWeight = if (sortOrder == order) FontWeight.Bold else FontWeight.Normal
+                                                ),
                                                 color = if (sortOrder == order) colors.accentCyan else colors.textPrimary
                                             )
                                         },
@@ -145,7 +149,7 @@ fun SongsScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
                 // PLAY ALL & SHUFFLE BUTTONS
                 Row(
@@ -164,8 +168,8 @@ fun SongsScreen(
                             containerColor = colors.accentCyan,
                             contentColor = Color.Black
                         ),
-                        shape = RoundedCornerShape(10.dp),
-                        contentPadding = PaddingValues(vertical = 10.dp)
+                        shape = RoundedCornerShape(14.dp),
+                        contentPadding = PaddingValues(vertical = 12.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.PlayArrow,
@@ -174,11 +178,9 @@ fun SongsScreen(
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "PLAY ALL",
-                            style = MaterialTheme.typography.labelMedium.copy(
-                                fontWeight = FontWeight.Black,
-                                letterSpacing = 0.8.sp,
-                                fontFamily = FontFamily.Monospace
+                            text = "Play all",
+                            style = MaterialTheme.typography.labelLarge.copy(
+                                fontWeight = FontWeight.Bold
                             )
                         )
                     }
@@ -196,8 +198,8 @@ fun SongsScreen(
                             contentColor = colors.textPrimary
                         ),
                         border = androidx.compose.foundation.BorderStroke(1.dp, colors.border),
-                        shape = RoundedCornerShape(10.dp),
-                        contentPadding = PaddingValues(vertical = 10.dp)
+                        shape = RoundedCornerShape(14.dp),
+                        contentPadding = PaddingValues(vertical = 12.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Shuffle,
@@ -207,11 +209,9 @@ fun SongsScreen(
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "SHUFFLE",
-                            style = MaterialTheme.typography.labelMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 0.8.sp,
-                                fontFamily = FontFamily.Monospace
+                            text = "Shuffle",
+                            style = MaterialTheme.typography.labelLarge.copy(
+                                fontWeight = FontWeight.Bold
                             )
                         )
                     }

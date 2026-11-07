@@ -38,20 +38,18 @@ fun SettingsSection(
             )
             Text(
                 text = title,
-                style = MaterialTheme.typography.labelSmall.copy(
-                    fontWeight = FontWeight.Black,
-                    letterSpacing = 1.sp,
-                    fontSize = 11.sp,
-                    fontFamily = FontFamily.Monospace
+                style = MaterialTheme.typography.titleSmall.copy(
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 13.sp
                 ),
-                color = colors.accentCyan
+                color = colors.textSecondary
             )
         }
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(14.dp),
+            shape = RoundedCornerShape(20.dp),
             color = colors.surface,
-            border = androidx.compose.foundation.BorderStroke(1.dp, colors.border)
+            border = androidx.compose.foundation.BorderStroke(0.5.dp, colors.borderSubtle)
         ) {
             Column(content = content)
         }

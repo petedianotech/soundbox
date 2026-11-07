@@ -139,11 +139,10 @@ fun HomeScreen(
                         modifier = Modifier.padding(top = 12.dp, bottom = 8.dp)
                     ) {
                         Text(
-                            text = "SBOX",
-                            style = MaterialTheme.typography.titleSmall.copy(
-                                fontWeight = FontWeight.Black,
-                                letterSpacing = 2.sp,
-                                fontFamily = FontFamily.Monospace
+                            text = "Soundbox",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 0.5.sp
                             ),
                             color = colors.accentCyan
                         )
@@ -271,11 +270,10 @@ fun HomeScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Text(
-                                text = "SOUNDBOX",
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontWeight = FontWeight.Black,
-                                    letterSpacing = 2.sp,
-                                    fontFamily = FontFamily.Monospace
+                                text = "Soundbox",
+                                style = MaterialTheme.typography.titleLarge.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 0.5.sp
                                 ),
                                 color = colors.textPrimary
                             )
@@ -336,11 +334,9 @@ fun HomeScreen(
                             },
                             label = {
                                 Text(
-                                    text = tab.title.uppercase(),
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontWeight = if (selected) FontWeight.Black else FontWeight.Medium,
-                                        letterSpacing = 0.5.sp,
-                                        fontFamily = FontFamily.Monospace
+                                    text = tab.title,
+                                    style = MaterialTheme.typography.labelMedium.copy(
+                                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
                                     )
                                 )
                             },

@@ -121,13 +121,15 @@ private val DarkColors = darkColorScheme(
     outlineVariant = Color(0xFF1A2536)
 )
 
-val CircularPillShapes = androidx.compose.material3.Shapes(
-    extraSmall = androidx.compose.foundation.shape.CircleShape,
-    small = androidx.compose.foundation.shape.CircleShape,
-    medium = androidx.compose.foundation.shape.CircleShape,
-    large = androidx.compose.foundation.shape.CircleShape,
-    extraLarge = androidx.compose.foundation.shape.RoundedCornerShape(32.dp)
+val SamsungOneUiShapes = androidx.compose.material3.Shapes(
+    extraSmall = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
+    small = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+    medium = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+    large = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
+    extraLarge = androidx.compose.foundation.shape.RoundedCornerShape(24.dp)
 )
+
+val CircularPillShapes = SamsungOneUiShapes
 
 @Composable
 fun MyApplicationTheme(
@@ -152,7 +154,7 @@ fun MyApplicationTheme(
         MaterialTheme(
             colorScheme = colorScheme,
             typography = dynamicTypography,
-            shapes = CircularPillShapes,
+            shapes = SamsungOneUiShapes,
             content = content
         )
     }
