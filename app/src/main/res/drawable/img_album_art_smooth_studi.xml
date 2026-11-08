@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Deep Space glass-morphism album art — Studio/EDM/Electronic/Pop -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="512dp"
+    android:height="512dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+    <path android:pathData="M0,0h512v512h-512z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear"
+                android:startX="0" android:startY="512"
+                android:endX="512" android:endY="0">
+                <item android:offset="0" android:color="#FF0B1020"/>
+                <item android:offset="0.5" android:color="#FF0D121B"/>
+                <item android:offset="1" android:color="#FF1E1030"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path android:pathData="M0,0h512v512h-512z" android:fillAlpha="0.45">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="radial"
+                android:centerX="256" android:centerY="256"
+                android:gradientRadius="260">
+                <item android:offset="0" android:color="#FF22D3EE"/>
+                <item android:offset="0.5" android:color="#FF7C3AED"/>
+                <item android:offset="1" android:color="#00000000"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path android:pathData="M256,120 L380,256 L256,392 L132,256 Z"
+        android:strokeWidth="1.5" android:strokeColor="#60FFFFFF" android:fillColor="#18FFFFFF"/>
+    <path android:pathData="M256,160 L340,256 L256,352 L172,256 Z"
+        android:strokeWidth="1" android:strokeColor="#40A5F3FC" android:fillColor="#12A5F3FC"/>
+    <path android:pathData="M240,230 C240,230 240,300 240,300 C240,314 252,322 266,312 C266,312 266,300 266,300 C266,300 240,300 240,300"
+        android:fillColor="#E0F2FE"/>
+    <path android:pathData="M266,232 L266,300" android:strokeWidth="9" android:strokeColor="#E0F2FE" android:strokeLineCap="round"/>
+    <path android:pathData="M266,232 L300,220" android:strokeWidth="7" android:strokeColor="#67E8F9" android:strokeLineCap="round"/>
+</vector>

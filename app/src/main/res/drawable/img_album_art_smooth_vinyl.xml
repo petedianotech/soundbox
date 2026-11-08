@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Deep Space glass-morphism album art — Acoustic/Folk/Lofi -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="512dp"
+    android:height="512dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+    <path android:pathData="M0,0h512v512h-512z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="radial"
+                android:centerX="256" android:centerY="256"
+                android:gradientRadius="360">
+                <item android:offset="0" android:color="#FF134E4A"/>
+                <item android:offset="0.45" android:color="#FF0D121B"/>
+                <item android:offset="1" android:color="#FF042F2E"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path android:pathData="M0,0h512v512h-512z" android:fillAlpha="0.3">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="radial"
+                android:centerX="320" android:centerY="140"
+                android:gradientRadius="240">
+                <item android:offset="0" android:color="#FF2DD4BF"/>
+                <item android:offset="1" android:color="#00000000"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path android:pathData="M256,256m-170,0a170,170 0,1 1,340 0a170,170 0,1 1,-340 0"
+        android:strokeWidth="2" android:strokeColor="#30FFFFFF" android:fillColor="#12FFFFFF"/>
+    <path android:pathData="M256,256m-140,0a140,140 0,1 1,280 0a140,140 0,1 1,-280 0"
+        android:strokeWidth="1" android:strokeColor="#25FFFFFF" android:fillColor="#00000000"/>
+    <path android:pathData="M256,256m-100,0a100,100 0,1 1,200 0a100,100 0,1 1,-200 0"
+        android:strokeWidth="0.8" android:strokeColor="#18FFFFFF" android:fillColor="#00000000"/>
+    <path android:pathData="M256,256m-42,0a42,42 0,1 1,84 0a42,42 0,1 1,-84 0">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="radial"
+                android:centerX="248" android:centerY="248"
+                android:gradientRadius="42">
+                <item android:offset="0" android:color="#FF5EEAD4"/>
+                <item android:offset="1" android:color="#FF0F766E"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path android:pathData="M256,256m-14,0a14,14 0,1 1,28 0a14,14 0,1 1,-28 0"
+        android:fillColor="#0D121B"/>
+</vector>
