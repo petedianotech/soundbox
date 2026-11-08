@@ -10,7 +10,7 @@ on:
 
 jobs:
   build:
-    name: Build APKs
+    name: Build APK
     runs-on: ubuntu-latest
 
     steps:
@@ -35,13 +35,12 @@ jobs:
           if [ -n "$ENCODED_KEYSTORE" ]; then
             echo "$ENCODED_KEYSTORE" | base64 --decode > my-upload-key.jks
             echo "Decoded custom release keystore into my-upload-key.jks"
-            # Print cert fingerprint so you can verify it matches the installed app
             keytool -list -v -keystore my-upload-key.jks \
               -storepass "${{ secrets.KEYSTORE_PASSWORD }}" \
               -alias "${{ secrets.KEY_ALIAS }}" 2>/dev/null \
               | grep -E 'SHA256:|SHA1:|Alias name:|Valid from:' || true
           else
-            echo "::warning::KEYSTORE_BASE64 secret is empty. Release will fall back to debug signing (updates over store/release installs will FAIL)."
+            echo "::warning::KEYSTORE_BASE64 secret is empty. Release will fall back to debug signing."
           fi
           if [ ! -f my-upload-key.jks ] && [ ! -f debug.keystore ]; then
             keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
@@ -58,28 +57,39 @@ jobs:
           GITHUB_RUN_NUMBER: ${{ github.run_number }}
         run: gradle :app:assembleRelease --no-daemon -Djava.awt.headless=true
 
-      - name: Rename APK to Soundbox
+      - name: Prepare single Soundbox APK
         run: |
           mkdir -p dist
-          for f in app/build/outputs/apk/release/*.apk; do
-            [ -f "$f" ] || continue
-            # Prefer a clean Soundbox name; keep original as well
-            base=$(basename "$f")
-            # Extract version from APK if possible, else use run number
-            out="Soundbox-release-b${{ github.run_number }}.apk"
-            cp -f "$f" "dist/$out"
-            cp -f "$f" "dist/$base"
-            echo "Prepared: dist/$out"
-            ls -la dist/
-          done
+          # Prefer the universal / main release APK (no ABI suffix)
+          SRC=""
+          if [ -f app/build/outputs/apk/release/app-release.apk ]; then
+            SRC="app/build/outputs/apk/release/app-release.apk"
+          else
+            # Fallback: take the largest APK (universal is usually biggest)
+            SRC=$(ls -S app/build/outputs/apk/release/*.apk 2>/dev/null | head -1)
+          fi
+          if [ -z "$SRC" ] || [ ! -f "$SRC" ]; then
+            echo "ERROR: No release APK found"
+            ls -la app/build/outputs/apk/release/ || true
+            exit 1
+          fi
+          OUT="Soundbox-release-b${{ github.run_number }}.apk"
+          cp -f "$SRC" "dist/$OUT"
+          echo "Selected single APK: $SRC -> dist/$OUT"
+          ls -lh dist/
+          # Verify only one file
+          COUNT=$(ls dist/*.apk 2>/dev/null | wc -l)
+          echo "APK count in dist: $COUNT"
+          if [ "$COUNT" -ne 1 ]; then
+            echo "ERROR: Expected exactly 1 APK"
+            exit 1
+          fi
 
       - name: Upload Release APK
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: Soundbox-Release-APK
-          path: |
-            dist/*.apk
-            app/build/outputs/apk/release/*.apk
+          path: dist/*.apk
           retention-days: 14
-          if-no-files-found: warn
+          if-no-files-found: error
