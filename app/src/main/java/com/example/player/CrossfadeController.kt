@@ -72,7 +72,6 @@ class CrossfadeController(
         }
 
         job = scope.launch {
-            // Wait for real READY (not only BUFFERING) — critical on Bluetooth / slow storage
             val readyDeadline = SystemClock.elapsedRealtime() + 3500L
             var becameReady = false
             while (isActive && SystemClock.elapsedRealtime() < readyDeadline) {
@@ -81,7 +80,6 @@ class CrossfadeController(
                     becameReady = true
                     break
                 }
-                // Keep play asserted while buffering
                 if (st == Player.STATE_BUFFERING || st == Player.STATE_IDLE) {
                     try {
                         incoming.playWhenReady = true
@@ -96,6 +94,12 @@ class CrossfadeController(
                 hardSwitch(outgoing, incoming, master, onFinished)
                 return@launch
             }
+
+            try {
+                incoming.volume = 0f
+                incoming.playWhenReady = true
+                if (!incoming.isPlaying) incoming.play()
+            } catch (_: Exception) {}
 
             val started = SystemClock.elapsedRealtime()
             try {
