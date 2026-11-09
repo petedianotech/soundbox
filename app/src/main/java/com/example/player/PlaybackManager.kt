@@ -1,1 +1,1 @@
-PLACEHOLDER
+LOAD_FROM_FILE:/home/workdir/artifacts/soundbox_work/app/src/main/java/com/example/player/PlaybackManager.kt
