@@ -1,3 +1,1 @@
-package com.example.player
-
-// TEMP_MARKER_WILL_REPLACE
+PLACEHOLDER_REPLACE_WITH_FULL_FILE
