@@ -1,1 +1,3 @@
-LOAD_FROM_/tmp/pm_crossfade.kt
+package com.example.player
+
+// TEMP_MARKER_WILL_REPLACE
