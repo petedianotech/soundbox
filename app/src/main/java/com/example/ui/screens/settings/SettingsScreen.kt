@@ -52,44 +52,35 @@ fun SettingsScreen(
     val hapticFeedback by viewModel.settingsManager.hapticFeedback.collectAsState()
     val visualizerStyle by viewModel.settingsManager.visualizerStyle.collectAsState()
     val visualizerEnabled by viewModel.settingsManager.visualizerEnabled.collectAsState()
-    val visualizerMode by viewModel.settingsManager.visualizerMode.collectAsState()
-    val vizTimeMorning by viewModel.settingsManager.vizTimeMorning.collectAsState()
-    val vizTimeAfternoon by viewModel.settingsManager.vizTimeAfternoon.collectAsState()
-    val vizTimeEvening by viewModel.settingsManager.vizTimeEvening.collectAsState()
-    val vizTimeNight by viewModel.settingsManager.vizTimeNight.collectAsState()
     val autoPauseHeadphone by viewModel.settingsManager.autoPauseOnHeadphoneUnplug.collectAsState()
     val autoResumeHeadphone by viewModel.settingsManager.autoResumeOnHeadphonePlug.collectAsState()
-    val dynamicTheme by viewModel.settingsManager.dynamicThemeFromAlbumArt.collectAsState()
-    val eqEnabled by viewModel.equalizerEnabled.collectAsState()
 
     var showTimerDialog by remember { mutableStateOf(false) }
-    val colors = SoundboxTheme.colors
 
     Scaffold(
-        containerColor = colors.background,
         topBar = {
             TopAppBar(
-                title = {
-                    Text(
-                        text = "Soundbox settings",
-                        style = MaterialTheme.typography.titleLarge.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 20.sp
-                        ),
-                        color = colors.textPrimary
-                    )
+                title = { Text("Settings", fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
                 },
-                navigationIcon = { IconButton(onClick = onNavigateBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = colors.textPrimary) } },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = colors.topBarBackground)
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
             )
         }
-    ) { innerPadding ->
+    ) { padding ->
         Column(
-            modifier = Modifier.fillMaxSize().padding(innerPadding).verticalScroll(rememberScrollState()).padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp)
         ) {
-            SettingsSection(title = "Audio Engine & DSP", sectionIcon = Icons.Default.Tune) {
-                SettingsCardRow(title = "Graphic Equalizer & Tone FX", subtitle = if (eqEnabled) "10-Band Equalizer is Active" else "Bypassed / Flat Response", icon = Icons.Default.Equalizer, badge = if (eqEnabled) "ON" else "OFF", badgeColor = if (eqEnabled) Poweramp_Lime else Color(0xFF5A697D), onClick = onNavigateToEqualizer)
+            SettingsSection(title = "AUDIO ENGINE", sectionIcon = Icons.Default.Speaker) {
+                SettingsCardRow(title = "Equalizer & DSP", subtitle = "10-band graphic EQ, bass boost, virtualizer", icon = Icons.Default.Equalizer, badge = "PRO", badgeColor = Poweramp_Lime, onClick = onNavigateToEqualizer)
                 SettingsDivider()
                 SettingsToggleRow(title = "Hi-Res Audio Engine (32-bit)", subtitle = "Direct hardware floating-point audio output pipeline", icon = Icons.Default.HighQuality, checked = hiResEngine, onCheckedChange = { viewModel.settingsManager.setHiResAudioEngine(it) })
                 SettingsDivider()
@@ -101,7 +92,7 @@ fun SettingsScreen(
                 SettingsDivider()
                 SettingsToggleRow(
                     title = "Crossfade",
-                    subtitle = if (crossfadeEnabled) "Poweramp-style overlap · ${crossfadeDurationMs / 1000}s" else "Smooth fade between tracks (disabled)",
+                    subtitle = if (crossfadeEnabled) "Poweramp-style equal-power overlap (${crossfadeDurationMs / 1000}s)" else "Smooth equal-power fade between tracks",
                     icon = Icons.Default.SwapHoriz,
                     checked = crossfadeEnabled,
                     onCheckedChange = { viewModel.settingsManager.setCrossfadeEnabled(it) }
@@ -111,16 +102,13 @@ fun SettingsScreen(
                     SettingsCardRow(
                         title = "Crossfade Duration",
                         subtitle = "${crossfadeDurationMs / 1000} seconds overlap",
-                        icon = Icons.Default.Timer,
+                        icon = Icons.Default.Timelapse,
                         badge = "${crossfadeDurationMs / 1000}s",
                         badgeColor = Poweramp_Cyan,
                         onClick = {
-                            val next = when (crossfadeDurationMs) {
-                                in 0..2999 -> 3000
-                                in 3000..4999 -> 5000
-                                in 5000..7999 -> 8000
-                                else -> 2000
-                            }
+                            val options = listOf(2000, 3000, 5000, 8000, 10000, 12000)
+                            val idx = options.indexOf(crossfadeDurationMs).let { if (it < 0) 2 else it }
+                            val next = options[(idx + 1) % options.size]
                             viewModel.settingsManager.setCrossfadeDurationMs(next)
                         }
                     )
@@ -130,11 +118,9 @@ fun SettingsScreen(
             }
 
             SettingsSection(title = "LOOK & FEEL (SKIN & VISUALIZER)", sectionIcon = Icons.Default.Palette) {
-                SettingsToggleRow(title = "Album Art Dynamic Glow Theme", subtitle = "Extract ambient accent colors from active album artwork", icon = Icons.Default.AutoAwesome, checked = dynamicTheme, onCheckedChange = { viewModel.settingsManager.setDynamicThemeFromAlbumArt(it) })
+                SettingsCardRow(title = "App Theme", subtitle = currentTheme, icon = Icons.Default.ColorLens, onClick = { })
                 SettingsDivider()
-                SettingsToggleRow(title = "Audio Visualizer", subtitle = if (visualizerEnabled) "Dynamic real-time audio spectrum enabled" else "Visualizer turned off", icon = Icons.Default.GraphicEq, checked = visualizerEnabled, onCheckedChange = { viewModel.settingsManager.setVisualizerEnabled(it) })
-                SettingsDivider()
-                SettingsToggleRow(title = "Haptic Knob Feedback", subtitle = "Tactile vibration when rotating tone & equalizer knobs", icon = Icons.Default.Vibration, checked = hapticFeedback, onCheckedChange = { viewModel.settingsManager.setHapticFeedback(it) })
+                SettingsCardRow(title = "Font Style", subtitle = currentFont, icon = Icons.Default.TextFields, onClick = { })
                 SettingsDivider()
                 SettingsToggleRow(title = "Keep Screen Awake in Player", subtitle = "Prevent display timeout while viewing Now Playing lyrics", icon = Icons.Default.WbSunny, checked = keepScreenOn, onCheckedChange = { viewModel.settingsManager.setKeepScreenOn(it) })
             }
