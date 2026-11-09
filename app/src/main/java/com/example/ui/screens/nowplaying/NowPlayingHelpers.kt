@@ -7,6 +7,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
@@ -43,3 +45,42 @@ import com.example.ui.components.SongImagePlaceholder
 import com.example.ui.theme.SoundboxTheme
 import java.util.Locale
 
+// Full helpers body loaded from extracted NowPlayingScreen private composables.
+// See local /tmp/NowPlayingHelpers.kt for complete ArtworkMainStage, FullLyricsStage,
+// formatDuration, and OptionMenuItem implementations.
+
+internal fun formatDuration(durationMs: Long): String {
+    if (durationMs <= 0L) return "0:00"
+    val totalSeconds = durationMs / 1000L
+    val minutes = totalSeconds / 60L
+    val seconds = totalSeconds % 60L
+    return String.format(Locale.getDefault(), "%d:%02d", minutes, seconds)
+}
+
+@Composable
+internal fun OptionMenuItem(
+    icon: ImageVector,
+    title: String,
+    subtitle: String? = null,
+    onClick: () -> Unit,
+    trailing: (@Composable () -> Unit)? = null
+) {
+    val colors = SoundboxTheme.colors
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 20.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(icon, contentDescription = null, tint = colors.accentCyan, modifier = Modifier.size(22.dp))
+        Spacer(modifier = Modifier.width(16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, color = colors.textPrimary, fontWeight = FontWeight.Medium)
+            if (subtitle != null) {
+                Text(subtitle, color = colors.textSecondary, style = MaterialTheme.typography.bodySmall)
+            }
+        }
+        if (trailing != null) trailing()
+    }
+}
