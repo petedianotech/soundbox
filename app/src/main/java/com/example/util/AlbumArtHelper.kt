@@ -34,7 +34,16 @@ object AlbumArtHelper {
         R.drawable.img_art_smooth_audiophile_one_1788530389412,
         R.drawable.img_art_smooth_audiophile_two_1788530409414,
         R.drawable.img_album_art_smooth_vinyl_1788528867497,
-        R.drawable.img_album_art_smooth_studi_1788528883304
+        R.drawable.img_album_art_smooth_studi_1788528883304,
+        R.drawable.img_album_art_vinyl_1788360828062,
+        R.drawable.img_album_art_headphones_1788360844519,
+        R.drawable.img_album_art_acoustic_1788360862230,
+        R.drawable.img_album_art_synthwave_1788360879358,
+        R.drawable.img_album_art_jazz_1788360894012,
+        R.drawable.img_album_art_piano_1788360909101,
+        R.drawable.img_album_art_lofi_1788360925798,
+        R.drawable.img_album_art_rock_1788360943637,
+        R.drawable.img_album_art_edm_1788360958313
     )
 
     // Memory cache for instantaneous, zero-overhead lookups
@@ -246,20 +255,38 @@ object AlbumArtHelper {
         val query = (genre + " " + cleanTitle + " " + cleanArtist).lowercase()
 
         val chosenResId = when {
+            query.contains("rock") || query.contains("metal") || query.contains("punk") || query.contains("guitar riff") ->
+                R.drawable.img_album_art_rock_1788360943637
+
             query.contains("jazz") || query.contains("blues") || query.contains("sax") || query.contains("soul") ->
-                R.drawable.img_art_smooth_audiophile_one_1788530389412
+                R.drawable.img_album_art_jazz_1788360894012
 
             query.contains("acoustic") || query.contains("folk") || query.contains("country") || query.contains("unplugged") || query.contains("guitar") ->
-                R.drawable.img_album_art_smooth_vinyl_1788528867497
+                R.drawable.img_album_art_acoustic_1788360862230
 
             query.contains("piano") || query.contains("classic") || query.contains("orchestra") || query.contains("instrumental") ->
-                R.drawable.img_art_smooth_audiophile_two_1788530409414
+                R.drawable.img_album_art_piano_1788360909101
 
             query.contains("lofi") || query.contains("lo fi") || query.contains("chill") || query.contains("relax") || query.contains("sleep") ->
-                R.drawable.img_album_art_smooth_vinyl_1788528867497
+                R.drawable.img_album_art_lofi_1788360925798
 
-            query.contains("studio") || query.contains("mix") || query.contains("edm") || query.contains("electronic") || query.contains("synth") || query.contains("pop") ->
+            query.contains("edm") || query.contains("dance") || query.contains("house") || query.contains("techno") || query.contains("club") ->
+                R.drawable.img_album_art_edm_1788360958313
+
+            query.contains("synth") || query.contains("electronic") || query.contains("cyber") || query.contains("wave") || query.contains("80s") ->
+                R.drawable.img_album_art_synthwave_1788360879358
+
+            query.contains("vocal") || query.contains("pop") || query.contains("podcast") || query.contains("voice") ->
+                R.drawable.img_album_art_headphones_1788360844519
+
+            query.contains("vinyl") || query.contains("retro") || query.contains("turntable") || query.contains("disc") ->
+                R.drawable.img_album_art_vinyl_1788360828062
+
+            query.contains("studio") || query.contains("mix") || query.contains("master") || query.contains("console") ->
                 R.drawable.img_album_art_smooth_studi_1788528883304
+
+            query.contains("gold") || query.contains("hi-res") || query.contains("flac") ->
+                R.drawable.img_art_smooth_audiophile_one_1788530389412
 
             else -> {
                 // Stable deterministic hash based on normalized title & artist

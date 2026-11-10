@@ -23,12 +23,6 @@ class SettingsManager(context: Context) {
     private val _gaplessPlayback = MutableStateFlow(prefs.getBoolean("gapless_playback", true))
     val gaplessPlayback: StateFlow<Boolean> = _gaplessPlayback
 
-    private val _crossfadeEnabled = MutableStateFlow(prefs.getBoolean("crossfade_enabled", false))
-    val crossfadeEnabled: StateFlow<Boolean> = _crossfadeEnabled
-
-    private val _crossfadeDurationMs = MutableStateFlow(prefs.getInt("crossfade_duration_ms", 5000))
-    val crossfadeDurationMs: StateFlow<Int> = _crossfadeDurationMs
-
     private val _replayGainMode = MutableStateFlow(prefs.getString("replay_gain", "TRACK") ?: "TRACK")
     val replayGainMode: StateFlow<String> = _replayGainMode
 
@@ -100,17 +94,6 @@ class SettingsManager(context: Context) {
     fun setGaplessPlayback(enabled: Boolean) {
         prefs.edit().putBoolean("gapless_playback", enabled).apply()
         _gaplessPlayback.value = enabled
-    }
-
-    fun setCrossfadeEnabled(enabled: Boolean) {
-        prefs.edit().putBoolean("crossfade_enabled", enabled).apply()
-        _crossfadeEnabled.value = enabled
-    }
-
-    fun setCrossfadeDurationMs(durationMs: Int) {
-        val clamped = durationMs.coerceIn(1000, 12000)
-        prefs.edit().putInt("crossfade_duration_ms", clamped).apply()
-        _crossfadeDurationMs.value = clamped
     }
 
     fun setReplayGainMode(mode: String) {

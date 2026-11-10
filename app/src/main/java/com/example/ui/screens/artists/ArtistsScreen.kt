@@ -71,10 +71,13 @@ fun ArtistsScreen(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         val songsInArtist = artistMap[artistName] ?: emptyList()
-                        val firstSongId = songsInArtist.firstOrNull()?.id
+                        val firstSong = songsInArtist.firstOrNull()
                         com.example.ui.components.ArtworkThumbnail(
-                            songId = firstSongId,
+                            songId = firstSong?.id,
                             title = artistName,
+                            artist = artistName,
+                            genre = firstSong?.genre ?: "",
+                            path = firstSong?.path ?: "",
                             modifier = Modifier.size(90.dp),
                             size = 90f,
                             isCircle = true
@@ -114,10 +117,13 @@ fun ArtistsScreen(
                             .padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        val firstSongId = artistSongs.firstOrNull()?.id
+                        val firstSong = artistSongs.firstOrNull()
                         com.example.ui.components.ArtworkThumbnail(
-                            songId = firstSongId,
+                            songId = firstSong?.id,
                             title = selectedArtist!!,
+                            artist = selectedArtist!!,
+                            genre = firstSong?.genre ?: "",
+                            path = firstSong?.path ?: "",
                             modifier = Modifier.clip(CircleShape),
                             size = 64f,
                             isCircle = true

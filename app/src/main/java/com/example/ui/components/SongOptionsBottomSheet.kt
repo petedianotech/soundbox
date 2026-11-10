@@ -44,7 +44,6 @@ fun SongOptionsBottomSheet(
     var showRatingDialog by remember { mutableStateOf(false) }
     var showEditTagsDialog by remember { mutableStateOf(false) }
     var showSongDetailsDialog by remember { mutableStateOf(false) }
-    var showDeleteConfirmDialog by remember { mutableStateOf(false) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -117,7 +116,7 @@ fun SongOptionsBottomSheet(
                 }
             }
 
-            Divider(color = colors.border, thickness = 0.5.dp)
+            HorizontalDivider(color = colors.border, thickness = 0.5.dp)
             Spacer(modifier = Modifier.height(6.dp))
 
             // 1. Play Next
@@ -207,17 +206,6 @@ fun SongOptionsBottomSheet(
                 leadingIcon = { Icon(Icons.Default.Info, contentDescription = null, tint = colors.accentCyan) },
                 onClick = {
                     showSongDetailsDialog = true
-                }
-            )
-
-            Divider(color = colors.border, thickness = 0.5.dp, modifier = Modifier.padding(vertical = 4.dp))
-
-            // 8. Delete Track
-            DropdownMenuItem(
-                text = { Text("Delete Track from Device", color = Color(0xFFFF5252), fontWeight = FontWeight.SemiBold) },
-                leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = Color(0xFFFF5252)) },
-                onClick = {
-                    showDeleteConfirmDialog = true
                 }
             )
 
@@ -459,52 +447,6 @@ fun SongOptionsBottomSheet(
             confirmButton = {
                 TextButton(onClick = { showSongDetailsDialog = false }) {
                     Text("Close", color = colors.accentCyan, fontWeight = FontWeight.Bold)
-                }
-            }
-        )
-    }
-
-    // --- DELETE CONFIRMATION DIALOG ---
-    if (showDeleteConfirmDialog) {
-        AlertDialog(
-            containerColor = colors.dialogBackground,
-            titleContentColor = colors.textPrimary,
-            textContentColor = colors.textSecondary,
-            onDismissRequest = { showDeleteConfirmDialog = false },
-            title = {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Icon(Icons.Default.Warning, contentDescription = null, tint = Color(0xFFFF5252))
-                    Text("Delete Track Permanently", fontWeight = FontWeight.Bold)
-                }
-            },
-            text = {
-                Column {
-                    Text("Are you sure you want to delete \"${song.title}\"?")
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        "This will permanently delete the audio file from your device storage.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = colors.textMuted
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.deleteSongFromDevice(song) {
-                            Toast.makeText(context, "Track deleted", Toast.LENGTH_SHORT).show()
-                        }
-                        showDeleteConfirmDialog = false
-                        onDismiss()
-                    },
-                    colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFFF5252))
-                ) {
-                    Text("Delete Permanently", fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteConfirmDialog = false }) {
-                    Text("Cancel", color = colors.textSecondary)
                 }
             }
         )

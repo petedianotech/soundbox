@@ -57,11 +57,12 @@ class PlaybackManager private constructor(private val context: Context) {
 
     private val loadControl = DefaultLoadControl.Builder()
         .setBufferDurationsMs(
-            DefaultLoadControl.DEFAULT_MIN_BUFFER_MS,
-            DefaultLoadControl.DEFAULT_MAX_BUFFER_MS,
-            DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_MS,
-            DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS
+            15_000, // 15s min buffer
+            30_000, // 30s max buffer
+            500,    // 500ms initial buffer for instant playback start!
+            1_000   // 1s buffer after rebuffer
         )
+        .setPrioritizeTimeOverSizeThresholds(true)
         .build()
 
     private val playerInstance: ExoPlayer = ExoPlayer.Builder(context)
@@ -83,8 +84,6 @@ class PlaybackManager private constructor(private val context: Context) {
     val fadePlayer: ExoPlayer get() = playerInstance
 
     var onActivePlayerChanged: ((ExoPlayer) -> Unit)? = null
-    val isCrossfading: Boolean get() = false
-    val crossfadeActiveSongId: String? get() = null
 
     private var headsetReceiverRegistered: Boolean = false
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
@@ -543,8 +542,8 @@ class PlaybackManager private constructor(private val context: Context) {
             playerInstance.stop()
             playerInstance.clearMediaItems()
             playerInstance.setMediaItems(mediaItems, index, 0L)
-            playerInstance.prepare()
             playerInstance.playWhenReady = true
+            playerInstance.prepare()
             playerInstance.play()
         } catch (e: Exception) {
             Log.e("PlaybackManager", "playSongDirect failed: ${e.message}", e)

@@ -45,6 +45,11 @@ android {
     multiDexEnabled = true
     vectorDrawables.useSupportLibrary = true
 
+    // Phone APKs only need ARM; dropping x86/x86_64 cuts native + Media3 decoder duplicates hard
+    ndk {
+      abiFilters += listOf("armeabi-v7a", "arm64-v8a", "x86_64")
+    }
+
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
 
@@ -80,21 +85,42 @@ android {
 
   buildTypes {
     release {
-      isCrunchPngs = false
-      isMinifyEnabled = false
-      proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-      
+      isCrunchPngs = true
+      isMinifyEnabled = true
+      isShrinkResources = true
+      proguardFiles(
+        getDefaultProguardFile("proguard-android-optimize.txt"),
+        "proguard-rules.pro"
+      )
+
       val keystorePath = System.getenv("KEYSTORE_PATH") ?: "${rootDir}/my-upload-key.jks"
       if (file(keystorePath).exists()) {
-          signingConfig = signingConfigs.getByName("release")
+        signingConfig = signingConfigs.getByName("release")
       } else {
-          signingConfig = signingConfigs.getByName("debug")
+        signingConfig = signingConfigs.getByName("debug")
       }
     }
     debug {
       signingConfig = signingConfigs.getByName("debug")
     }
   }
+
+  packaging {
+    resources {
+      excludes += setOf(
+        "META-INF/LICENSE*",
+        "META-INF/NOTICE*",
+        "META-INF/*.kotlin_module",
+        "META-INF/AL2.0",
+        "META-INF/LGPL2.1",
+        "DebugProbesKt.bin"
+      )
+    }
+    jniLibs {
+      useLegacyPackaging = false
+    }
+  }
+
   compileOptions {
     sourceCompatibility = JavaVersion.VERSION_11
     targetCompatibility = JavaVersion.VERSION_11
@@ -106,19 +132,10 @@ android {
   testOptions { unitTests { isIncludeAndroidResources = true } }
 }
 
-// Removed secrets plugin configuration
-
-// Some unused dependencies are commented out below instead of being removed.
-// This makes it easy to add them back in the future if needed.
 dependencies {
   implementation(platform(libs.androidx.compose.bom))
-  implementation(platform(libs.firebase.bom))
-  // implementation(libs.accompanist.permissions)
+  // Firebase BOM removed — firebase-ai is not used; kept BOM was pulling unused metadata weight
   implementation(libs.androidx.activity.compose)
-  // implementation(libs.androidx.camera.camera2)
-  // implementation(libs.androidx.camera.core)
-  // implementation(libs.androidx.camera.lifecycle)
-  // implementation(libs.androidx.camera.view)
   implementation(libs.androidx.compose.material.icons.core)
   implementation(libs.androidx.compose.material.icons.extended)
   implementation(libs.androidx.compose.material3)
@@ -135,20 +152,18 @@ dependencies {
   implementation(libs.androidx.room.runtime)
   implementation(libs.coil.compose)
   implementation(libs.converter.moshi)
-  // implementation(libs.firebase.ai)
   implementation(libs.kotlinx.coroutines.android)
   implementation(libs.kotlinx.coroutines.core)
   implementation(libs.logging.interceptor)
   implementation(libs.moshi.kotlin)
   implementation(libs.okhttp)
-  // implementation(libs.play.services.location)
   implementation(libs.retrofit)
-  
+
   implementation(libs.media3.exoplayer)
   implementation(libs.media3.ui)
   implementation(libs.media3.session)
   implementation(libs.androidx.palette)
-  
+
   testImplementation(libs.androidx.compose.ui.test.junit4)
   testImplementation(libs.androidx.core)
   testImplementation(libs.androidx.junit)

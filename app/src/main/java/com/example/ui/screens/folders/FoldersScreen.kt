@@ -72,10 +72,13 @@ fun FoldersScreen(
                             .padding(horizontal = 16.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        val firstSongId = songsInFolder.firstOrNull()?.id
+                        val firstSong = songsInFolder.firstOrNull()
                         com.example.ui.components.ArtworkThumbnail(
-                            songId = firstSongId,
+                            songId = firstSong?.id,
                             title = folderName,
+                            artist = firstSong?.artist ?: "",
+                            genre = firstSong?.genre ?: "",
+                            path = firstSong?.path ?: "",
                             size = 48f
                         )
 
@@ -131,10 +134,13 @@ fun FoldersScreen(
                             .padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        val firstSongId = folderSongs.firstOrNull()?.id
+                        val firstSong = folderSongs.firstOrNull()
                         com.example.ui.components.ArtworkThumbnail(
-                            songId = firstSongId,
+                            songId = firstSong?.id,
                             title = folderNameLabel,
+                            artist = firstSong?.artist ?: "",
+                            genre = firstSong?.genre ?: "",
+                            path = firstSong?.path ?: "",
                             size = 54f
                         )
                         Spacer(modifier = Modifier.width(16.dp))

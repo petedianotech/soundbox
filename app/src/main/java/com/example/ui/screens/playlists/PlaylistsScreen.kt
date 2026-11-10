@@ -295,8 +295,15 @@ fun PlaylistsScreen(
                                     .padding(12.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                val firstSongId = playlistSongs.firstOrNull()?.id
-                                ArtworkThumbnail(songId = firstSongId, title = playlist.name, size = 52f)
+                                val firstSong = playlistSongs.firstOrNull()
+                                ArtworkThumbnail(
+                                    songId = firstSong?.id,
+                                    title = playlist.name,
+                                    artist = firstSong?.artist ?: "",
+                                    genre = firstSong?.genre ?: "",
+                                    path = firstSong?.path ?: "",
+                                    size = 52f
+                                )
 
                                 Spacer(modifier = Modifier.width(16.dp))
 
@@ -407,8 +414,15 @@ fun PlaylistsScreen(
                             .padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        val firstSongId = activeListSongs.firstOrNull()?.id
-                        ArtworkThumbnail(songId = firstSongId, title = activeListName!!, size = 64f)
+                        val firstSong = activeListSongs.firstOrNull()
+                        ArtworkThumbnail(
+                            songId = firstSong?.id,
+                            title = activeListName!!,
+                            artist = firstSong?.artist ?: "",
+                            genre = firstSong?.genre ?: "",
+                            path = firstSong?.path ?: "",
+                            size = 64f
+                        )
                         Spacer(modifier = Modifier.width(16.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
