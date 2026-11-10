@@ -101,10 +101,10 @@ fun SongsScreen(
                             DropdownMenu(
                                 expanded = showSortMenu,
                                 onDismissRequest = { showSortMenu = false },
-                                shape = RoundedCornerShape(14.dp),
-                                containerColor = colors.surfaceElevated,
                                 modifier = Modifier
-                                    .border(1.dp, colors.border, RoundedCornerShape(14.dp))
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(colors.surfaceElevated)
+                                    .border(1.dp, colors.border, RoundedCornerShape(16.dp))
                                     .widthIn(min = 220.dp, max = 280.dp)
                             ) {
                                 MusicViewModel.SortOrder.values().forEach { order ->

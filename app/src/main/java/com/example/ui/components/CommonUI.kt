@@ -46,9 +46,9 @@ fun SongImagePlaceholder(
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val cornerRadius = when {
-        size >= 140f -> 14.dp
-        size >= 72f -> 10.dp
-        else -> 8.dp
+        size >= 120f -> 24.dp
+        size >= 72f -> 16.dp
+        else -> 12.dp
     }
     val shape = RoundedCornerShape(cornerRadius)
     val fallbackArtResId = remember(title, artist, genre, songId) {
@@ -109,9 +109,9 @@ fun ArtworkThumbnail(
     }
 
     val cornerRadius = when {
-        size >= 140f -> 14.dp
-        size >= 72f -> 10.dp
-        else -> 8.dp
+        size >= 120f -> 24.dp
+        size >= 72f -> 16.dp
+        else -> 12.dp
     }
     val shape = if (isCircle) CircleShape else RoundedCornerShape(cornerRadius)
 

@@ -47,9 +47,12 @@ class SettingsManager(context: Context) {
     private val _visualizerEnabled = MutableStateFlow(prefs.getBoolean("visualizer_enabled", true))
     val visualizerEnabled: StateFlow<Boolean> = _visualizerEnabled
 
+    // Visualizer Mode: "MANUAL" (user chooses 1 style) or "AUTO_TIME" (changes according to time)
     private val _visualizerMode = MutableStateFlow(prefs.getString("visualizer_mode", "MANUAL") ?: "MANUAL")
     val visualizerMode: StateFlow<String> = _visualizerMode
 
+    // Time periods for Auto-Time visualizer
+    // Morning: 06:00 - 12:00, Afternoon: 12:00 - 18:00, Evening: 18:00 - 23:00, Night: 23:00 - 06:00
     private val _vizTimeMorning = MutableStateFlow(prefs.getString("viz_time_morning", "STUDIO_SPECTRUM") ?: "STUDIO_SPECTRUM")
     val vizTimeMorning: StateFlow<String> = _vizTimeMorning
 
@@ -109,10 +112,6 @@ class SettingsManager(context: Context) {
         prefs.edit().putInt("crossfade_duration_ms", clamped).apply()
         _crossfadeDurationMs.value = clamped
     }
-
-    /** Live prefs read so PlaybackManager sees changes without restart. */
-    fun isCrossfadeEnabledNow(): Boolean = prefs.getBoolean("crossfade_enabled", false)
-    fun getCrossfadeDurationMsNow(): Int = prefs.getInt("crossfade_duration_ms", 5000).coerceIn(1000, 12000)
 
     fun setReplayGainMode(mode: String) {
         prefs.edit().putString("replay_gain", mode).apply()
@@ -241,6 +240,7 @@ class SettingsManager(context: Context) {
         _searchHistoryFlow.value = emptyList()
     }
 
+    // --- Equalizer & DSP Settings Persistence ---
     fun isEqualizerEnabled(): Boolean = prefs.getBoolean("eq_enabled", true)
     fun setEqualizerEnabled(enabled: Boolean) {
         prefs.edit().putBoolean("eq_enabled", enabled).apply()

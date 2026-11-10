@@ -1,43 +1,21 @@
-# Soundbox release shrinking rules
--keepattributes SourceFile,LineNumberTable
--renamesourcefileattribute SourceFile
--keepattributes *Annotation*
--keepattributes Signature
--keepattributes InnerClasses,EnclosingMethod
+# Add project specific ProGuard rules here.
+# You can control the set of applied configuration files using the
+# proguardFiles setting in build.gradle.
+#
+# For more details, see
+#   http://developer.android.com/guide/developing/tools/proguard.html
 
-# Kotlin / coroutines
--dontwarn kotlinx.coroutines.**
--keepclassmembers class kotlinx.coroutines.** { volatile <fields>; }
+# If your project uses WebView with JS, uncomment the following
+# and specify the fully qualified class name to the JavaScript interface
+# class:
+#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
+#   public *;
+#}
 
-# Room
--keep class * extends androidx.room.RoomDatabase
--keep @androidx.room.Entity class *
--dontwarn androidx.room.paging.**
+# Uncomment this to preserve the line number information for
+# debugging stack traces.
+#-keepattributes SourceFile,LineNumberTable
 
-# Moshi
--keep class com.squareup.moshi.** { *; }
--keep class **JsonAdapter { *; }
--keepclassmembers class ** {
-    @com.squareup.moshi.Json <fields>;
-}
--keep class ** extends com.squareup.moshi.JsonAdapter
-
-# Media3 / ExoPlayer
--keep class androidx.media3.** { *; }
--dontwarn androidx.media3.**
-
-# App models used by Room / reflection
--keep class com.example.data.model.** { *; }
--keep class com.example.data.local.** { *; }
-
-# Playback / service entry points
--keep class com.example.player.** { *; }
--keep class com.example.widget.** { *; }
-
-# JNI (if native engine is linked later)
--keepclasseswithmembernames class * {
-    native <methods>;
-}
-
-# Compose reflective lookups
--dontwarn androidx.compose.**
+# If you keep the line number information, uncomment this to
+# hide the original source file name.
+#-renamesourcefileattribute SourceFile

@@ -64,6 +64,7 @@ class PlaybackService : MediaSessionService() {
         val customCommandForward10 = SessionCommand(ACTION_FORWARD_10, Bundle.EMPTY)
 
         val initialIsLiked = pbManager.currentSong.value?.isFavorite == true
+        val initialLikeButton = buildLikeButton(initialIsLiked)
 
         val rewindButton = CommandButton.Builder()
             .setDisplayName("Rewind 10s")
@@ -76,42 +77,57 @@ class PlaybackService : MediaSessionService() {
             .setSessionCommand(customCommandForward10)
             .setIconResId(R.drawable.ic_forward_10)
             .build()
-
-        val initialLikeButton = buildLikeButton(initialIsLiked)
-
+            
         mediaSession = MediaSession.Builder(this, initialPlayer)
             .setSessionActivity(pendingIntent)
+            .setCustomLayout(listOf(rewindButton, initialLikeButton, forwardButton))
             .setCallback(object : MediaSession.Callback {
+                override fun onConnect(
+                    session: MediaSession,
+                    controller: MediaSession.ControllerInfo
+                ): MediaSession.ConnectionResult {
+                    val sessionCommands = MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS.buildUpon()
+                        .add(customCommandToggleFavorite)
+                        .add(customCommandRewind10)
+                        .add(customCommandForward10)
+                        .build()
+                    return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
+                        .setAvailableSessionCommands(sessionCommands)
+                        .build()
+                }
+
                 override fun onCustomCommand(
                     session: MediaSession,
                     controller: MediaSession.ControllerInfo,
                     customCommand: SessionCommand,
                     args: Bundle
                 ): ListenableFuture<SessionResult> {
+                    val currentPlayer = pbManager.player
                     when (customCommand.customAction) {
                         ACTION_TOGGLE_FAVORITE -> {
-                            val song = pbManager.currentSong.value
-                            if (song != null) {
-                                pbManager.toggleFavorite(song)
+                            val currentSong = pbManager.currentSong.value
+                            if (currentSong != null) {
+                                pbManager.toggleFavorite(currentSong)
                             }
-                            return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
-                        }
-                        ACTION_REWIND_10 -> {
-                            pbManager.seekBackward(10_000L)
-                            return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
                         }
                         ACTION_FORWARD_10 -> {
-                            pbManager.seekForward(10_000L)
-                            return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+                            val cur = currentPlayer.currentPosition
+                            val dur = currentPlayer.duration.coerceAtLeast(0L)
+                            val target = if (dur > 0) (cur + 10000).coerceAtMost(dur) else cur + 10000
+                            currentPlayer.seekTo(target)
+                        }
+                        ACTION_REWIND_10 -> {
+                            val cur = currentPlayer.currentPosition
+                            val target = (cur - 10000).coerceAtLeast(0L)
+                            currentPlayer.seekTo(target)
                         }
                     }
-                    return Futures.immediateFuture(SessionResult(SessionResult.RESULT_ERROR_NOT_SUPPORTED))
+                    return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
                 }
             })
-            .setCustomLayout(emptyList())
             .build()
-
-        // Observe current song for like state updates
+            
+        // Observe current song in PlaybackManager to update notification Like button state
         serviceScope.launch {
             pbManager.currentSong.collectLatest { song ->
                 updateNotificationLayout(song?.isFavorite == true)
@@ -121,16 +137,18 @@ class PlaybackService : MediaSessionService() {
         // Use DefaultMediaNotificationProvider
         val notificationProvider = DefaultMediaNotificationProvider.Builder(this)
             .setChannelId(CHANNEL_ID)
+            .setChannelName(R.string.notification_channel_name)
             .build()
+        notificationProvider.setSmallIcon(R.drawable.ic_music_note)
         setMediaNotificationProvider(notificationProvider)
     }
 
     private fun buildLikeButton(isLiked: Boolean): CommandButton {
         val customCommandToggleFavorite = SessionCommand(ACTION_TOGGLE_FAVORITE, Bundle.EMPTY)
         return CommandButton.Builder()
-            .setDisplayName(if (isLiked) "Unlike" else "Like")
+            .setDisplayName(if (isLiked) "Liked" else "Like")
             .setSessionCommand(customCommandToggleFavorite)
-            .setIconResId(if (isLiked) R.drawable.ic_favorite else R.drawable.ic_favorite_border)
+            .setIconResId(if (isLiked) R.drawable.ic_thumb_up_filled else R.drawable.ic_thumb_up)
             .build()
     }
 
@@ -152,9 +170,7 @@ class PlaybackService : MediaSessionService() {
 
         val likeButton = buildLikeButton(isLiked)
 
-        // Samsung-style compact notification: prev | play/pause | next only.
-        // Empty custom layout lets Media3 use the standard transport controls.
-        mediaSession?.setCustomLayout(emptyList())
+        mediaSession?.setCustomLayout(listOf(rewindButton, likeButton, forwardButton))
     }
 
     private fun createNotificationChannel() {
