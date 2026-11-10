@@ -33,9 +33,16 @@ jobs:
           ENCODED_KEYSTORE: ${{ secrets.KEYSTORE_BASE64 }}
         run: |
           if [ -n "$ENCODED_KEYSTORE" ]; then
-            echo "$ENCODED_KEYSTORE" | base64 --decode > my-upload-key.jks
-            echo "Decoded custom release keystore into my-upload-key.jks"
+            echo "$ENCODED_KEYSTORE" | base64 -d > my-upload-key.jks || echo "$ENCODED_KEYSTORE" | base64 --decode > my-upload-key.jks
+            echo "Decoded custom release keystore from GitHub Secrets into my-upload-key.jks"
           fi
+          
+          # Fallback to repository bundled base64 key if secret was not populated
+          if [ ! -f my-upload-key.jks ] && [ -f my-upload-key.base64 ]; then
+            base64 -d my-upload-key.base64 > my-upload-key.jks || base64 --decode my-upload-key.base64 > my-upload-key.jks
+            echo "Decoded bundled my-upload-key.base64 into my-upload-key.jks"
+          fi
+
           if [ ! -f my-upload-key.jks ] && [ ! -f debug.keystore ]; then
             keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
             echo "Generated fallback debug.keystore for CI builds"
@@ -43,13 +50,17 @@ jobs:
 
       - name: Build Release APK
         env:
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-          STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEYSTORE_PATH: my-upload-key.jks
+          SECRET_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          SECRET_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          SECRET_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           GITHUB_RUN_NUMBER: ${{ github.run_number }}
-        run: gradle :app:assembleRelease --no-daemon -Djava.awt.headless=true
+        run: |
+          export KEYSTORE_PASSWORD="${SECRET_KEYSTORE_PASSWORD:-SoundBox2026Key!}"
+          export STORE_PASSWORD="${SECRET_KEYSTORE_PASSWORD:-SoundBox2026Key!}"
+          export KEY_ALIAS="${SECRET_KEY_ALIAS:-upload}"
+          export KEY_PASSWORD="${SECRET_KEY_PASSWORD:-${SECRET_KEYSTORE_PASSWORD:-SoundBox2026Key!}}"
+          export KEYSTORE_PATH="my-upload-key.jks"
+          gradle :app:assembleRelease --no-daemon -Djava.awt.headless=true
 
       - name: Upload Release APK
         uses: actions/upload-artifact@v4

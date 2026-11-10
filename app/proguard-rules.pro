@@ -1,21 +1,32 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# ProGuard rules for Soundbox
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# Data models and entities
+-keep class com.example.data.model.** { *; }
+-keep class com.example.data.local.** { *; }
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# Player and Audio Engine
+-keep class com.example.player.** { *; }
+-keep class com.example.util.** { *; }
+-keep class com.example.ui.screens.lockscreen.** { *; }
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# Room SQLite
+-keep class * extends androidx.room.RoomDatabase
+-dontwarn androidx.room.paging.**
+
+# Moshi JSON
+-keepclassmembers class * {
+    @com.squareup.moshi.* <fields>;
+    @com.squareup.moshi.* <methods>;
+}
+-dontwarn com.squareup.moshi.**
+
+# Media3 / ExoPlayer
+-keep class androidx.media3.** { *; }
+-dontwarn androidx.media3.**
+
+# Palette
+-keep class androidx.palette.graphics.** { *; }
+
+# General
+-dontwarn com.google.errorprone.annotations.**
+-dontwarn javax.annotation.**
