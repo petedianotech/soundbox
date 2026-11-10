@@ -58,6 +58,8 @@ fun SettingsScreen(
     val autoPauseHeadphone by viewModel.settingsManager.autoPauseOnHeadphoneUnplug.collectAsState()
     val autoResumeHeadphone by viewModel.settingsManager.autoResumeOnHeadphonePlug.collectAsState()
     val dynamicTheme by viewModel.settingsManager.dynamicThemeFromAlbumArt.collectAsState()
+    val lockscreenPlayerEnabled by viewModel.settingsManager.lockscreenPlayerEnabled.collectAsState()
+    val lockscreenLyricsEnabled by viewModel.settingsManager.lockscreenLyricsEnabled.collectAsState()
     val eqEnabled by viewModel.equalizerEnabled.collectAsState()
 
     var showTimerDialog by remember { mutableStateOf(false) }
@@ -114,6 +116,24 @@ fun SettingsScreen(
                 SettingsToggleRow(title = "Auto-Pause on Unplug", subtitle = "Pause playback automatically when headphones or Bluetooth disconnect", icon = Icons.Default.HeadsetOff, checked = autoPauseHeadphone, onCheckedChange = { viewModel.settingsManager.setAutoPauseOnHeadphoneUnplug(it) })
                 SettingsDivider()
                 SettingsToggleRow(title = "Auto-Resume on Plug", subtitle = "Resume playback when connecting headphones or Bluetooth device", icon = Icons.Default.Headset, checked = autoResumeHeadphone, onCheckedChange = { viewModel.settingsManager.setAutoResumeOnHeadphonePlug(it) })
+            }
+
+            SettingsSection(title = "LOCKSCREEN & LYRICS", sectionIcon = Icons.Default.LockClock) {
+                SettingsToggleRow(
+                    title = "Lockscreen Music Player",
+                    subtitle = "Show full ambient player with blurred album backdrop and controls when locked",
+                    icon = Icons.Default.ScreenLockPortrait,
+                    checked = lockscreenPlayerEnabled,
+                    onCheckedChange = { viewModel.settingsManager.setLockscreenPlayerEnabled(it) }
+                )
+                SettingsDivider()
+                SettingsToggleRow(
+                    title = "Live Lyrics on Lockscreen",
+                    subtitle = "Display real-time synchronized karaoke lyrics on the lockscreen & media notification",
+                    icon = Icons.Default.Lyrics,
+                    checked = lockscreenLyricsEnabled,
+                    onCheckedChange = { viewModel.settingsManager.setLockscreenLyricsEnabled(it) }
+                )
             }
 
             SettingsSection(title = "NAVIGATION BAR", sectionIcon = Icons.Default.ViewCompact) {

@@ -488,18 +488,20 @@ class PlaybackManager private constructor(private val context: Context) {
             android.net.Uri.fromFile(java.io.File(songItem.path))
         }
         val artUri = com.example.util.AlbumArtHelper.getArtworkUri(context, songItem)
+        val artBytes = com.example.util.AlbumArtHelper.getArtworkBytes(context, songItem)
+        val metaBuilder = androidx.media3.common.MediaMetadata.Builder()
+            .setTitle(songItem.title)
+            .setArtist(songItem.artist)
+            .setAlbumTitle(songItem.album)
+            .setDisplayTitle(songItem.title)
+            .setArtworkUri(artUri)
+        if (artBytes != null && artBytes.isNotEmpty()) {
+            metaBuilder.setArtworkData(artBytes, androidx.media3.common.MediaMetadata.PICTURE_TYPE_FRONT_COVER)
+        }
         return MediaItem.Builder()
             .setMediaId(songItem.id)
             .setUri(fileUri)
-            .setMediaMetadata(
-                androidx.media3.common.MediaMetadata.Builder()
-                    .setTitle(songItem.title)
-                    .setArtist(songItem.artist)
-                    .setAlbumTitle(songItem.album)
-                    .setDisplayTitle(songItem.title)
-                    .setArtworkUri(artUri)
-                    .build()
-            )
+            .setMediaMetadata(metaBuilder.build())
             .build()
     }
 

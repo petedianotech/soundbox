@@ -68,8 +68,24 @@ class SettingsManager(context: Context) {
     private val _dynamicThemeFromAlbumArt = MutableStateFlow(prefs.getBoolean("dynamic_album_art_theme", true))
     val dynamicThemeFromAlbumArt: StateFlow<Boolean> = _dynamicThemeFromAlbumArt
 
+    private val _lockscreenPlayerEnabled = MutableStateFlow(prefs.getBoolean("lockscreen_player_enabled", true))
+    val lockscreenPlayerEnabled: StateFlow<Boolean> = _lockscreenPlayerEnabled
+
+    private val _lockscreenLyricsEnabled = MutableStateFlow(prefs.getBoolean("lockscreen_lyrics_enabled", true))
+    val lockscreenLyricsEnabled: StateFlow<Boolean> = _lockscreenLyricsEnabled
+
     private val _songSortOrderFlow = MutableStateFlow(prefs.getString("song_sort_order", "NEWEST_FIRST") ?: "NEWEST_FIRST")
     val songSortOrderFlow: StateFlow<String> = _songSortOrderFlow
+
+    fun setLockscreenPlayerEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean("lockscreen_player_enabled", enabled).apply()
+        _lockscreenPlayerEnabled.value = enabled
+    }
+
+    fun setLockscreenLyricsEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean("lockscreen_lyrics_enabled", enabled).apply()
+        _lockscreenLyricsEnabled.value = enabled
+    }
 
     fun setSongSortOrder(order: String) {
         prefs.edit().putString("song_sort_order", order).apply()

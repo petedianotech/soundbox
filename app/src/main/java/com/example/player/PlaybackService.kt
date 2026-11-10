@@ -1,12 +1,16 @@
 package com.example.player
 
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import androidx.media3.session.CommandButton
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
@@ -23,17 +27,42 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import com.example.MainActivity
 import com.example.R
+import com.example.ui.screens.lockscreen.LockscreenPlayerActivity
+import com.example.util.SettingsManager
 
 class PlaybackService : MediaSessionService() {
 
     private var mediaSession: MediaSession? = null
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private var isScreenOffReceiverRegistered = false
 
     companion object {
         const val CHANNEL_ID = "music_playback_channel"
         const val ACTION_TOGGLE_FAVORITE = "ACTION_TOGGLE_FAVORITE"
         const val ACTION_FORWARD_10 = "ACTION_FORWARD_10"
         const val ACTION_REWIND_10 = "ACTION_REWIND_10"
+        const val ACTION_OPEN_LOCKSCREEN = "ACTION_OPEN_LOCKSCREEN"
+    }
+
+    private val screenOffReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == Intent.ACTION_SCREEN_OFF) {
+                val pbManager = PlaybackManager.getInstance(this@PlaybackService)
+                val isPlaying = pbManager.isPlaying.value
+                val song = pbManager.currentSong.value
+                val lockscreenEnabled = SettingsManager.getInstance(this@PlaybackService).lockscreenPlayerEnabled.value
+                if (isPlaying && song != null && lockscreenEnabled) {
+                    try {
+                        val lockIntent = Intent(this@PlaybackService, LockscreenPlayerActivity::class.java).apply {
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                        }
+                        startActivity(lockIntent)
+                    } catch (e: Exception) {
+                        Log.e("PlaybackService", "Failed to start lockscreen activity", e)
+                    }
+                }
+            }
+        }
     }
 
     override fun onCreate() {
@@ -46,6 +75,15 @@ class PlaybackService : MediaSessionService() {
 
         pbManager.onActivePlayerChanged = { activeP ->
             mediaSession?.setPlayer(activeP)
+        }
+
+        // Register screen off receiver for lockscreen player
+        try {
+            val filter = IntentFilter(Intent.ACTION_SCREEN_OFF)
+            registerReceiver(screenOffReceiver, filter)
+            isScreenOffReceiverRegistered = true
+        } catch (e: Exception) {
+            Log.w("PlaybackService", "Failed to register screenOffReceiver", e)
         }
 
         // Create launch intent for notification click
@@ -62,6 +100,7 @@ class PlaybackService : MediaSessionService() {
         val customCommandToggleFavorite = SessionCommand(ACTION_TOGGLE_FAVORITE, Bundle.EMPTY)
         val customCommandRewind10 = SessionCommand(ACTION_REWIND_10, Bundle.EMPTY)
         val customCommandForward10 = SessionCommand(ACTION_FORWARD_10, Bundle.EMPTY)
+        val customCommandOpenLockscreen = SessionCommand(ACTION_OPEN_LOCKSCREEN, Bundle.EMPTY)
 
         val initialIsLiked = pbManager.currentSong.value?.isFavorite == true
         val initialLikeButton = buildLikeButton(initialIsLiked)
@@ -77,10 +116,16 @@ class PlaybackService : MediaSessionService() {
             .setSessionCommand(customCommandForward10)
             .setIconResId(R.drawable.ic_forward_10)
             .build()
+
+        val lockscreenButton = CommandButton.Builder()
+            .setDisplayName("Lockscreen & Lyrics")
+            .setSessionCommand(customCommandOpenLockscreen)
+            .setIconResId(R.drawable.ic_music_note)
+            .build()
             
         mediaSession = MediaSession.Builder(this, initialPlayer)
             .setSessionActivity(pendingIntent)
-            .setCustomLayout(listOf(rewindButton, initialLikeButton, forwardButton))
+            .setCustomLayout(listOf(rewindButton, initialLikeButton, forwardButton, lockscreenButton))
             .setCallback(object : MediaSession.Callback {
                 override fun onConnect(
                     session: MediaSession,
@@ -90,6 +135,7 @@ class PlaybackService : MediaSessionService() {
                         .add(customCommandToggleFavorite)
                         .add(customCommandRewind10)
                         .add(customCommandForward10)
+                        .add(customCommandOpenLockscreen)
                         .build()
                     return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
                         .setAvailableSessionCommands(sessionCommands)
@@ -121,6 +167,12 @@ class PlaybackService : MediaSessionService() {
                             val target = (cur - 10000).coerceAtLeast(0L)
                             currentPlayer.seekTo(target)
                         }
+                        ACTION_OPEN_LOCKSCREEN -> {
+                            val lockIntent = Intent(this@PlaybackService, LockscreenPlayerActivity::class.java).apply {
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                            }
+                            startActivity(lockIntent)
+                        }
                     }
                     return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
                 }
@@ -134,7 +186,51 @@ class PlaybackService : MediaSessionService() {
             }
         }
 
-        // Use DefaultMediaNotificationProvider
+        // Live lockscreen & notification lyrics synchronization
+        serviceScope.launch {
+            var currentSongLyrics: List<LyricLine> = emptyList()
+            var lastLyricText: String? = null
+
+            launch {
+                pbManager.currentSong.collectLatest { song ->
+                    if (song != null) {
+                        val raw = LyricsManager.loadLyrics(this@PlaybackService, song)
+                        currentSongLyrics = if (!raw.isNullOrBlank()) {
+                            LyricsManager.parseLyrics(raw, pbManager.duration.value)
+                        } else {
+                            emptyList()
+                        }
+                        lastLyricText = null
+                    } else {
+                        currentSongLyrics = emptyList()
+                        lastLyricText = null
+                    }
+                }
+            }
+
+            launch {
+                pbManager.currentPosition.collectLatest { pos ->
+                    val song = pbManager.currentSong.value ?: return@collectLatest
+                    val lockscreenLyricsEnabled = SettingsManager.getInstance(this@PlaybackService).lockscreenLyricsEnabled.value
+                    if (!lockscreenLyricsEnabled) return@collectLatest
+
+                    if (currentSongLyrics.isNotEmpty()) {
+                        val activeLine = currentSongLyrics.lastOrNull { it.timeMs <= pos }?.text
+                        if (!activeLine.isNullOrBlank() && activeLine != lastLyricText) {
+                            lastLyricText = activeLine
+                            val currentMetadata = initialPlayer.mediaMetadata
+                            val updatedMetadata = currentMetadata.buildUpon()
+                                .setSubtitle("🎵 $activeLine")
+                                .setDescription(activeLine)
+                                .build()
+                            initialPlayer.playlistMetadata = updatedMetadata
+                        }
+                    }
+                }
+            }
+        }
+
+        // Use DefaultMediaNotificationProvider with public lockscreen visibility
         val notificationProvider = DefaultMediaNotificationProvider.Builder(this)
             .setChannelId(CHANNEL_ID)
             .setChannelName(R.string.notification_channel_name)
@@ -155,6 +251,7 @@ class PlaybackService : MediaSessionService() {
     private fun updateNotificationLayout(isLiked: Boolean) {
         val customCommandRewind10 = SessionCommand(ACTION_REWIND_10, Bundle.EMPTY)
         val customCommandForward10 = SessionCommand(ACTION_FORWARD_10, Bundle.EMPTY)
+        val customCommandOpenLockscreen = SessionCommand(ACTION_OPEN_LOCKSCREEN, Bundle.EMPTY)
 
         val rewindButton = CommandButton.Builder()
             .setDisplayName("Rewind 10s")
@@ -168,9 +265,15 @@ class PlaybackService : MediaSessionService() {
             .setIconResId(R.drawable.ic_forward_10)
             .build()
 
+        val lockscreenButton = CommandButton.Builder()
+            .setDisplayName("Lockscreen & Lyrics")
+            .setSessionCommand(customCommandOpenLockscreen)
+            .setIconResId(R.drawable.ic_music_note)
+            .build()
+
         val likeButton = buildLikeButton(isLiked)
 
-        mediaSession?.setCustomLayout(listOf(rewindButton, likeButton, forwardButton))
+        mediaSession?.setCustomLayout(listOf(rewindButton, likeButton, forwardButton, lockscreenButton))
     }
 
     private fun createNotificationChannel() {
@@ -182,6 +285,7 @@ class PlaybackService : MediaSessionService() {
                 description = descriptionText
                 setShowBadge(false)
                 setSound(null, null)
+                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
             }
             val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.createNotificationChannel(channel)
@@ -214,6 +318,14 @@ class PlaybackService : MediaSessionService() {
 
     override fun onDestroy() {
         serviceScope.cancel()
+        if (isScreenOffReceiverRegistered) {
+            try {
+                unregisterReceiver(screenOffReceiver)
+                isScreenOffReceiverRegistered = false
+            } catch (e: Exception) {
+                Log.w("PlaybackService", "Failed to unregister screenOffReceiver", e)
+            }
+        }
         mediaSession?.run {
             release()
             mediaSession = null
