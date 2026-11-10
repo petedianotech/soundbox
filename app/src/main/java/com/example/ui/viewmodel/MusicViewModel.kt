@@ -29,9 +29,10 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = MusicRepository.getInstance(application)
     private val playbackManager = PlaybackManager.getInstance(application)
+    
+    val settingsManager = SettingsManager(application)
 
-    val settingsManager = SettingsManager.getInstance(application)
-
+    // Scoped Storage IntentSender flows for system deletion and write consent dialogs
     private val _pendingDeleteSender = MutableStateFlow<IntentSender?>(null)
     val pendingDeleteSender: StateFlow<IntentSender?> = _pendingDeleteSender.asStateFlow()
     private val _pendingDeleteIds = MutableStateFlow<List<String>>(emptyList())
@@ -42,11 +43,22 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     private val _pendingWriteLyrics = MutableStateFlow<String?>(null)
     private val _pendingBatchWriteSongs = MutableStateFlow<List<Song>>(emptyList())
 
+    // Search history delegation
     val searchHistory: StateFlow<List<String>> = settingsManager.searchHistoryFlow
-    fun addSearchQuery(query: String) { settingsManager.addSearchQuery(query) }
-    fun removeSearchQuery(query: String) { settingsManager.removeSearchQuery(query) }
-    fun clearSearchHistory() { settingsManager.clearSearchHistory() }
 
+    fun addSearchQuery(query: String) {
+        settingsManager.addSearchQuery(query)
+    }
+
+    fun removeSearchQuery(query: String) {
+        settingsManager.removeSearchQuery(query)
+    }
+
+    fun clearSearchHistory() {
+        settingsManager.clearSearchHistory()
+    }
+
+    // Player state mapping
     val currentSong: StateFlow<Song?> = playbackManager.currentSong
     val isPlaying: StateFlow<Boolean> = playbackManager.isPlaying
     val currentPosition: StateFlow<Long> = playbackManager.currentPosition
@@ -70,16 +82,26 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     val equalizerHardwareBands: StateFlow<Int> = playbackManager.equalizerHardwareBands
     val equalizerStatus: StateFlow<String> = playbackManager.equalizerStatus
 
+    // Gapless Playback
     val gaplessPlayback: StateFlow<Boolean> = settingsManager.gaplessPlayback
-    fun setGaplessPlayback(enabled: Boolean) { settingsManager.setGaplessPlayback(enabled) }
 
+    fun setGaplessPlayback(enabled: Boolean) {
+        settingsManager.setGaplessPlayback(enabled)
+    }
+
+    // Scanning states & silent notification
     private val _isScanning = MutableStateFlow(false)
     val isScanning: StateFlow<Boolean> = _isScanning.asStateFlow()
+
     private val _isInitialLoadComplete = MutableStateFlow(false)
     val isInitialLoadComplete: StateFlow<Boolean> = _isInitialLoadComplete.asStateFlow()
+
     private val _scanNotification = MutableStateFlow<String?>(null)
     val scanNotification: StateFlow<String?> = _scanNotification.asStateFlow()
-    fun clearScanNotification() { _scanNotification.value = null }
+
+    fun clearScanNotification() {
+        _scanNotification.value = null
+    }
 
     enum class SortOrder(val displayName: String) {
         NEWEST_FIRST("Newest First (Date Added ↓)"),
@@ -95,17 +117,30 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         MOST_PLAYED("Most Played"),
         RATING("Highest Rated (5★)"),
         DATE_ADDED("Newest First");
+
         companion object {
             fun fromString(value: String?): SortOrder {
-                return try { if (value == null) NEWEST_FIRST else valueOf(value) } catch (e: Exception) { NEWEST_FIRST }
+                return try {
+                    if (value == null) NEWEST_FIRST
+                    else valueOf(value)
+                } catch (e: Exception) {
+                    NEWEST_FIRST
+                }
             }
         }
     }
 
-    private val _sortOrder = MutableStateFlow(SortOrder.fromString(settingsManager.songSortOrderFlow.value))
+    private val _sortOrder = MutableStateFlow(
+        SortOrder.fromString(settingsManager.songSortOrderFlow.value)
+    )
     val sortOrder: StateFlow<SortOrder> = _sortOrder.asStateFlow()
-    fun setSortOrder(order: SortOrder) { _sortOrder.value = order; settingsManager.setSongSortOrder(order.name) }
 
+    fun setSortOrder(order: SortOrder) {
+        _sortOrder.value = order
+        settingsManager.setSongSortOrder(order.name)
+    }
+
+    // Core dataset flows (using Eagerly so songs are immediately loaded from SQLite on startup)
     val allSongs: StateFlow<List<Song>> = combine(repository.allSongs, _sortOrder) { songs, order ->
         when (order) {
             SortOrder.NEWEST_FIRST, SortOrder.DATE_ADDED -> songs.sortedByDescending { it.dateAdded }
@@ -123,90 +158,410 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         }
     }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
-    val favoriteSongs: StateFlow<List<Song>> = repository.favoriteSongs.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
-    val topRatedSongs: StateFlow<List<Song>> = repository.topRatedSongs.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
-    val mostPlayedSongs: StateFlow<List<Song>> = repository.mostPlayedSongs.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
-    val recentlyPlayedSongs: StateFlow<List<Song>> = repository.recentlyPlayedSongs.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
-    val recentlyAddedSongs: StateFlow<List<Song>> = repository.recentlyAddedSongs.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
-    val allPlaylists: StateFlow<List<Playlist>> = repository.allPlaylists.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    val favoriteSongs: StateFlow<List<Song>> = repository.favoriteSongs
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
-    val folderList: StateFlow<Map<String, List<Song>>> = repository.allSongs.map { songs -> songs.groupBy { it.folderPath } }.stateIn(viewModelScope, SharingStarted.Lazily, emptyMap())
-    val albumList: StateFlow<Map<String, List<Song>>> = repository.allSongs.map { songs -> songs.groupBy { it.album } }.stateIn(viewModelScope, SharingStarted.Lazily, emptyMap())
-    val artistList: StateFlow<Map<String, List<Song>>> = repository.allSongs.map { songs -> songs.groupBy { it.artist } }.stateIn(viewModelScope, SharingStarted.Lazily, emptyMap())
-    val genreList: StateFlow<Map<String, List<Song>>> = repository.allSongs.map { songs -> songs.groupBy { it.genre } }.stateIn(viewModelScope, SharingStarted.Lazily, emptyMap())
+    val topRatedSongs: StateFlow<List<Song>> = repository.topRatedSongs
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
+    val mostPlayedSongs: StateFlow<List<Song>> = repository.mostPlayedSongs
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    val recentlyPlayedSongs: StateFlow<List<Song>> = repository.recentlyPlayedSongs
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    val recentlyAddedSongs: StateFlow<List<Song>> = repository.recentlyAddedSongs
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    val allPlaylists: StateFlow<List<Playlist>> = repository.allPlaylists
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    // UI grouping states (Folder-based navigation, album grouping, and artist metadata projection)
+    val folderList: StateFlow<Map<String, List<Song>>> = repository.allSongs
+        .map { songs -> songs.groupBy { it.folderPath } }
+        .stateIn(viewModelScope, SharingStarted.Lazily, emptyMap())
+
+    val albumList: StateFlow<Map<String, List<Song>>> = repository.allSongs
+        .map { songs -> songs.groupBy { it.album } }
+        .stateIn(viewModelScope, SharingStarted.Lazily, emptyMap())
+
+    val artistList: StateFlow<Map<String, List<Song>>> = repository.allSongs
+        .map { songs -> songs.groupBy { it.artist } }
+        .stateIn(viewModelScope, SharingStarted.Lazily, emptyMap())
+
+    val genreList: StateFlow<Map<String, List<Song>>> = repository.allSongs
+        .map { songs -> songs.groupBy { it.genre } }
+        .stateIn(viewModelScope, SharingStarted.Lazily, emptyMap())
+
+    // Dynamic Smart Playlists combining metadata, play history, ratings, and genres
     val smartPlaylists: StateFlow<List<SmartPlaylist>> = combine(
-        repository.allSongs, repository.favoriteSongs, repository.mostPlayedSongs,
-        repository.recentlyPlayedSongs, repository.recentlyAddedSongs
+        repository.allSongs,
+        repository.favoriteSongs,
+        repository.mostPlayedSongs,
+        repository.recentlyPlayedSongs,
+        repository.recentlyAddedSongs
     ) { all, favs, mostPlayed, recentRuns, recentAdded ->
         val list = mutableListOf<SmartPlaylist>()
+
+        // 1. Most Played
         val playedOnly = mostPlayed.filter { it.playCount > 0 }
-        if (playedOnly.isNotEmpty()) list.add(SmartPlaylist("smart_most_played", SmartPlaylistType.MOST_PLAYED, "Most Played", "Your top listened tracks", Icons.Default.Whatshot, Color(0xFFFF9800), playedOnly))
-        if (recentAdded.isNotEmpty()) list.add(SmartPlaylist("smart_recently_added", SmartPlaylistType.RECENTLY_ADDED, "Recently Added", "Newest music", Icons.Default.NewReleases, Color(0xFF00ACC1), recentAdded))
-        val top25Favs = if (favs.isNotEmpty()) favs.take(25) else all.sortedWith(compareByDescending<Song> { it.rating }.thenByDescending { it.playCount }).take(25)
-        if (top25Favs.isNotEmpty()) list.add(SmartPlaylist("smart_top_25_favorites", SmartPlaylistType.TOP_25_FAVORITES, "Top 25 Favorites", "Top collection", Icons.Default.Star, Color(0xFFFFD700), top25Favs))
-        if (favs.isNotEmpty()) list.add(SmartPlaylist("smart_favorites", SmartPlaylistType.FAVORITES, "Liked Songs", "All liked tracks", Icons.Default.ThumbUp, Color(0xFF00E5FF), favs))
+        if (playedOnly.isNotEmpty()) {
+            list.add(
+                SmartPlaylist(
+                    id = "smart_most_played",
+                    type = SmartPlaylistType.MOST_PLAYED,
+                    title = "Most Played",
+                    description = "Your top listened tracks ranked by play count",
+                    icon = Icons.Default.Whatshot,
+                    tintColor = Color(0xFFFF9800),
+                    songs = playedOnly
+                )
+            )
+        }
+
+        // 2. Recently Added
+        if (recentAdded.isNotEmpty()) {
+            list.add(
+                SmartPlaylist(
+                    id = "smart_recently_added",
+                    type = SmartPlaylistType.RECENTLY_ADDED,
+                    title = "Recently Added",
+                    description = "Newest music added to library",
+                    icon = Icons.Default.NewReleases,
+                    tintColor = Color(0xFF00ACC1),
+                    songs = recentAdded
+                )
+            )
+        }
+
+        // 3. Top 25 Favorites
+        val top25Favs = if (favs.isNotEmpty()) {
+            favs.take(25)
+        } else {
+            all.sortedWith(compareByDescending<Song> { it.rating }.thenByDescending { it.playCount }).take(25)
+        }
+        if (top25Favs.isNotEmpty()) {
+            list.add(
+                SmartPlaylist(
+                    id = "smart_top_25_favorites",
+                    type = SmartPlaylistType.TOP_25_FAVORITES,
+                    title = "Top 25 Favorites",
+                    description = "Curated top 25 collection of your favorite & top-scored tracks",
+                    icon = Icons.Default.Star,
+                    tintColor = Color(0xFFFFD700),
+                    songs = top25Favs
+                )
+            )
+        }
+
+        // 4. Liked Songs
+        if (favs.isNotEmpty()) {
+            list.add(
+                SmartPlaylist(
+                    id = "smart_favorites",
+                    type = SmartPlaylistType.FAVORITES,
+                    title = "Liked Songs",
+                    description = "All liked tracks marked with thumbs up",
+                    icon = Icons.Default.ThumbUp,
+                    tintColor = Color(0xFF00E5FF),
+                    songs = favs
+                )
+            )
+        }
+
+        // 5. 5-Star Classics (Top Rated)
         val ratedSongs = all.filter { it.rating >= 4 }.sortedByDescending { it.rating }
-        if (ratedSongs.isNotEmpty()) list.add(SmartPlaylist("smart_top_rated", SmartPlaylistType.TOP_RATED, "5-Star Classics", "Top rated", Icons.Default.AutoAwesome, Color(0xFFFF6D00), ratedSongs))
+        if (ratedSongs.isNotEmpty()) {
+            list.add(
+                SmartPlaylist(
+                    id = "smart_top_rated",
+                    type = SmartPlaylistType.TOP_RATED,
+                    title = "5-Star Classics",
+                    description = "Top scoring music rated 4 and 5 stars",
+                    icon = Icons.Default.AutoAwesome,
+                    tintColor = Color(0xFFFF6D00),
+                    songs = ratedSongs
+                )
+            )
+        }
+
+        // 6. Forgotten Gems (Never Played or long unplayed)
         val unplayed = all.filter { it.playCount == 0 }
-        if (unplayed.isNotEmpty()) list.add(SmartPlaylist("smart_unplayed", SmartPlaylistType.NEVER_PLAYED, "Forgotten Gems", "Unplayed tracks", Icons.Default.Explore, Color(0xFF43A047), unplayed))
+        if (unplayed.isNotEmpty()) {
+            list.add(
+                SmartPlaylist(
+                    id = "smart_unplayed",
+                    type = SmartPlaylistType.NEVER_PLAYED,
+                    title = "Forgotten Gems",
+                    description = "Hidden songs in your library you haven't played yet",
+                    icon = Icons.Default.Explore,
+                    tintColor = Color(0xFF43A047),
+                    songs = unplayed
+                )
+            )
+        }
+
+        // 7. Recently Played
         val recentPlayedOnly = recentRuns.filter { it.lastPlayedTime > 0 }
-        if (recentPlayedOnly.isNotEmpty()) list.add(SmartPlaylist("smart_recently_played", SmartPlaylistType.RECENTLY_PLAYED, "Recently Played", "Recent listens", Icons.Default.History, Color(0xFF5C6BC0), recentPlayedOnly))
+        if (recentPlayedOnly.isNotEmpty()) {
+            list.add(
+                SmartPlaylist(
+                    id = "smart_recently_played",
+                    type = SmartPlaylistType.RECENTLY_PLAYED,
+                    title = "Recently Played",
+                    description = "Tracks you listened to recently",
+                    icon = Icons.Default.History,
+                    tintColor = Color(0xFF5C6BC0),
+                    songs = recentPlayedOnly
+                )
+            )
+        }
+
+        // 8. Long Mixes (> 5 minutes)
+        val longTracks = all.filter { it.duration >= 300_000 }
+        if (longTracks.isNotEmpty()) {
+            list.add(
+                SmartPlaylist(
+                    id = "smart_long_tracks",
+                    type = SmartPlaylistType.LONG_TRACKS,
+                    title = "Long Mixes",
+                    description = "Tracks longer than 5 minutes",
+                    icon = Icons.Default.Timer,
+                    tintColor = Color(0xFF8E24AA),
+                    songs = longTracks
+                )
+            )
+        }
+
+        // 9. Quick Hits (< 3 minutes)
+        val quickTracks = all.filter { it.duration in 10_000..180_000 }
+        if (quickTracks.isNotEmpty()) {
+            list.add(
+                SmartPlaylist(
+                    id = "smart_quick_tracks",
+                    type = SmartPlaylistType.SHORT_TRACKS,
+                    title = "Quick Hits",
+                    description = "Short tracks under 3 minutes",
+                    icon = Icons.Default.Bolt,
+                    tintColor = Color(0xFFFDD835),
+                    songs = quickTracks
+                )
+            )
+        }
+
+        // 10. Auto-created Genre Smart Playlists for all detected genres
+        val genreGroups = all.groupBy { it.genre }.filter { it.key.isNotBlank() && !it.key.equals("Unknown", ignoreCase = true) && !it.key.equals("Music", ignoreCase = true) }
+        val genrePalette = listOf(
+            Color(0xFFE91E63), Color(0xFF9C27B0), Color(0xFF673AB7),
+            Color(0xFF3F51B5), Color(0xFF2196F3), Color(0xFF009688),
+            Color(0xFF4CAF50), Color(0xFFFF5722), Color(0xFF795548)
+        )
+        var colorIdx = 0
+        genreGroups.forEach { (genreName, genreSongs) ->
+            if (genreSongs.isNotEmpty()) {
+                val color = genrePalette[colorIdx % genrePalette.size]
+                colorIdx++
+                list.add(
+                    SmartPlaylist(
+                        id = "smart_genre_${genreName.lowercase().replace(" ", "_")}",
+                        type = SmartPlaylistType.GENRE,
+                        title = "$genreName Radio",
+                        description = "All $genreName tracks in library",
+                        icon = Icons.Default.Category,
+                        tintColor = color,
+                        songs = genreSongs,
+                        genreName = genreName
+                    )
+                )
+            }
+        }
+
         list
     }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
+    // Soundbox Insights (Listening Statistics with real, un-simulated listening time)
     val insights: StateFlow<SoundboxInsights> = combine(repository.allSongs, settingsManager.totalListeningTimeMs) { songs, realDurationMs ->
         val playedSongs = songs.filter { it.playCount > 0 }
-        val totalPlayCount = playedSongs.sumOf { it.playCount }
-        SoundboxInsights(
-            totalPlayCount = totalPlayCount,
-            totalPlaytimeMs = realDurationMs,
-            uniqueArtistsCount = playedSongs.map { it.artist }.filter { it.isNotBlank() }.distinct().size,
-            uniqueGenresCount = playedSongs.map { it.genre }.filter { it.isNotBlank() }.distinct().size,
-            topArtists = emptyList(),
-            topGenres = emptyList(),
-            habits = ListeningHabits(0, 0, 0, 0),
-            milestones = emptyList()
-        )
-    }.stateIn(viewModelScope, SharingStarted.Lazily, SoundboxInsights(0, 0L, 0, 0, emptyList(), emptyList(), ListeningHabits(0,0,0,0), emptyList()))
+        val totalPlays = playedSongs.sumOf { it.playCount }
+        val totalDurationMs = realDurationMs
+        val uniqueArtists = playedSongs.map { it.artist }.filter { it.isNotBlank() && it.lowercase() != "unknown" }.distinct().size
+        val uniqueGenres = playedSongs.map { it.genre }.filter { it.isNotBlank() && it.lowercase() != "unknown" }.distinct().size
 
-    val cleanerSummary: StateFlow<CleanerSummary> = allSongs.map { songs ->
-        val groups = songs
-            .groupBy { "${it.title.trim().lowercase()}|${it.artist.trim().lowercase()}" }
-            .filter { it.value.size > 1 }
-            .map { (key, list) ->
-                val first = list.first()
-                DuplicateGroup(
-                    key = key,
-                    title = first.title,
-                    artist = first.artist,
-                    duplicates = list.sortedByDescending { it.size }
-                )
+        // Only include artists with real plays
+        val artistMap = playedSongs.groupBy { it.artist }.filter { it.key.isNotBlank() && it.key.lowercase() != "unknown" }
+        val topArtists = artistMap.map { (artist, list) ->
+            val plays = list.sumOf { it.playCount }
+            ArtistStat(
+                artistName = artist,
+                playCount = plays,
+                trackCount = list.size,
+                percentage = if (totalPlays > 0) (plays.toFloat() / totalPlays.toFloat()) else 0f
+            )
+        }.filter { it.playCount > 0 }.sortedByDescending { it.playCount }.take(5)
+
+        // Only include genres with real plays
+        val genreMap = playedSongs.groupBy { it.genre }.filter { it.key.isNotBlank() && it.key.lowercase() != "unknown" }
+        val totalGenrePlays = genreMap.values.sumOf { list -> list.sumOf { it.playCount } }
+        val topGenres = genreMap.map { (genre, list) ->
+            val plays = list.sumOf { it.playCount }
+            GenreStat(
+                genreName = genre,
+                playCount = plays,
+                percentage = if (totalGenrePlays > 0) (plays.toFloat() / totalGenrePlays.toFloat()) else 0f
+            )
+        }.filter { it.playCount > 0 }.sortedByDescending { it.playCount }.take(5)
+
+        // Real listening habits calculated from actual lastPlayedTime timestamps
+        val songsWithHistory = playedSongs.filter { it.lastPlayedTime > 0 }
+        val habits = if (songsWithHistory.isNotEmpty()) {
+            val morningCount = songsWithHistory.count { 
+                val cal = java.util.Calendar.getInstance().apply { timeInMillis = it.lastPlayedTime }
+                cal.get(java.util.Calendar.HOUR_OF_DAY) in 6..11 
             }
-            .sortedByDescending { it.totalWastedBytes }
+            val afternoonCount = songsWithHistory.count { 
+                val cal = java.util.Calendar.getInstance().apply { timeInMillis = it.lastPlayedTime }
+                cal.get(java.util.Calendar.HOUR_OF_DAY) in 12..17 
+            }
+            val eveningCount = songsWithHistory.count { 
+                val cal = java.util.Calendar.getInstance().apply { timeInMillis = it.lastPlayedTime }
+                cal.get(java.util.Calendar.HOUR_OF_DAY) in 18..22 
+            }
+            val nightCount = songsWithHistory.count { 
+                val cal = java.util.Calendar.getInstance().apply { timeInMillis = it.lastPlayedTime }
+                val h = cal.get(java.util.Calendar.HOUR_OF_DAY)
+                h in 23..24 || h in 0..5
+            }
+            val total = (morningCount + afternoonCount + eveningCount + nightCount)
+            if (total > 0) {
+                ListeningHabits(
+                    morningPercent = (morningCount * 100) / total,
+                    afternoonPercent = (afternoonCount * 100) / total,
+                    eveningPercent = (eveningCount * 100) / total,
+                    lateNightPercent = (nightCount * 100) / total
+                )
+            } else {
+                ListeningHabits(0, 0, 0, 0)
+            }
+        } else {
+            ListeningHabits(0, 0, 0, 0)
+        }
 
-        val lowQuality = songs.filter { it.bitrateKbps in 1..127 }.sortedBy { it.bitrateKbps }
+        val milestones = listOf(
+            ListeningMilestone(
+                id = "m1",
+                title = "Audiophile Explorer",
+                description = "Listen to at least 25 different songs in high quality",
+                progress = (playedSongs.size.toFloat() / 25f).coerceIn(0f, 1f),
+                currentFormatted = "${playedSongs.size} tracks",
+                targetFormatted = "25 tracks",
+                isAchieved = playedSongs.size >= 25
+            ),
+            ListeningMilestone(
+                id = "m2",
+                title = "Genre Connoisseur",
+                description = "Explore tracks across 4 different music genres",
+                progress = (uniqueGenres.toFloat() / 4f).coerceIn(0f, 1f),
+                currentFormatted = "$uniqueGenres genres",
+                targetFormatted = "4 genres",
+                isAchieved = uniqueGenres >= 4
+            ),
+            ListeningMilestone(
+                id = "m3",
+                title = "Marathon Session",
+                description = "Accumulate 2 hours of music listening time",
+                progress = (totalDurationMs.toFloat() / (2 * 3600 * 1000f)).coerceIn(0f, 1f),
+                currentFormatted = "${totalDurationMs / (60 * 1000)} min",
+                targetFormatted = "120 min",
+                isAchieved = totalDurationMs >= 2 * 3600 * 1000
+            ),
+            ListeningMilestone(
+                id = "m4",
+                title = "5-Star Curator",
+                description = "Rate 10 of your favorite tracks with 5 stars",
+                progress = (songs.count { it.rating >= 5 }.toFloat() / 10f).coerceIn(0f, 1f),
+                currentFormatted = "${songs.count { it.rating >= 5 }} rated",
+                targetFormatted = "10 rated",
+                isAchieved = songs.count { it.rating >= 5 } >= 10
+            )
+        )
+
+        SoundboxInsights(
+            totalPlayCount = totalPlays,
+            totalPlaytimeMs = totalDurationMs,
+            uniqueArtistsCount = uniqueArtists,
+            uniqueGenresCount = uniqueGenres,
+            topArtists = topArtists,
+            topGenres = topGenres,
+            habits = habits,
+            milestones = milestones
+        )
+    }.stateIn(viewModelScope, SharingStarted.Lazily, SoundboxInsights(0, 0, 0, 0, emptyList(), emptyList(), ListeningHabits(0, 0, 0, 0), emptyList()))
+
+    // Library Cleaner Summary (Duplicates & Low-Quality Files)
+    val cleanerSummary: StateFlow<CleanerSummary> = repository.allSongs.map { songs ->
+        val grouped = songs.groupBy { "${it.title.trim().lowercase()}:::${it.artist.trim().lowercase()}" }
+        val duplicateGroups = grouped.filter { it.value.size > 1 }.map { (key, dupSongs) ->
+            DuplicateGroup(
+                key = key,
+                title = dupSongs.first().title,
+                artist = dupSongs.first().artist,
+                duplicates = dupSongs
+            )
+        }
+
+        val lowQuality = songs.filter { 
+            it.bitrateKbps < 160 || (it.size in 1..800_000 && it.duration > 45_000)
+        }
+
+        val dupWaste = duplicateGroups.sumOf { it.totalWastedBytes }
+        val lowWaste = lowQuality.sumOf { it.size }
 
         CleanerSummary(
-            duplicateGroups = groups,
+            duplicateGroups = duplicateGroups,
             lowQualityTracks = lowQuality,
-            totalDuplicateWasteBytes = groups.sumOf { it.totalWastedBytes },
-            totalLowQualityBytes = lowQuality.sumOf { it.size }
+            totalDuplicateWasteBytes = dupWaste,
+            totalLowQualityBytes = lowWaste
         )
-    }.stateIn(
-        viewModelScope,
-        SharingStarted.Lazily,
-        CleanerSummary(emptyList(), emptyList(), 0L, 0L)
-    )
+    }.stateIn(viewModelScope, SharingStarted.Lazily, CleanerSummary(emptyList(), emptyList(), 0L, 0L))
 
     init {
+        // Fast instant startup: immediately observe Room DB to show cached songs on frame 0
         viewModelScope.launch {
-            if (allSongs.value.isEmpty()) {
-                _isScanning.value = true
-                try { repository.scanStorage() } catch (_: Exception) {}
-                _isScanning.value = false
-            }
+            repository.allSongs.first()
             _isInitialLoadComplete.value = true
+        }
+
+        viewModelScope.launch(Dispatchers.IO) {
+            val cached = repository.getCachedSongsImmediate()
+            if (cached.isNotEmpty()) {
+                // Background delta sync: fast MediaStore diff without locking DB
+                silentScanStorage()
+            } else {
+                _isScanning.value = true
+                try {
+                    repository.scanStorage()
+                } catch (e: Exception) {
+                    // Safe scan catch
+                } finally {
+                    _isScanning.value = false
+                    _isInitialLoadComplete.value = true
+                }
+            }
+        }
+    }
+
+    private suspend fun silentScanStorage() {
+        try {
+            val newCount = repository.scanStorage()
+            if (newCount > 0) {
+                _scanNotification.value = "Library updated • $newCount new track${if (newCount > 1) "s" else ""} added"
+                viewModelScope.launch {
+                    kotlinx.coroutines.delay(4000)
+                    _scanNotification.value = null
+                }
+            }
+        } catch (e: Exception) {
+            // Squelch and handle scan anomalies
         }
     }
 
@@ -214,20 +569,32 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             _isScanning.value = true
             try {
-                repository.scanStorage()
-                _scanNotification.value = "Library updated"
+                val newCount = repository.scanStorage()
+                if (newCount > 0) {
+                    _scanNotification.value = "Library updated • $newCount new track${if (newCount > 1) "s" else ""} added"
+                    launch {
+                        kotlinx.coroutines.delay(4000)
+                        _scanNotification.value = null
+                    }
+                }
             } catch (e: Exception) {
-                _scanNotification.value = "Scan failed"
+                // Squelch and handle scan anomalies
+            } finally {
+                _isScanning.value = false
             }
-            _isScanning.value = false
         }
     }
 
-    fun playSong(song: Song, customQueue: List<Song> = emptyList()) { playbackManager.playSong(song, customQueue) }
+    // Playback Commands
+    fun playSong(song: Song, customQueue: List<Song> = emptyList()) {
+        playbackManager.playSong(song, customQueue)
+    }
+
     fun playNext(song: Song) = playbackManager.playNext(song)
     fun addToQueue(song: Song) = playbackManager.addToQueue(song)
     fun removeFromQueue(index: Int) = playbackManager.removeFromQueue(index)
     fun clearQueue() = playbackManager.clearQueue()
+    
     fun playPause() = playbackManager.playPause()
     fun skipNext() = playbackManager.skipNext()
     fun skipPrevious() = playbackManager.skipPrevious()
@@ -238,33 +605,181 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     fun setRepeatMode(mode: Int) = playbackManager.setRepeatMode(mode)
     fun setPlaybackRate(speed: Float, pitch: Float) = playbackManager.setPlaybackRate(speed, pitch)
     fun setPlaybackSpeed(speed: Float) = playbackManager.setPlaybackRate(speed, playbackPitch.value)
-    fun setPlaybackPitch(pitch: Float) = playbackManager.setPlaybackPitch(pitch)
+    
     fun toggleEqualizer() = playbackManager.toggleEqualizer()
     fun setEqBandLevel(bandIndex: Int, levelDb: Float) = playbackManager.setEqBandLevel(bandIndex, levelDb)
-    fun setPreampGain(gain: Float) = playbackManager.setPreampGain(gain)
+    fun setPreampGain(gainDb: Float) = playbackManager.setPreampGain(gainDb)
+    fun setTrebleGain(gainDb: Float) = playbackManager.setTrebleGain(gainDb)
     fun setBassBoost(strength: Int) = playbackManager.setBassBoost(strength)
     fun setBassBoostStrength(strength: Int) = playbackManager.setBassBoost(strength)
-    fun setTrebleGain(gain: Float) = playbackManager.setTrebleGain(gain)
     fun setVirtualizerStrength(strength: Int) = playbackManager.setVirtualizerStrength(strength)
     fun setAudioBalance(balance: Float) = playbackManager.setAudioBalance(balance)
-    fun setReverbPreset(preset: Int) = playbackManager.setReverbPreset(preset)
-    fun applyPowerampPreset(presetName: String, bandGains: List<Float>, bassBoost: Int = 300, treble: Float = 0f, virtualizer: Int = 0, reverb: Int = 0) =
-        playbackManager.applyPowerampPreset(presetName, bandGains, bassBoost, treble, virtualizer, reverb)
+    fun setReverbPreset(presetId: Int) = playbackManager.setReverbPreset(presetId)
+    fun applyPowerampPreset(
+        presetName: String,
+        bandGains: List<Float>,
+        bassBoost: Int = 300,
+        treble: Float = 0f,
+        virtualizer: Int = 0,
+        reverb: Int = 0
+    ) = playbackManager.applyPowerampPreset(presetName, bandGains, bassBoost, treble, virtualizer, reverb)
     fun resetEqualizerToFlat() = playbackManager.resetEqualizerToFlat()
+
     fun startSleepTimer(minutes: Int, fadeOutAtEnd: Boolean = true) = playbackManager.startSleepTimer(minutes, fadeOutAtEnd)
     fun startSleepTimerSeconds(seconds: Int, fadeOutAtEnd: Boolean = true) = playbackManager.startSleepTimerSeconds(seconds, fadeOutAtEnd)
     fun startSleepTimerEndOfTrack(fadeOutAtEnd: Boolean = true) = playbackManager.startSleepTimerEndOfTrack(fadeOutAtEnd)
     fun extendSleepTimer(minutes: Int = 5) = playbackManager.extendSleepTimer(minutes)
     fun stopSleepTimer() = playbackManager.stopSleepTimer()
-    fun toggleFavorite(song: Song) { playbackManager.toggleFavorite(song) }
 
+    fun toggleFavorite(song: Song) {
+        playbackManager.toggleFavorite(song)
+    }
+
+    fun updateSongRating(song: Song, rating: Int) {
+        viewModelScope.launch {
+            val clamped = rating.coerceIn(0, 5)
+            repository.updateRating(song.id, clamped)
+            val updated = song.copy(rating = clamped)
+            if (currentSong.value?.id == song.id) {
+                playbackManager.refreshCurrentSongMetadata(updated)
+            }
+        }
+    }
+
+    fun updateSongMetadata(updatedSong: Song, newLyrics: String? = null, onComplete: (() -> Unit)? = null) {
+        viewModelScope.launch {
+            val result = repository.updateSongMetadata(updatedSong, newLyrics)
+            if (result.intentSender != null) {
+                _pendingWriteSong.value = updatedSong
+                _pendingWriteLyrics.value = newLyrics
+                _pendingWriteSender.value = result.intentSender
+            } else if (result.success) {
+                playbackManager.refreshCurrentSongMetadata(updatedSong)
+                onComplete?.invoke()
+            }
+        }
+    }
+
+    fun confirmPendingWrite(onSuccess: (() -> Unit)? = null) {
+        viewModelScope.launch {
+            val singleSong = _pendingWriteSong.value
+            val batchSongs = _pendingBatchWriteSongs.value
+            if (singleSong != null) {
+                repository.confirmPendingWrite(singleSong, _pendingWriteLyrics.value)
+                playbackManager.refreshCurrentSongMetadata(singleSong)
+                _pendingWriteSong.value = null
+                _pendingWriteLyrics.value = null
+                onSuccess?.invoke()
+            } else if (batchSongs.isNotEmpty()) {
+                repository.confirmPendingBatchWrite(batchSongs)
+                currentSong.value?.let { curr ->
+                    batchSongs.find { it.id == curr.id }?.let { updatedCurr ->
+                        playbackManager.refreshCurrentSongMetadata(updatedCurr)
+                    }
+                }
+                _pendingBatchWriteSongs.value = emptyList()
+                onSuccess?.invoke()
+            }
+        }
+    }
+
+    fun cancelPendingWrite() {
+        _pendingWriteSong.value = null
+        _pendingWriteLyrics.value = null
+        _pendingBatchWriteSongs.value = emptyList()
+        _pendingWriteSender.value = null
+    }
+
+    fun clearPendingWriteSender() {
+        _pendingWriteSender.value = null
+    }
+
+    fun cutAndReplaceSong(
+        song: Song,
+        startMs: Long,
+        endMs: Long,
+        onResult: (Boolean, String?) -> Unit
+    ) {
+        cutSong(
+            song = song,
+            startMs = startMs,
+            endMs = endMs,
+            targetTitle = "${song.title} (Trimmed)",
+            saveMode = com.example.util.AudioCutter.SaveMode.REPLACE_ORIGINAL,
+            onResult = onResult
+        )
+    }
+
+    fun cutSong(
+        song: Song,
+        startMs: Long,
+        endMs: Long,
+        targetTitle: String = "${song.title} (Trimmed)",
+        saveMode: com.example.util.AudioCutter.SaveMode = com.example.util.AudioCutter.SaveMode.NEW_TRACK,
+        onResult: (Boolean, String?) -> Unit
+    ) {
+        viewModelScope.launch {
+            val result = repository.cutSong(song, startMs, endMs, targetTitle, saveMode)
+            if (result.success) {
+                if (saveMode == com.example.util.AudioCutter.SaveMode.REPLACE_ORIGINAL) {
+                    val updatedSong = song.copy(
+                        duration = result.newDurationMs,
+                        size = result.newSizeBytes
+                    )
+                    playbackManager.onSongTrimmed(updatedSong)
+                }
+                onResult(true, null)
+            } else {
+                onResult(false, result.errorMessage ?: "Failed to cut song")
+            }
+        }
+    }
+
+    fun batchUpdateMetadata(
+        songsToUpdate: List<Song>,
+        artist: String?,
+        album: String?,
+        genre: String?,
+        rating: Int?,
+        onComplete: (() -> Unit)? = null
+    ) {
+        viewModelScope.launch {
+            val updatedList = songsToUpdate.map { song ->
+                song.copy(
+                    artist = if (!artist.isNullOrBlank()) artist.trim() else song.artist,
+                    album = if (!album.isNullOrBlank()) album.trim() else song.album,
+                    genre = if (!genre.isNullOrBlank()) genre.trim() else song.genre,
+                    rating = rating?.coerceIn(0, 5) ?: song.rating
+                )
+            }
+            val result = repository.batchUpdateMetadata(updatedList)
+            if (result.intentSender != null) {
+                _pendingBatchWriteSongs.value = result.updatedSongs
+                _pendingWriteSender.value = result.intentSender
+            } else {
+                currentSong.value?.let { curr ->
+                    updatedList.find { it.id == curr.id }?.let { updatedCurr ->
+                        playbackManager.refreshCurrentSongMetadata(updatedCurr)
+                    }
+                }
+                onComplete?.invoke()
+            }
+        }
+    }
+
+    /**
+     * Completely deletes a song from physical disk, MediaStore, and Room database.
+     * Safely handles currently playing track by advancing or stopping playback.
+     */
     fun deleteSongFromDevice(song: Song, onComplete: (() -> Unit)? = null) {
         viewModelScope.launch {
-            val currentId = currentSong.value?.id
-            if (currentId == song.id) {
-                val remaining = queue.value.filter { it.id != song.id }
-                if (remaining.isNotEmpty()) playbackManager.playSong(remaining.first(), remaining)
-                else playbackManager.clearQueue()
+            if (currentSong.value?.id == song.id) {
+                val currentQueue = queue.value
+                if (currentQueue.size > 1) {
+                    playbackManager.skipNext()
+                } else {
+                    playbackManager.clearQueue()
+                }
             }
             val result = repository.deleteSongsPermanently(listOf(song))
             if (result.intentSender != null) {
@@ -281,8 +796,11 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             val currentId = currentSong.value?.id
             if (currentId != null && songsToDelete.any { it.id == currentId }) {
                 val remaining = queue.value.filter { q -> songsToDelete.none { it.id == q.id } }
-                if (remaining.isNotEmpty()) playbackManager.playSong(remaining.first(), remaining)
-                else playbackManager.clearQueue()
+                if (remaining.isNotEmpty()) {
+                    playbackManager.playSong(remaining.first(), remaining)
+                } else {
+                    playbackManager.clearQueue()
+                }
             }
             val result = repository.deleteSongsPermanently(songsToDelete)
             if (result.intentSender != null) {
@@ -310,82 +828,21 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         _pendingDeleteSender.value = null
     }
 
-    fun clearPendingDeleteSender() { _pendingDeleteSender.value = null }
-    fun deleteSongs(songsToDelete: List<Song>) { deleteSongsBatchFromDevice(songsToDelete) }
-
-    fun confirmPendingWrite(onSuccess: (() -> Unit)? = null) {
-        viewModelScope.launch {
-            val song = _pendingWriteSong.value
-            val lyrics = _pendingWriteLyrics.value
-            val batch = _pendingBatchWriteSongs.value
-            if (song != null && lyrics != null) {
-                try { repository.confirmPendingWrite(song, lyrics) } catch (_: Exception) {}
-            } else if (batch.isNotEmpty()) {
-                try { repository.confirmPendingBatchWrite(batch) } catch (_: Exception) {}
-            }
-            _pendingWriteSong.value = null
-            _pendingWriteLyrics.value = null
-            _pendingBatchWriteSongs.value = emptyList()
-            onSuccess?.invoke()
-        }
+    fun clearPendingDeleteSender() {
+        _pendingDeleteSender.value = null
     }
 
-    fun cancelPendingWrite() {
-        _pendingWriteSong.value = null
-        _pendingWriteLyrics.value = null
-        _pendingBatchWriteSongs.value = emptyList()
-        _pendingWriteSender.value = null
-    }
-
-    fun clearPendingWriteSender() { _pendingWriteSender.value = null }
-
-    fun createPlaylist(name: String) { viewModelScope.launch { repository.createPlaylist(name) } }
-    fun deletePlaylist(playlistId: Long) { viewModelScope.launch { repository.deletePlaylist(playlistId) } }
-    fun addSongToPlaylist(playlistId: Long, songId: String) { viewModelScope.launch { repository.addSongToPlaylist(playlistId, songId) } }
-    fun removeSongFromPlaylist(playlistId: Long, songId: String) { viewModelScope.launch { repository.removeSongFromPlaylist(playlistId, songId) } }
-    fun setSongRating(song: Song, rating: Int) { viewModelScope.launch { repository.updateRating(song.id, rating) } }
-    fun updateSongRating(song: Song, rating: Int) = setSongRating(song, rating)
-
-    fun updateSongMetadata(song: Song, newLyrics: String? = null) {
-        viewModelScope.launch {
-            try {
-                repository.updateSongMetadata(song, newLyrics)
-                playbackManager.refreshCurrentSongMetadata(song)
-            } catch (_: Exception) {}
-        }
-    }
-
-    fun cutSong(
-        song: Song,
-        startMs: Long,
-        endMs: Long,
-        targetTitle: String,
-        saveMode: com.example.util.AudioCutter.SaveMode,
-        onComplete: ((Boolean, String?) -> Unit)? = null
-    ) {
-        viewModelScope.launch {
-            try {
-                val result = repository.cutSong(song, startMs, endMs, targetTitle, saveMode)
-                if (result.success) {
-                    result.savedSong?.let { playbackManager.refreshCurrentSongMetadata(it) }
-                    if (saveMode == com.example.util.AudioCutter.SaveMode.REPLACE_ORIGINAL) {
-                        playbackManager.onSongTrimmed(
-                            song.copy(duration = result.newDurationMs, size = result.newSizeBytes)
-                        )
-                    }
-                }
-                onComplete?.invoke(result.success, result.errorMessage)
-            } catch (e: Exception) {
-                onComplete?.invoke(false, e.message)
-            }
-        }
+    fun deleteSongs(songsToDelete: List<Song>) {
+        deleteSongsBatchFromDevice(songsToDelete)
     }
 
     fun cleanDuplicateGroup(group: DuplicateGroup, keepBest: Boolean = true) {
         viewModelScope.launch {
             if (group.duplicates.size <= 1) return@launch
             val sorted = group.duplicates.sortedWith(
-                compareByDescending<Song> { it.bitrateKbps }.thenByDescending { it.size }.thenByDescending { it.rating }
+                compareByDescending<Song> { it.bitrateKbps }
+                    .thenByDescending { it.size }
+                    .thenByDescending { it.rating }
             )
             val toDelete = if (keepBest) sorted.drop(1) else group.duplicates
             repository.deleteSongsBatch(toDelete.map { it.id })
@@ -394,47 +851,78 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
     fun cleanAllDuplicates() {
         viewModelScope.launch {
-            val groups = cleanerSummary.value.duplicateGroups
-            for (group in groups) {
-                cleanDuplicateGroup(group, keepBest = true)
+            val summary = cleanerSummary.value
+            val toDeleteIds = mutableListOf<String>()
+            summary.duplicateGroups.forEach { group ->
+                if (group.duplicates.size > 1) {
+                    val sorted = group.duplicates.sortedWith(
+                        compareByDescending<Song> { it.bitrateKbps }
+                            .thenByDescending { it.size }
+                            .thenByDescending { it.rating }
+                    )
+                    toDeleteIds.addAll(sorted.drop(1).map { it.id })
+                }
+            }
+            if (toDeleteIds.isNotEmpty()) {
+                repository.deleteSongsBatch(toDeleteIds)
             }
         }
     }
 
     fun cleanLowQualityTracks(tracks: List<Song>) {
-        deleteSongsBatchFromDevice(tracks)
+        viewModelScope.launch {
+            if (tracks.isNotEmpty()) {
+                repository.deleteSongsBatch(tracks.map { it.id })
+            }
+        }
+    }
+
+    // Playlist Commands
+    fun createPlaylist(name: String) {
+        viewModelScope.launch {
+            repository.createPlaylist(name)
+        }
     }
 
     fun createPlaylistWithSongs(name: String, songIds: List<String>) {
         viewModelScope.launch {
-            try {
-                repository.createPlaylistWithSongs(name, songIds)
-            } catch (_: Exception) {}
+            repository.createPlaylistWithSongs(name, songIds)
+        }
+    }
+
+    fun saveSmartPlaylistAsCustom(smartPlaylist: SmartPlaylist) {
+        viewModelScope.launch {
+            val songIds = smartPlaylist.songs.map { it.id }
+            repository.createPlaylistWithSongs(smartPlaylist.title, songIds)
         }
     }
 
     fun autoGenerateSmartPlaylists() {
         viewModelScope.launch {
-            val smarts = smartPlaylists.value
-            for (sp in smarts) {
-                try {
-                    val ids = sp.songs.map { it.id }
-                    if (ids.isNotEmpty()) {
-                        repository.createPlaylistWithSongs(sp.title, ids)
-                    }
-                } catch (_: Exception) {}
+            val currentSmartPlaylists = smartPlaylists.value
+            currentSmartPlaylists.forEach { sp ->
+                if (sp.songs.isNotEmpty()) {
+                    repository.createPlaylistWithSongs(sp.title, sp.songs.map { it.id })
+                }
             }
         }
     }
 
-    fun saveSmartPlaylistAsCustom(smart: SmartPlaylist) {
+    fun deletePlaylist(playlistId: Long) {
         viewModelScope.launch {
-            try {
-                val ids = smart.songs.map { it.id }
-                if (ids.isNotEmpty()) {
-                    repository.createPlaylistWithSongs(smart.title, ids)
-                }
-            } catch (_: Exception) {}
+            repository.deletePlaylist(playlistId)
+        }
+    }
+
+    fun addSongToPlaylist(playlistId: Long, songId: String) {
+        viewModelScope.launch {
+            repository.addSongToPlaylist(playlistId, songId)
+        }
+    }
+
+    fun removeSongFromPlaylist(playlistId: Long, songId: String) {
+        viewModelScope.launch {
+            repository.removeSongFromPlaylist(playlistId, songId)
         }
     }
 }
