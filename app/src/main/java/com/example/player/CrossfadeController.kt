@@ -3,10 +3,10 @@ package com.example.player
 import android.os.SystemClock
 import android.util.Log
 import androidx.media3.common.MediaItem
-import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import com.example.data.model.Song
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -15,31 +15,28 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 /**
- * Poweramp / Musicolet style dual-player overlap.
- * Equal-power curve: outgoing = master * cos(π/2 · t), incoming = master * sin(π/2 · t).
- * Both players must use handleAudioFocus=false; focus is owned by PlaybackManager.
- *
- * Robust ready-wait + hard-cut fallback so Bluetooth / slow storage never produces
- * a silent or 0.5s-then-stop crossfade.
+ * Poweramp-style equal-power dual-player crossfade controller.
+ * Manages smooth volume curves and seamless track transitions between dual ExoPlayer instances.
  */
 class CrossfadeController(
     private val scope: CoroutineScope,
-    private val buildMediaItem: (Song) -> MediaItem
+    private val mediaItemBuilder: (Song) -> MediaItem
 ) {
-    @Volatile var isCrossfading: Boolean = false
-        private set
-
-    @Volatile var activeSongId: String? = null
-        private set
-
-    private var job: Job? = null
-
-    fun cancel() {
-        job?.cancel()
-        job = null
-        isCrossfading = false
-        activeSongId = null
+    companion object {
+        private const val TAG = "CrossfadeController"
     }
+
+    @Volatile
+    private var _isCrossfading: Boolean = false
+    val isCrossfading: Boolean get() = _isCrossfading
+
+    @Volatile
+    private var _activeSongId: String? = null
+    val activeSongId: String? get() = _activeSongId
+
+    private var crossfadeJob: Job? = null
+    private var currentOutgoing: ExoPlayer? = null
+    private var currentIncoming: ExoPlayer? = null
 
     fun start(
         outgoing: ExoPlayer,
@@ -47,69 +44,48 @@ class CrossfadeController(
         nextSong: Song,
         durationMs: Long,
         masterVolume: Float,
-        onFinished: () -> Unit
+        onComplete: () -> Unit
     ) {
         cancel()
-        isCrossfading = true
-        activeSongId = nextSong.id
-        val fadeMs = durationMs.coerceIn(1000L, 12000L)
-        val master = masterVolume.coerceIn(0.05f, 1.0f)
+        _isCrossfading = true
+        _activeSongId = nextSong.id
+        currentOutgoing = outgoing
+        currentIncoming = incoming
+
+        val fadeDuration = durationMs.coerceIn(1000L, 12000L)
 
         try {
             incoming.stop()
             incoming.clearMediaItems()
-            incoming.setMediaItem(buildMediaItem(nextSong))
+            incoming.setMediaItem(mediaItemBuilder(nextSong))
             incoming.volume = 0f
             incoming.prepare()
             incoming.playWhenReady = true
             incoming.play()
         } catch (e: Exception) {
-            Log.e("CrossfadeController", "Incoming prepare failed", e)
-            isCrossfading = false
-            activeSongId = null
-            onFinished()
+            Log.e(TAG, "Failed to start incoming player for crossfade", e)
+            _isCrossfading = false
+            _activeSongId = null
+            onComplete()
             return
         }
 
-        job = scope.launch {
-            val readyDeadline = SystemClock.elapsedRealtime() + 3500L
-            var becameReady = false
-            while (isActive && SystemClock.elapsedRealtime() < readyDeadline) {
-                val st = try { incoming.playbackState } catch (_: Exception) { Player.STATE_IDLE }
-                if (st == Player.STATE_READY) {
-                    becameReady = true
-                    break
-                }
-                if (st == Player.STATE_BUFFERING || st == Player.STATE_IDLE) {
-                    try {
-                        incoming.playWhenReady = true
-                        if (!incoming.isPlaying) incoming.play()
-                    } catch (_: Exception) {}
-                }
-                delay(32L)
-            }
-
-            if (!becameReady) {
-                Log.w("CrossfadeController", "Incoming never READY — hard cut instead of silent fade")
-                hardSwitch(outgoing, incoming, master, onFinished)
-                return@launch
-            }
-
-            try {
-                incoming.volume = 0f
-                incoming.playWhenReady = true
-                if (!incoming.isPlaying) incoming.play()
-            } catch (_: Exception) {}
-
-            val started = SystemClock.elapsedRealtime()
+        crossfadeJob = scope.launch(Dispatchers.Main) {
+            val startTime = SystemClock.elapsedRealtime()
             try {
                 while (isActive) {
-                    val t = ((SystemClock.elapsedRealtime() - started).toFloat() / fadeMs.toFloat()).coerceIn(0f, 1f)
+                    val elapsed = SystemClock.elapsedRealtime() - startTime
+                    val progress = (elapsed.toFloat() / fadeDuration.toFloat()).coerceIn(0f, 1f)
+                    val phase = (Math.PI / 2.0 * progress).toFloat()
+                    val outVol = (masterVolume * cos(phase)).coerceIn(0f, 1f)
+                    val inVol = (masterVolume * sin(phase)).coerceIn(0f, 1f)
+
                     try {
-                        outgoing.volume = (master * cos((Math.PI / 2.0) * t)).toFloat().coerceIn(0f, 1f)
-                        incoming.volume = (master * sin((Math.PI / 2.0) * t)).toFloat().coerceIn(0f, 1f)
+                        outgoing.volume = outVol
+                        incoming.volume = inVol
                     } catch (_: Exception) {}
-                    if (t >= 1f) break
+
+                    if (progress >= 1f) break
                     delay(16L)
                 }
             } finally {
@@ -117,39 +93,33 @@ class CrossfadeController(
                     outgoing.pause()
                     outgoing.stop()
                     outgoing.clearMediaItems()
-                    outgoing.volume = master
                 } catch (_: Exception) {}
                 try {
-                    incoming.volume = master
-                    incoming.playWhenReady = true
-                    if (!incoming.isPlaying) incoming.play()
+                    incoming.volume = masterVolume
                 } catch (_: Exception) {}
-                isCrossfading = false
-                activeSongId = null
-                onFinished()
+
+                _isCrossfading = false
+                _activeSongId = null
+                currentOutgoing = null
+                currentIncoming = null
+                onComplete()
             }
         }
     }
 
-    private fun hardSwitch(
-        outgoing: ExoPlayer,
-        incoming: ExoPlayer,
-        master: Float,
-        onFinished: () -> Unit
-    ) {
-        try {
-            outgoing.pause()
-            outgoing.stop()
-            outgoing.clearMediaItems()
-            outgoing.volume = master
-        } catch (_: Exception) {}
-        try {
-            incoming.volume = master
-            incoming.playWhenReady = true
-            incoming.play()
-        } catch (_: Exception) {}
-        isCrossfading = false
-        activeSongId = null
-        onFinished()
+    fun cancel() {
+        crossfadeJob?.cancel()
+        crossfadeJob = null
+        if (_isCrossfading) {
+            _isCrossfading = false
+            _activeSongId = null
+            try {
+                currentIncoming?.pause()
+                currentIncoming?.stop()
+                currentIncoming?.clearMediaItems()
+            } catch (_: Exception) {}
+            currentOutgoing = null
+            currentIncoming = null
+        }
     }
 }

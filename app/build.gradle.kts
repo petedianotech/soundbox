@@ -47,7 +47,7 @@ android {
 
     // Phone APKs only need ARM; dropping x86/x86_64 cuts native + Media3 decoder duplicates hard
     ndk {
-      abiFilters += listOf("armeabi-v7a", "arm64-v8a")
+      abiFilters += listOf("armeabi-v7a", "arm64-v8a", "x86_64")
     }
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

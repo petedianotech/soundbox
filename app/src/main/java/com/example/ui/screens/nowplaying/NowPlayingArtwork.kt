@@ -73,7 +73,16 @@ internal fun ArtworkMainStage(
                 .background(colors.surfaceElevated),
             contentAlignment = Alignment.Center
         ) {
-            SongImagePlaceholder(modifier = Modifier.fillMaxSize())
+            com.example.ui.components.ArtworkThumbnail(
+                songId = song.id,
+                title = song.title,
+                artist = song.artist,
+                genre = song.genre,
+                path = song.path,
+                size = 260f,
+                isCircle = false,
+                modifier = Modifier.fillMaxSize()
+            )
         }
         Spacer(modifier = Modifier.height(20.dp))
         Text(

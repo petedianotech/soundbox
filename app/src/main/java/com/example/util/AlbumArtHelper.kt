@@ -81,9 +81,28 @@ object AlbumArtHelper {
         }
     }
 
+    fun decodeResourceToBitmap(context: Context, resId: Int, width: Int = 512, height: Int = 512): Bitmap? {
+        return try {
+            val drawable = androidx.core.content.ContextCompat.getDrawable(context, resId) ?: return null
+            if (drawable is android.graphics.drawable.BitmapDrawable && drawable.bitmap != null) {
+                return drawable.bitmap
+            }
+            val w = if (drawable.intrinsicWidth > 0) drawable.intrinsicWidth else width
+            val h = if (drawable.intrinsicHeight > 0) drawable.intrinsicHeight else height
+            val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+            val canvas = android.graphics.Canvas(bitmap)
+            drawable.setBounds(0, 0, canvas.width, canvas.height)
+            drawable.draw(canvas)
+            bitmap
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to render resource $resId to bitmap", e)
+            null
+        }
+    }
+
     fun assignStudioThemeToSong(context: Context, song: Song, resId: Int): Boolean {
         return try {
-            val bitmap = BitmapFactory.decodeResource(context.resources, resId) ?: return false
+            val bitmap = decodeResourceToBitmap(context, resId) ?: return false
             val success = saveCustomArtwork(context, song, bitmap)
             if (success) {
                 memoryArtMap[song.id] = resId
@@ -238,7 +257,7 @@ object AlbumArtHelper {
                 BitmapFactory.decodeFile(customFile.absolutePath)
             } else {
                 val resId = getAlbumArtResId(song, context)
-                BitmapFactory.decodeResource(context.resources, resId)
+                decodeResourceToBitmap(context, resId)
             }
         } catch (e: Exception) {
             null

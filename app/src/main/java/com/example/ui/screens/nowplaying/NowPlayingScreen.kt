@@ -56,6 +56,7 @@ fun NowPlayingScreen(
     val keepScreenAwake by settingsManager.keepScreenOn.collectAsState()
 
     var showTimerDialog by remember { mutableStateOf(false) }
+    var showSongOptionsSheet by remember { mutableStateOf(false) }
     var totalDrag by remember { mutableStateOf(0f) }
 
     DisposableEffect(keepScreenAwake) {
@@ -80,6 +81,11 @@ fun NowPlayingScreen(
     val colors = SoundboxTheme.colors
     val accentColor = colors.accentCyan
     val progress = if (duration > 0L) (position.toFloat() / duration.toFloat()).coerceIn(0f, 1f) else 0f
+
+    var isDraggingSlider by remember { mutableStateOf(false) }
+    var dragSliderFraction by remember { mutableFloatStateOf(0f) }
+    val currentDisplayFraction = if (isDraggingSlider) dragSliderFraction else progress
+    val currentDisplayPosition = if (isDraggingSlider && duration > 0L) (dragSliderFraction * duration).toLong() else position
 
     Scaffold(
         topBar = {
@@ -131,6 +137,42 @@ fun NowPlayingScreen(
                             )
                         }
                     }
+
+                    Spacer(modifier = Modifier.width(6.dp))
+
+                    Surface(
+                        onClick = onNavigateToLyricsCreator,
+                        shape = CircleShape,
+                        color = colors.surfaceElevated.copy(alpha = 0.9f),
+                        modifier = Modifier.size(38.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                Icons.Default.Lyrics,
+                                contentDescription = "Lyrics Editor",
+                                tint = colors.textPrimary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(6.dp))
+
+                    Surface(
+                        onClick = { showSongOptionsSheet = true },
+                        shape = CircleShape,
+                        color = colors.surfaceElevated.copy(alpha = 0.9f),
+                        modifier = Modifier.padding(end = 12.dp).size(38.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                Icons.Default.MoreVert,
+                                contentDescription = "Song options",
+                                tint = colors.textPrimary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
             )
@@ -170,7 +212,16 @@ fun NowPlayingScreen(
                         .background(colors.surfaceElevated),
                     contentAlignment = Alignment.Center
                 ) {
-                    SongImagePlaceholder(modifier = Modifier.fillMaxSize())
+                    com.example.ui.components.ArtworkThumbnail(
+                        songId = song.id,
+                        title = song.title,
+                        artist = song.artist,
+                        genre = song.genre,
+                        path = song.path,
+                        size = 280f,
+                        isCircle = false,
+                        modifier = Modifier.fillMaxSize()
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(28.dp))
@@ -197,9 +248,16 @@ fun NowPlayingScreen(
 
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Slider(
-                        value = progress,
+                        value = currentDisplayFraction,
                         onValueChange = { frac ->
-                            if (duration > 0L) viewModel.seekTo((frac * duration).toLong())
+                            isDraggingSlider = true
+                            dragSliderFraction = frac
+                        },
+                        onValueChangeFinished = {
+                            if (duration > 0L) {
+                                viewModel.seekTo((dragSliderFraction * duration).toLong())
+                            }
+                            isDraggingSlider = false
                         },
                         colors = SliderDefaults.colors(
                             thumbColor = accentColor,
@@ -211,7 +269,7 @@ fun NowPlayingScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(formatDuration(position), color = colors.textSecondary, fontSize = 12.sp)
+                        Text(formatDuration(currentDisplayPosition), color = colors.textSecondary, fontSize = 12.sp)
                         Text(formatDuration(duration), color = colors.textSecondary, fontSize = 12.sp)
                     }
                 }
@@ -315,5 +373,14 @@ fun NowPlayingScreen(
 
     if (showTimerDialog) {
         com.example.ui.components.SleepTimerDialog(viewModel = viewModel, onDismiss = { showTimerDialog = false })
+    }
+
+    if (showSongOptionsSheet) {
+        com.example.ui.components.SongOptionsBottomSheet(
+            song = song,
+            viewModel = viewModel,
+            onDismiss = { showSongOptionsSheet = false },
+            onNavigateToLyrics = onNavigateToLyricsCreator
+        )
     }
 }

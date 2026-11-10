@@ -40,14 +40,17 @@ class HeadsetPlugReceiver : BroadcastReceiver() {
                 if (lastWiredState == state && state != -1) {
                     return
                 }
+                val previousState = lastWiredState
                 lastWiredState = state
 
                 when (state) {
                     0 -> {
-                        // Unplugged -> Auto-pause if enabled
-                        Log.d(TAG, "Headset unplugged event detected")
-                        if (settings.autoPauseOnHeadphoneUnplug.value) {
-                            playbackManager.pauseOnHeadsetDisconnected()
+                        // Unplugged -> Auto-pause only if headphones were previously plugged in!
+                        if (previousState == 1) {
+                            Log.d(TAG, "Headset unplugged event detected from active wired connection")
+                            if (settings.autoPauseOnHeadphoneUnplug.value) {
+                                playbackManager.pauseOnHeadsetDisconnected()
+                            }
                         }
                     }
                     1 -> {
