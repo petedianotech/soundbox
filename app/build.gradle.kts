@@ -55,7 +55,7 @@ android {
 
   signingConfigs {
     getByName("debug") {
-      val ksFile = file("${rootDir}/debug.keystore")
+      val ksFile = rootProject.file("debug.keystore")
       if (ksFile.exists()) {
         storeFile = ksFile
         storePassword = "android"
@@ -64,21 +64,31 @@ android {
       }
     }
     create("release") {
-      val keystorePath = System.getenv("KEYSTORE_PATH") ?: "${rootDir}/my-upload-key.jks"
-      val keystoreFile = file(keystorePath)
-      if (keystoreFile.exists()) {
+      val envPath = System.getenv("KEYSTORE_PATH")
+      val hasCustomKeystore = when {
+        !envPath.isNullOrEmpty() && file(envPath).isAbsolute && file(envPath).exists() -> true
+        !envPath.isNullOrEmpty() && rootProject.file(envPath).exists() -> true
+        !envPath.isNullOrEmpty() && file(envPath).exists() -> true
+        rootProject.file("my-upload-key.jks").exists() -> true
+        else -> false
+      }
+      val keystoreFile = when {
+        !envPath.isNullOrEmpty() && file(envPath).isAbsolute && file(envPath).exists() -> file(envPath)
+        !envPath.isNullOrEmpty() && rootProject.file(envPath).exists() -> rootProject.file(envPath)
+        !envPath.isNullOrEmpty() && file(envPath).exists() -> file(envPath)
+        rootProject.file("my-upload-key.jks").exists() -> rootProject.file("my-upload-key.jks")
+        else -> rootProject.file("debug.keystore")
+      }
+      if (hasCustomKeystore && keystoreFile.exists()) {
         storeFile = keystoreFile
-        storePassword = System.getenv("KEYSTORE_PASSWORD") ?: System.getenv("STORE_PASSWORD")
+        storePassword = System.getenv("KEYSTORE_PASSWORD") ?: System.getenv("STORE_PASSWORD") ?: "SoundBox2026Key!"
         keyAlias = System.getenv("KEY_ALIAS") ?: "upload"
-        keyPassword = System.getenv("KEY_PASSWORD")
-      } else {
-        val ksFile = file("${rootDir}/debug.keystore")
-        if (ksFile.exists()) {
-          storeFile = ksFile
-          storePassword = "android"
-          keyAlias = "androiddebugkey"
-          keyPassword = "android"
-        }
+        keyPassword = System.getenv("KEY_PASSWORD") ?: System.getenv("KEYSTORE_PASSWORD") ?: System.getenv("STORE_PASSWORD") ?: "SoundBox2026Key!"
+      } else if (keystoreFile.exists()) {
+        storeFile = keystoreFile
+        storePassword = "android"
+        keyAlias = "androiddebugkey"
+        keyPassword = "android"
       }
     }
   }
@@ -93,12 +103,7 @@ android {
         "proguard-rules.pro"
       )
 
-      val keystorePath = System.getenv("KEYSTORE_PATH") ?: "${rootDir}/my-upload-key.jks"
-      if (file(keystorePath).exists()) {
-        signingConfig = signingConfigs.getByName("release")
-      } else {
-        signingConfig = signingConfigs.getByName("debug")
-      }
+      signingConfig = signingConfigs.getByName("release")
     }
     debug {
       signingConfig = signingConfigs.getByName("debug")

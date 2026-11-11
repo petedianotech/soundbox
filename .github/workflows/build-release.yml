@@ -59,7 +59,8 @@ jobs:
           export STORE_PASSWORD="${SECRET_KEYSTORE_PASSWORD:-SoundBox2026Key!}"
           export KEY_ALIAS="${SECRET_KEY_ALIAS:-upload}"
           export KEY_PASSWORD="${SECRET_KEY_PASSWORD:-${SECRET_KEYSTORE_PASSWORD:-SoundBox2026Key!}}"
-          export KEYSTORE_PATH="my-upload-key.jks"
+          export KEYSTORE_PATH="${{ github.workspace }}/my-upload-key.jks"
+          echo "Building Release APK with KEYSTORE_PATH=$KEYSTORE_PATH"
           gradle :app:assembleRelease --no-daemon -Djava.awt.headless=true
 
       - name: Upload Release APK
