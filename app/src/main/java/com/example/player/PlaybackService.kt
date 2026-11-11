@@ -80,7 +80,12 @@ class PlaybackService : MediaSessionService() {
         // Register screen off receiver for lockscreen player
         try {
             val filter = IntentFilter(Intent.ACTION_SCREEN_OFF)
-            registerReceiver(screenOffReceiver, filter)
+            androidx.core.content.ContextCompat.registerReceiver(
+                this,
+                screenOffReceiver,
+                filter,
+                androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
+            )
             isScreenOffReceiverRegistered = true
         } catch (e: Exception) {
             Log.w("PlaybackService", "Failed to register screenOffReceiver", e)

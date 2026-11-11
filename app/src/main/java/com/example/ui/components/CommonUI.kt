@@ -34,6 +34,8 @@ import com.example.util.AlbumArtHelper
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import com.example.ui.theme.SoundboxTheme
+import com.example.ui.navigation.sharedSongArt
+import com.example.ui.navigation.sharedSongTitle
 
 @Composable
 fun SongImagePlaceholder(
@@ -214,7 +216,8 @@ fun TrackRow(
                 artist = song.artist,
                 genre = song.genre,
                 path = song.path,
-                size = 48f
+                size = 48f,
+                modifier = Modifier.sharedSongArt(song.id)
             )
 
             Spacer(modifier = Modifier.width(14.dp))
@@ -228,7 +231,8 @@ fun TrackRow(
                     ),
                     color = if (isPlaying) colors.accentCyan else colors.textPrimary,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.sharedSongTitle(song.id)
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Row(
@@ -427,6 +431,7 @@ fun MiniPlayer(
                                 .size(48.dp)
                                 .clip(RoundedCornerShape(12.dp))
                                 .border(1.dp, colors.borderSubtle, RoundedCornerShape(12.dp))
+                                .sharedSongArt(song.id)
                         ) {
                             ArtworkThumbnail(
                                 songId = song.id,
@@ -471,7 +476,9 @@ fun MiniPlayer(
                                     color = colors.textPrimary,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.weight(1f, fill = false)
+                                    modifier = Modifier
+                                        .weight(1f, fill = false)
+                                        .sharedSongTitle(song.id)
                                 )
 
                                 // Micro Equalizer Waves indicator when active

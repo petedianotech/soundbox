@@ -3,7 +3,7 @@
     <item
         android:width="66dp"
         android:height="66dp"
-        android:drawable="@drawable/img_app_music_note_icon_1788602653610"
+        android:drawable="@drawable/ic_art_soundbox_neon"
         android:gravity="center" />
 </layer-list>
 

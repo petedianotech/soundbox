@@ -230,12 +230,12 @@ fun HomeScreen(
                     .background(colors.background)
             ) {
                 when (selectedTab) {
-                    HomeTab.SONGS -> SongsScreen(viewModel = viewModel, onSongSelected = { })
-                    HomeTab.ALBUMS -> AlbumsScreen(viewModel = viewModel, onSongSelected = { })
-                    HomeTab.ARTISTS -> ArtistsScreen(viewModel = viewModel, onSongSelected = { })
-                    HomeTab.GENRES -> GenresScreen(viewModel = viewModel, onSongSelected = { })
-                    HomeTab.FOLDERS -> FoldersScreen(viewModel = viewModel, onSongSelected = { })
-                    HomeTab.PLAYLISTS -> PlaylistsScreen(viewModel = viewModel, onSongSelected = { })
+                    HomeTab.SONGS -> SongsScreen(viewModel = viewModel, onSongSelected = { onNavigateToNowPlaying() })
+                    HomeTab.ALBUMS -> AlbumsScreen(viewModel = viewModel, onSongSelected = { onNavigateToNowPlaying() })
+                    HomeTab.ARTISTS -> ArtistsScreen(viewModel = viewModel, onSongSelected = { onNavigateToNowPlaying() })
+                    HomeTab.GENRES -> GenresScreen(viewModel = viewModel, onSongSelected = { onNavigateToNowPlaying() })
+                    HomeTab.FOLDERS -> FoldersScreen(viewModel = viewModel, onSongSelected = { onNavigateToNowPlaying() })
+                    HomeTab.PLAYLISTS -> PlaylistsScreen(viewModel = viewModel, onSongSelected = { onNavigateToNowPlaying() })
                 }
 
                 MiniPlayer(
@@ -361,27 +361,27 @@ fun HomeScreen(
                 when (selectedTab) {
                     HomeTab.SONGS -> SongsScreen(
                         viewModel = viewModel,
-                        onSongSelected = { }
+                        onSongSelected = { onNavigateToNowPlaying() }
                     )
                     HomeTab.ALBUMS -> AlbumsScreen(
                         viewModel = viewModel,
-                        onSongSelected = { }
+                        onSongSelected = { onNavigateToNowPlaying() }
                     )
                     HomeTab.ARTISTS -> ArtistsScreen(
                         viewModel = viewModel,
-                        onSongSelected = { }
+                        onSongSelected = { onNavigateToNowPlaying() }
                     )
                     HomeTab.GENRES -> GenresScreen(
                         viewModel = viewModel,
-                        onSongSelected = { }
+                        onSongSelected = { onNavigateToNowPlaying() }
                     )
                     HomeTab.FOLDERS -> FoldersScreen(
                         viewModel = viewModel,
-                        onSongSelected = { }
+                        onSongSelected = { onNavigateToNowPlaying() }
                     )
                     HomeTab.PLAYLISTS -> PlaylistsScreen(
                         viewModel = viewModel,
-                        onSongSelected = { }
+                        onSongSelected = { onNavigateToNowPlaying() }
                     )
                 }
                 

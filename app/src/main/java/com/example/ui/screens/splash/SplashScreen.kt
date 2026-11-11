@@ -107,7 +107,7 @@ fun SplashScreen(
                     modifier = Modifier.size(115.dp)
                 ) {
                     Image(
-                        painter = painterResource(id = R.drawable.img_app_music_note_icon_1788602653610),
+                        painter = painterResource(id = R.drawable.ic_art_soundbox_neon),
                         contentDescription = "Soundbox App Icon",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier

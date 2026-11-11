@@ -3,9 +3,11 @@ package com.example.util
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.util.Log
+import androidx.core.content.ContextCompat
 import com.example.R
 import com.example.data.model.Song
 import com.example.player.LyricsManager
@@ -16,34 +18,25 @@ import java.io.InputStream
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Permanent, robust Album Art Management System.
+ * Lightweight, crash-proof Album Art Management System.
  *
  * Guarantees:
- * 1. Permanence: Once a song is assigned an album art (embedded, custom user-selected,
- *    or auto-assigned studio theme), it is saved permanently to app storage and locked to that song.
- * 2. Uniformity: The exact same artwork is displayed across Now Playing, Track Rows, Albums,
- *    Artists, Playlists, Folders, Lockscreen, Notifications, MediaSession, and Widgets.
- * 3. Zero Inconsistency: No unexpected switching of artwork when navigating or refreshing lists.
+ * 1. 5 Ultra-lightweight vector artworks in place of heavy raster JPEGs.
+ * 2. Zero OOM or TransactionTooLargeExceptions during playlist playback initialization.
+ * 3. Fast caching of custom/embedded artwork when present.
+ * 4. Deterministic fallback vectors matching genre and title keywords.
  */
 object AlbumArtHelper {
     private const val TAG = "AlbumArtHelper"
     private const val PREFS_NAME = "permanent_album_art_registry"
 
-    // High-quality, smooth audiophile studio album art assets
+    // 5 Lightweight, neon cyber audiophile vector artworks
     val ALBUM_ARTS = listOf(
-        R.drawable.img_art_smooth_audiophile_one_1788530389412,
-        R.drawable.img_art_smooth_audiophile_two_1788530409414,
-        R.drawable.img_album_art_smooth_vinyl_1788528867497,
-        R.drawable.img_album_art_smooth_studi_1788528883304,
-        R.drawable.img_album_art_vinyl_1788360828062,
-        R.drawable.img_album_art_headphones_1788360844519,
-        R.drawable.img_album_art_acoustic_1788360862230,
-        R.drawable.img_album_art_synthwave_1788360879358,
-        R.drawable.img_album_art_jazz_1788360894012,
-        R.drawable.img_album_art_piano_1788360909101,
-        R.drawable.img_album_art_lofi_1788360925798,
-        R.drawable.img_album_art_rock_1788360943637,
-        R.drawable.img_album_art_edm_1788360958313
+        R.drawable.ic_art_soundbox_neon,
+        R.drawable.ic_art_vinyl_pulse,
+        R.drawable.ic_art_headphones_wave,
+        R.drawable.ic_art_cyber_synth,
+        R.drawable.ic_art_audiophile_eq
     )
 
     // Memory cache for instantaneous, zero-overhead lookups
@@ -83,12 +76,10 @@ object AlbumArtHelper {
         return try {
             val file = getArtworkFile(context, song.id)
             FileOutputStream(file).use { out ->
-                bitmap.compress(Bitmap.CompressFormat.JPEG, 94, out)
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out)
             }
-            // Also register in persistent preferences
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             prefs.edit().putString("song_art_${song.id}", file.absolutePath).apply()
-            Log.d(TAG, "Saved custom album art permanently for song: ${song.title} (${file.absolutePath})")
             true
         } catch (e: Exception) {
             Log.e(TAG, "Failed to save custom album art for ${song.title}", e)
@@ -110,22 +101,13 @@ object AlbumArtHelper {
     }
 
     /**
-     * Permanently assigns and saves a built-in audiophile artwork resource for a song.
+     * Permanently assigns and saves a built-in vector artwork for a song.
      */
     fun assignStudioThemeToSong(context: Context, song: Song, resId: Int): Boolean {
-        return try {
-            val bitmap = BitmapFactory.decodeResource(context.resources, resId) ?: return false
-            val success = saveCustomArtwork(context, song, bitmap)
-            if (success) {
-                memoryArtMap[song.id] = resId
-                val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                prefs.edit().putInt("theme_res_${song.id}", resId).apply()
-            }
-            success
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to assign studio theme", e)
-            false
-        }
+        memoryArtMap[song.id] = resId
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit().putInt("theme_res_${song.id}", resId).apply()
+        return true
     }
 
     /**
@@ -157,25 +139,17 @@ object AlbumArtHelper {
                 FileOutputStream(targetFile).use { out ->
                     out.write(pictureBytes)
                 }
-                Log.d(TAG, "Auto-extracted and permanently saved embedded album art for: ${song.title}")
                 targetFile
             } else {
                 null
             }
         } catch (e: Exception) {
-            // Silently ignore format errors
             null
         }
     }
 
     /**
-     * Unified, rock-solid Model provider for Coil and Compose image loaders.
-     * Checks in exact order:
-     * 1. Saved permanent file (custom or previously extracted)
-     * 2. Embedded physical audio metadata (auto-extracted & cached)
-     * 3. Deterministically assigned permanent studio theme cover
-     *
-     * This guarantees 100% consistency across the entire app.
+     * Unified Model provider for Coil and Compose image loaders.
      */
     fun getArtworkModel(
         context: Context,
@@ -191,7 +165,6 @@ object AlbumArtHelper {
                 return customFile
             }
 
-            // Try lazy embedded extraction if local audio file path is provided
             if (path.isNotBlank() && (path.startsWith("/") || path.startsWith("content://"))) {
                 try {
                     val dummySong = Song(
@@ -209,16 +182,15 @@ object AlbumArtHelper {
                     if (extracted != null && extracted.exists()) {
                         return extracted
                     }
-                } catch (e: Exception) { }
+                } catch (_: Exception) { }
             }
         }
 
-        // Return permanent deterministic studio resource ID
         return getAlbumArtResId(title, artist, genre, songId, context)
     }
 
     /**
-     * Intelligently selects or retrieves the permanently locked studio theme artwork for a song.
+     * Intelligently selects or retrieves the locked vector artwork for a song.
      */
     fun getAlbumArtResId(song: Song?, context: Context? = null): Int {
         if (song == null) return ALBUM_ARTS[0]
@@ -232,12 +204,12 @@ object AlbumArtHelper {
         songId: String? = null,
         context: Context? = null
     ): Int {
-        // 1. Check in-memory cache by songId
+        // 1. Check in-memory cache
         if (!songId.isNullOrBlank() && memoryArtMap.containsKey(songId)) {
             return memoryArtMap[songId]!!
         }
 
-        // 2. Check SharedPreferences if context is available
+        // 2. Check SharedPreferences
         if (!songId.isNullOrBlank() && context != null) {
             try {
                 val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -246,64 +218,54 @@ object AlbumArtHelper {
                     memoryArtMap[songId] = savedRes
                     return savedRes
                 }
-            } catch (e: Exception) { }
+            } catch (_: Exception) { }
         }
 
-        // 3. Clean strings to eliminate noise words so slight naming variations map to identical art
+        // 3. Keyword matching to our 5 vector artworks
         val cleanArtist = LyricsManager.cleanString(artist, isArtist = true)
         val cleanTitle = LyricsManager.cleanString(title, isArtist = false)
         val query = (genre + " " + cleanTitle + " " + cleanArtist).lowercase()
 
         val chosenResId = when {
-            query.contains("rock") || query.contains("metal") || query.contains("punk") || query.contains("guitar riff") ->
-                R.drawable.img_album_art_rock_1788360943637
+            // Vinyl / Retro / Acoustic / Jazz
+            query.contains("vinyl") || query.contains("retro") || query.contains("jazz") ||
+            query.contains("blues") || query.contains("acoustic") || query.contains("turntable") ||
+            query.contains("folk") || query.contains("country") || query.contains("unplugged") ->
+                R.drawable.ic_art_vinyl_pulse
 
-            query.contains("jazz") || query.contains("blues") || query.contains("sax") || query.contains("soul") ->
-                R.drawable.img_album_art_jazz_1788360894012
+            // Headphones / Vocals / Podcast / Chill / Lofi / Pop
+            query.contains("headphone") || query.contains("vocal") || query.contains("pop") ||
+            query.contains("podcast") || query.contains("lofi") || query.contains("chill") ||
+            query.contains("relax") || query.contains("piano") || query.contains("classic") ->
+                R.drawable.ic_art_headphones_wave
 
-            query.contains("acoustic") || query.contains("folk") || query.contains("country") || query.contains("unplugged") || query.contains("guitar") ->
-                R.drawable.img_album_art_acoustic_1788360862230
+            // Synthwave / Cyber / EDM / Dance / Electronic / Techno / Rock
+            query.contains("synth") || query.contains("cyber") || query.contains("edm") ||
+            query.contains("dance") || query.contains("electronic") || query.contains("wave") ||
+            query.contains("techno") || query.contains("rock") || query.contains("metal") ->
+                R.drawable.ic_art_cyber_synth
 
-            query.contains("piano") || query.contains("classic") || query.contains("orchestra") || query.contains("instrumental") ->
-                R.drawable.img_album_art_piano_1788360909101
+            // Audiophile / Studio / Master / Hi-Res / Gold / Bass / EQ
+            query.contains("audiophile") || query.contains("studio") || query.contains("hi-res") ||
+            query.contains("flac") || query.contains("master") || query.contains("eq") ||
+            query.contains("bass") || query.contains("gold") ->
+                R.drawable.ic_art_audiophile_eq
 
-            query.contains("lofi") || query.contains("lo fi") || query.contains("chill") || query.contains("relax") || query.contains("sleep") ->
-                R.drawable.img_album_art_lofi_1788360925798
-
-            query.contains("edm") || query.contains("dance") || query.contains("house") || query.contains("techno") || query.contains("club") ->
-                R.drawable.img_album_art_edm_1788360958313
-
-            query.contains("synth") || query.contains("electronic") || query.contains("cyber") || query.contains("wave") || query.contains("80s") ->
-                R.drawable.img_album_art_synthwave_1788360879358
-
-            query.contains("vocal") || query.contains("pop") || query.contains("podcast") || query.contains("voice") ->
-                R.drawable.img_album_art_headphones_1788360844519
-
-            query.contains("vinyl") || query.contains("retro") || query.contains("turntable") || query.contains("disc") ->
-                R.drawable.img_album_art_vinyl_1788360828062
-
-            query.contains("studio") || query.contains("mix") || query.contains("master") || query.contains("console") ->
-                R.drawable.img_album_art_smooth_studi_1788528883304
-
-            query.contains("gold") || query.contains("hi-res") || query.contains("flac") ->
-                R.drawable.img_art_smooth_audiophile_one_1788530389412
-
+            // Default Soundbox Neon Prism
             else -> {
-                // Stable deterministic hash based on normalized title & artist
                 val stableKey = if (cleanArtist.isNotBlank()) "$cleanArtist-$cleanTitle" else cleanTitle.ifBlank { title }
                 val hash = kotlin.math.abs(stableKey.hashCode())
                 ALBUM_ARTS[hash % ALBUM_ARTS.size]
             }
         }
 
-        // Store into memory cache and preferences for absolute permanent locking
         if (!songId.isNullOrBlank()) {
             memoryArtMap[songId] = chosenResId
             if (context != null) {
                 try {
                     val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                     prefs.edit().putInt("theme_res_$songId", chosenResId).apply()
-                } catch (e: Exception) { }
+                } catch (_: Exception) { }
             }
         }
 
@@ -311,8 +273,7 @@ object AlbumArtHelper {
     }
 
     /**
-     * Returns a valid Uri for the artwork (file:// or android.resource://)
-     * suitable for Media3 MediaItem and notifications.
+     * Returns a lightweight Uri for the artwork (file:// or android.resource://).
      */
     fun getArtworkUri(context: Context, song: Song?): Uri {
         if (song == null) {
@@ -329,34 +290,60 @@ object AlbumArtHelper {
     }
 
     /**
-     * Extracts byte array of the album art for passing to Media3 / MediaMetadata
+     * Extracts byte array only for custom embedded cover if present;
+     * returns null for vector resources to completely eliminate memory strain and IPC overflow.
      */
     fun getArtworkBytes(context: Context, song: Song?): ByteArray? {
         if (song == null) return null
         return try {
-            val bitmap = getArtworkBitmap(context, song) ?: return null
-            val stream = ByteArrayOutputStream()
-            bitmap.compress(Bitmap.CompressFormat.JPEG, 92, stream)
-            stream.toByteArray()
-        } catch (e: Exception) {
+            val customFile = getArtworkFile(context, song.id)
+            if (customFile.exists() && customFile.length() > 0) {
+                val bitmap = BitmapFactory.decodeFile(customFile.absolutePath) ?: return null
+                val stream = ByteArrayOutputStream()
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 85, stream)
+                stream.toByteArray()
+            } else {
+                null
+            }
+        } catch (_: Exception) {
             null
         }
     }
 
     /**
-     * Decodes the permanent album art as a high-resolution Bitmap for notifications and UI widgets.
+     * Safely decodes artwork into a small Bitmap when requested by Palette or Widgets.
+     * Supports both files and vector drawables with size bounding.
      */
-    fun getArtworkBitmap(context: Context, song: Song?): Bitmap? {
+    fun getArtworkBitmap(context: Context, song: Song?, maxDimension: Int = 250): Bitmap? {
         if (song == null) return null
         return try {
             val customFile = getArtworkFile(context, song.id)
             if (customFile.exists() && customFile.length() > 0) {
-                BitmapFactory.decodeFile(customFile.absolutePath)
+                val options = BitmapFactory.Options().apply {
+                    inJustDecodeBounds = true
+                }
+                BitmapFactory.decodeFile(customFile.absolutePath, options)
+                var sampleSize = 1
+                while (options.outWidth / (sampleSize * 2) >= maxDimension && options.outHeight / (sampleSize * 2) >= maxDimension) {
+                    sampleSize *= 2
+                }
+                val decodeOptions = BitmapFactory.Options().apply {
+                    inSampleSize = sampleSize
+                }
+                BitmapFactory.decodeFile(customFile.absolutePath, decodeOptions)
             } else {
                 val resId = getAlbumArtResId(song, context)
-                BitmapFactory.decodeResource(context.resources, resId)
+                val drawable = ContextCompat.getDrawable(context, resId) ?: return null
+                val width = maxDimension
+                val height = maxDimension
+                val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                val canvas = Canvas(bitmap)
+                drawable.setBounds(0, 0, canvas.width, canvas.height)
+                drawable.draw(canvas)
+                bitmap
             }
         } catch (e: Exception) {
+            Log.w(TAG, "getArtworkBitmap failed: ${e.message}")
             null
         }
     }
@@ -364,19 +351,7 @@ object AlbumArtHelper {
     /**
      * Safely scales artwork for Android AppWidget RemoteViews to prevent TransactionTooLargeException.
      */
-    fun getWidgetArtworkBitmap(context: Context, song: Song?, maxDimension: Int = 260): Bitmap? {
-        val original = getArtworkBitmap(context, song) ?: return null
-        return try {
-            if (original.width <= maxDimension && original.height <= maxDimension) {
-                original
-            } else {
-                val ratio = original.width.toFloat() / original.height.toFloat()
-                val targetW = if (ratio >= 1f) maxDimension else (maxDimension * ratio).toInt().coerceAtLeast(1)
-                val targetH = if (ratio >= 1f) (maxDimension / ratio).toInt().coerceAtLeast(1) else maxDimension
-                Bitmap.createScaledBitmap(original, targetW, targetH, true)
-            }
-        } catch (e: Exception) {
-            original
-        }
+    fun getWidgetArtworkBitmap(context: Context, song: Song?, maxDimension: Int = 200): Bitmap? {
+        return getArtworkBitmap(context, song, maxDimension)
     }
 }

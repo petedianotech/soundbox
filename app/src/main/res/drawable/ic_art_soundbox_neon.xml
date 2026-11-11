@@ -1,0 +1,133 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="256dp"
+    android:height="256dp"
+    android:viewportWidth="256"
+    android:viewportHeight="256">
+
+  <!-- Premium Deep Cyber Dark Canvas -->
+  <path
+      android:pathData="M0,0h256v256h-256z">
+    <aapt:attr name="android:fillColor">
+      <gradient
+          android:startX="0"
+          android:startY="0"
+          android:endX="256"
+          android:endY="256"
+          android:type="linear">
+        <item android:offset="0.0" android:color="#FF0D131D"/>
+        <item android:offset="0.5" android:color="#FF070A0F"/>
+        <item android:offset="1.0" android:color="#FF04070B"/>
+      </gradient>
+    </aapt:attr>
+  </path>
+
+  <!-- Ambient Radial Glow -->
+  <path
+      android:pathData="M128,128m-110,0a110,110 0 1,0 220,0a110,110 0 1,0 -220,0">
+    <aapt:attr name="android:fillColor">
+      <gradient
+          android:centerX="128"
+          android:centerY="128"
+          android:gradientRadius="110"
+          android:type="radial">
+        <item android:offset="0.0" android:color="#3300E5FF"/>
+        <item android:offset="0.6" android:color="#1A7C4DFF"/>
+        <item android:offset="1.0" android:color="#00000000"/>
+      </gradient>
+    </aapt:attr>
+  </path>
+
+  <!-- Concentric Digital Frequency Rings -->
+  <path
+      android:pathData="M128,128m-88,0a88,88 0 1,0 176,0a88,88 0 1,0 -176,0"
+      android:strokeWidth="1.5"
+      android:strokeAlpha="0.35"
+      android:fillColor="#00000000"
+      android:strokeColor="#00E5FF"/>
+
+  <path
+      android:pathData="M128,128m-68,0a68,68 0 1,0 136,0a68,68 0 1,0 -136,0"
+      android:strokeWidth="1.2"
+      android:strokeAlpha="0.25"
+      android:fillColor="#00000000"
+      android:strokeColor="#7C4DFF"/>
+
+  <!-- Futuristic Soundbox Prism Chamber -->
+  <path
+      android:pathData="M128,48 L198,88 L198,168 L128,208 L58,168 L58,88 Z"
+      android:strokeWidth="2.5"
+      android:strokeColor="#00E5FF"
+      android:fillColor="#121D2C"
+      android:fillAlpha="0.75"/>
+
+  <!-- Left Facet -->
+  <path
+      android:pathData="M128,128 L58,88 L58,168 L128,208 Z"
+      android:fillColor="#00E5FF"
+      android:fillAlpha="0.12"/>
+
+  <!-- Right Facet -->
+  <path
+      android:pathData="M128,128 L198,88 L198,168 L128,208 Z"
+      android:fillColor="#7C4DFF"
+      android:fillAlpha="0.18"/>
+
+  <!-- Top Facet -->
+  <path
+      android:pathData="M128,48 L198,88 L128,128 L58,88 Z"
+      android:fillColor="#FFFFFF"
+      android:fillAlpha="0.08"/>
+
+  <!-- Dynamic Equalizer Bars inside Prism -->
+  <!-- Bar 1 -->
+  <path
+      android:pathData="M84,142 L84,114"
+      android:strokeWidth="5"
+      android:strokeLineCap="round"
+      android:strokeColor="#76FF03"/>
+  <!-- Bar 2 -->
+  <path
+      android:pathData="M98,148 L98,102"
+      android:strokeWidth="5"
+      android:strokeLineCap="round"
+      android:strokeColor="#00E5FF"/>
+  <!-- Bar 3 (Center) -->
+  <path
+      android:pathData="M113,154 L113,90"
+      android:strokeWidth="5"
+      android:strokeLineCap="round"
+      android:strokeColor="#FFFFFF"/>
+  <!-- Bar 4 (Center Accent) -->
+  <path
+      android:pathData="M128,158 L128,82"
+      android:strokeWidth="5"
+      android:strokeLineCap="round"
+      android:strokeColor="#00E5FF"/>
+  <!-- Bar 5 -->
+  <path
+      android:pathData="M143,154 L143,90"
+      android:strokeWidth="5"
+      android:strokeLineCap="round"
+      android:strokeColor="#FFFFFF"/>
+  <!-- Bar 6 -->
+  <path
+      android:pathData="M158,148 L158,102"
+      android:strokeWidth="5"
+      android:strokeLineCap="round"
+      android:strokeColor="#7C4DFF"/>
+  <!-- Bar 7 -->
+  <path
+      android:pathData="M172,142 L172,118"
+      android:strokeWidth="5"
+      android:strokeLineCap="round"
+      android:strokeColor="#76FF03"/>
+
+  <!-- Center Floating Neon Music Core -->
+  <path
+      android:pathData="M128,128m-10,0a10,10 0 1,0 20,0a10,10 0 1,0 -20,0"
+      android:fillColor="#00E5FF"/>
+  <path
+      android:pathData="M128,128m-4,0a4,4 0 1,0 8,0a4,4 0 1,0 -8,0"
+      android:fillColor="#FFFFFF"/>
+</vector>

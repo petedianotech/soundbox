@@ -1,0 +1,111 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="256dp"
+    android:height="256dp"
+    android:viewportWidth="256"
+    android:viewportHeight="256">
+
+  <!-- Deep Obsidian Midnight Background -->
+  <path
+      android:pathData="M0,0h256v256h-256z">
+    <aapt:attr name="android:fillColor">
+      <gradient
+          android:startX="0"
+          android:startY="0"
+          android:endX="256"
+          android:endY="256"
+          android:type="linear">
+        <item android:offset="0.0" android:color="#FF0F1118"/>
+        <item android:offset="0.6" android:color="#FF090A0F"/>
+        <item android:offset="1.0" android:color="#FF040508"/>
+      </gradient>
+    </aapt:attr>
+  </path>
+
+  <!-- Turntable Outer Platter Aura -->
+  <path
+      android:pathData="M128,128m-102,0a102,102 0 1,0 204,0a102,102 0 1,0 -204,0"
+      android:fillColor="#151722"
+      android:strokeWidth="2.5"
+      android:strokeColor="#7C4DFF"
+      android:strokeAlpha="0.6"/>
+
+  <!-- Vinyl Outer Body -->
+  <path
+      android:pathData="M128,128m-86,0a86,86 0 1,0 172,0a86,86 0 1,0 -172,0"
+      android:fillColor="#0D0E14"
+      android:strokeWidth="1.5"
+      android:strokeColor="#00E5FF"
+      android:strokeAlpha="0.3"/>
+
+  <!-- Concentric Microgrooves -->
+  <path
+      android:pathData="M128,128m-74,0a74,74 0 1,0 148,0a74,74 0 1,0 -148,0"
+      android:fillColor="#00000000"
+      android:strokeWidth="1"
+      android:strokeColor="#1E2230"/>
+  <path
+      android:pathData="M128,128m-62,0a62,62 0 1,0 124,0a62,62 0 1,0 -124,0"
+      android:fillColor="#00000000"
+      android:strokeWidth="1"
+      android:strokeColor="#252A3D"/>
+  <path
+      android:pathData="M128,128m-50,0a50,50 0 1,0 100,0a50,50 0 1,0 -100,0"
+      android:fillColor="#00000000"
+      android:strokeWidth="1"
+      android:strokeColor="#1E2230"/>
+
+  <!-- Holographic Sheen / Light Reflection Beams -->
+  <path
+      android:pathData="M128,128 L86,44 A86,86 0 0,1 170,44 Z"
+      android:fillColor="#00E5FF"
+      android:fillAlpha="0.08"/>
+  <path
+      android:pathData="M128,128 L170,212 A86,86 0 0,1 86,212 Z"
+      android:fillColor="#7C4DFF"
+      android:fillAlpha="0.08"/>
+
+  <!-- Center Vinyl Label Disc -->
+  <path
+      android:pathData="M128,128m-34,0a34,34 0 1,0 68,0a34,34 0 1,0 -68,0">
+    <aapt:attr name="android:fillColor">
+      <gradient
+          android:startX="94"
+          android:startY="94"
+          android:endX="162"
+          android:endY="162"
+          android:type="linear">
+        <item android:offset="0.0" android:color="#FF7C4DFF"/>
+        <item android:offset="1.0" android:color="#FF00E5FF"/>
+      </gradient>
+    </aapt:attr>
+  </path>
+
+  <!-- Soundwave Pulse Ring on Label -->
+  <path
+      android:pathData="M128,128m-22,0a22,22 0 1,0 44,0a22,22 0 1,0 -44,0"
+      android:fillColor="#090B10"/>
+
+  <!-- Dynamic Equalizer Circular Wave Points -->
+  <path
+      android:pathData="M110,128 L114,128 M118,124 L118,132 M123,121 L123,135 M128,118 L128,138 M133,121 L133,135 M138,124 L138,132 M142,128 L146,128"
+      android:strokeWidth="2.5"
+      android:strokeLineCap="round"
+      android:strokeColor="#76FF03"/>
+
+  <!-- Spindle Hole -->
+  <path
+      android:pathData="M128,128m-6,0a6,6 0 1,0 12,0a6,6 0 1,0 -12,0"
+      android:fillColor="#FFFFFF"/>
+
+  <!-- Stylus Tonearm Needle Accent -->
+  <path
+      android:pathData="M208,46 L184,80 L162,110 L154,106"
+      android:strokeWidth="3"
+      android:strokeLineCap="round"
+      android:strokeLineJoin="round"
+      android:strokeColor="#00E5FF"/>
+  <path
+      android:pathData="M208,46m-6,0a6,6 0 1,0 12,0a6,6 0 1,0 -12,0"
+      android:fillColor="#7C4DFF"/>
+</vector>

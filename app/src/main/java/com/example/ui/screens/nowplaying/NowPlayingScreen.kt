@@ -44,6 +44,8 @@ import com.example.player.LyricLine
 import com.example.player.LyricsManager
 import com.example.ui.components.ArtworkThumbnail
 import com.example.ui.components.EmptyPlaceholder
+import com.example.ui.navigation.sharedSongArt
+import com.example.ui.navigation.sharedSongTitle
 import com.example.ui.screens.lockscreen.LockscreenPlayerActivity
 import com.example.ui.theme.SoundboxTheme
 import com.example.ui.viewmodel.MusicViewModel
@@ -395,6 +397,7 @@ fun NowPlayingScreen(
                                         )
                                         .clip(RoundedCornerShape(24.dp))
                                         .background(palette.surfaceTint)
+                                        .sharedSongArt(song.id)
                                         .clickable { showInPlayerLyrics = true },
                                     contentAlignment = Alignment.Center
                                 ) {
@@ -421,7 +424,9 @@ fun NowPlayingScreen(
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                     textAlign = TextAlign.Center,
-                                    modifier = Modifier.fillMaxWidth(0.9f)
+                                    modifier = Modifier
+                                        .fillMaxWidth(0.9f)
+                                        .sharedSongTitle(song.id)
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(

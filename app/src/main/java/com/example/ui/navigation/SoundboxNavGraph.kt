@@ -1,102 +1,141 @@
 package com.example.ui.navigation
 
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.ui.screens.about.AboutScreen
+import com.example.ui.screens.cleaner.LibraryCleanerScreen
 import com.example.ui.screens.equalizer.PowerampEqualizerScreen
 import com.example.ui.screens.home.HomeScreen
+import com.example.ui.screens.insights.SoundboxInsightsScreen
+import com.example.ui.screens.lyrics.LyricsSyncEditorScreen
 import com.example.ui.screens.nowplaying.NowPlayingScreen
 import com.example.ui.screens.search.SearchScreen
 import com.example.ui.screens.settings.SettingsScreen
 import com.example.ui.screens.splash.SplashScreen
-import com.example.ui.screens.lyrics.LyricsSyncEditorScreen
-import com.example.ui.screens.insights.SoundboxInsightsScreen
-import com.example.ui.screens.cleaner.LibraryCleanerScreen
 import com.example.ui.viewmodel.MusicViewModel
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun SoundboxNavGraph(viewModel: MusicViewModel) {
     val navController = rememberNavController()
 
-    NavHost(navController = navController, startDestination = Routes.SPLASH) {
-        composable(Routes.SPLASH) {
-            SplashScreen(
-                viewModel = viewModel,
-                onNavigateToHome = {
-                    navController.navigate(Routes.HOME) {
-                        popUpTo(Routes.SPLASH) { inclusive = true }
+    SharedTransitionLayout {
+        CompositionLocalProvider(LocalSharedTransitionScope provides this) {
+            NavHost(
+                navController = navController,
+                startDestination = Routes.SPLASH
+            ) {
+                composable(Routes.SPLASH) {
+                    SplashScreen(
+                        viewModel = viewModel,
+                        onNavigateToHome = {
+                            navController.navigate(Routes.HOME) {
+                                popUpTo(Routes.SPLASH) { inclusive = true }
+                            }
+                        }
+                    )
+                }
+                composable(
+                    route = Routes.HOME,
+                    popEnterTransition = { fadeIn(tween(300)) },
+                    exitTransition = { fadeOut(tween(300)) }
+                ) {
+                    CompositionLocalProvider(LocalNavAnimatedVisibilityScope provides this@composable) {
+                        HomeScreen(
+                            viewModel = viewModel,
+                            onNavigateToSearch = { navController.navigate(Routes.SEARCH) },
+                            onNavigateToSettings = { navController.navigate(Routes.SETTINGS) },
+                            onNavigateToNowPlaying = { navController.navigate(Routes.NOW_PLAYING) },
+                            onNavigateToEqualizer = { navController.navigate(Routes.EQUALIZER) },
+                            onNavigateToInsights = { navController.navigate(Routes.INSIGHTS) },
+                            onNavigateToCleaner = { navController.navigate(Routes.CLEANER) }
+                        )
                     }
                 }
-            )
-        }
-        composable(Routes.HOME) {
-            HomeScreen(
-                viewModel = viewModel,
-                onNavigateToSearch = { navController.navigate(Routes.SEARCH) },
-                onNavigateToSettings = { navController.navigate(Routes.SETTINGS) },
-                onNavigateToNowPlaying = { navController.navigate(Routes.NOW_PLAYING) },
-                onNavigateToEqualizer = { navController.navigate(Routes.EQUALIZER) },
-                onNavigateToInsights = { navController.navigate(Routes.INSIGHTS) },
-                onNavigateToCleaner = { navController.navigate(Routes.CLEANER) }
-            )
-        }
-        composable(Routes.NOW_PLAYING) {
-            NowPlayingScreen(
-                viewModel = viewModel,
-                onBackClick = { navController.popBackStack() },
-                onNavigateToLyricsCreator = { navController.navigate(Routes.LYRICS_CREATOR) },
-                onNavigateToEqualizer = { navController.navigate(Routes.EQUALIZER) }
-            )
-        }
-        composable(Routes.EQUALIZER) {
-            PowerampEqualizerScreen(
-                viewModel = viewModel,
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
-        composable(Routes.LYRICS_CREATOR) {
-            LyricsSyncEditorScreen(
-                viewModel = viewModel,
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
-        composable(Routes.SEARCH) {
-            SearchScreen(
-                viewModel = viewModel,
-                onNavigateToNowPlaying = { navController.navigate(Routes.NOW_PLAYING) },
-                onBackClick = { navController.popBackStack() }
-            )
-        }
-        composable(Routes.SETTINGS) {
-            SettingsScreen(
-                viewModel = viewModel,
-                onNavigateBack = { navController.popBackStack() },
-                onNavigateToAbout = { navController.navigate(Routes.ABOUT) },
-                onNavigateToEqualizer = { navController.navigate(Routes.EQUALIZER) },
-                onNavigateToInsights = { navController.navigate(Routes.INSIGHTS) },
-                onNavigateToCleaner = { navController.navigate(Routes.CLEANER) }
-            )
-        }
-        composable(Routes.INSIGHTS) {
-            SoundboxInsightsScreen(
-                viewModel = viewModel,
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
-        composable(Routes.CLEANER) {
-            LibraryCleanerScreen(
-                viewModel = viewModel,
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
-        composable(Routes.ABOUT) {
-            AboutScreen(
-                onNavigateBack = { navController.popBackStack() }
-            )
+                composable(
+                    route = Routes.NOW_PLAYING,
+                    enterTransition = {
+                        slideIntoContainer(
+                            AnimatedContentTransitionScope.SlideDirection.Up,
+                            animationSpec = tween(400)
+                        ) + fadeIn(animationSpec = tween(300))
+                    },
+                    exitTransition = {
+                        slideOutOfContainer(
+                            AnimatedContentTransitionScope.SlideDirection.Down,
+                            animationSpec = tween(350)
+                        ) + fadeOut(animationSpec = tween(250))
+                    },
+                    popExitTransition = {
+                        slideOutOfContainer(
+                            AnimatedContentTransitionScope.SlideDirection.Down,
+                            animationSpec = tween(350)
+                        ) + fadeOut(animationSpec = tween(250))
+                    }
+                ) {
+                    CompositionLocalProvider(LocalNavAnimatedVisibilityScope provides this@composable) {
+                        NowPlayingScreen(
+                            viewModel = viewModel,
+                            onBackClick = { navController.popBackStack() },
+                            onNavigateToLyricsCreator = { navController.navigate(Routes.LYRICS_CREATOR) },
+                            onNavigateToEqualizer = { navController.navigate(Routes.EQUALIZER) }
+                        )
+                    }
+                }
+                composable(Routes.EQUALIZER) {
+                    PowerampEqualizerScreen(
+                        viewModel = viewModel,
+                        onNavigateBack = { navController.popBackStack() }
+                    )
+                }
+                composable(Routes.LYRICS_CREATOR) {
+                    LyricsSyncEditorScreen(
+                        viewModel = viewModel,
+                        onNavigateBack = { navController.popBackStack() }
+                    )
+                }
+                composable(Routes.SEARCH) {
+                    CompositionLocalProvider(LocalNavAnimatedVisibilityScope provides this@composable) {
+                        SearchScreen(
+                            viewModel = viewModel,
+                            onNavigateToNowPlaying = { navController.navigate(Routes.NOW_PLAYING) },
+                            onBackClick = { navController.popBackStack() }
+                        )
+                    }
+                }
+                composable(Routes.SETTINGS) {
+                    SettingsScreen(
+                        viewModel = viewModel,
+                        onNavigateBack = { navController.popBackStack() },
+                        onNavigateToAbout = { navController.navigate(Routes.ABOUT) },
+                        onNavigateToEqualizer = { navController.navigate(Routes.EQUALIZER) },
+                        onNavigateToInsights = { navController.navigate(Routes.INSIGHTS) },
+                        onNavigateToCleaner = { navController.navigate(Routes.CLEANER) }
+                    )
+                }
+                composable(Routes.INSIGHTS) {
+                    SoundboxInsightsScreen(
+                        viewModel = viewModel,
+                        onNavigateBack = { navController.popBackStack() }
+                    )
+                }
+                composable(Routes.CLEANER) {
+                    LibraryCleanerScreen(
+                        viewModel = viewModel,
+                        onNavigateBack = { navController.popBackStack() }
+                    )
+                }
+                composable(Routes.ABOUT) {
+                    AboutScreen(
+                        onNavigateBack = { navController.popBackStack() }
+                    )
+                }
+            }
         }
     }
 }
-

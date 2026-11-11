@@ -1,0 +1,118 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="256dp"
+    android:height="256dp"
+    android:viewportWidth="256"
+    android:viewportHeight="256">
+
+  <!-- Audiophile Amber Obsidian Background -->
+  <path
+      android:pathData="M0,0h256v256h-256z">
+    <aapt:attr name="android:fillColor">
+      <gradient
+          android:startX="0"
+          android:startY="0"
+          android:endX="256"
+          android:endY="256"
+          android:type="linear">
+        <item android:offset="0.0" android:color="#FF1A1408"/>
+        <item android:offset="0.5" android:color="#FF0F0C05"/>
+        <item android:offset="1.0" android:color="#FF060502"/>
+      </gradient>
+    </aapt:attr>
+  </path>
+
+  <!-- Gold / Amber Radial Glow -->
+  <path
+      android:pathData="M128,128m-100,0a100,100 0 1,0 200,0a100,100 0 1,0 -200,0">
+    <aapt:attr name="android:fillColor">
+      <gradient
+          android:centerX="128"
+          android:centerY="128"
+          android:gradientRadius="100"
+          android:type="radial">
+        <item android:offset="0.0" android:color="#35FFB300"/>
+        <item android:offset="0.6" android:color="#15FF6D00"/>
+        <item android:offset="1.0" android:color="#00000000"/>
+      </gradient>
+    </aapt:attr>
+  </path>
+
+  <!-- Circular Dial Gauge Border -->
+  <path
+      android:pathData="M128,128m-82,0a82,82 0 1,0 164,0a82,82 0 1,0 -164,0"
+      android:strokeWidth="2.5"
+      android:strokeColor="#FFB300"
+      android:strokeAlpha="0.4"
+      android:fillColor="#120F08"/>
+
+  <!-- Dial Tick Marks around Gauge -->
+  <path
+      android:pathData="M60,128 L70,128 M186,128 L196,128 M128,60 L128,70 M128,186 L128,196 M80,80 L88,88 M176,80 L168,88 M80,176 L88,168 M176,176 L168,168"
+      android:strokeWidth="2"
+      android:strokeLineCap="round"
+      android:strokeColor="#FFB300"
+      android:strokeAlpha="0.6"/>
+
+  <!-- Digital VU Peak Meter Indicator Arc -->
+  <path
+      android:pathData="M78,160 A62,62 0 1,1 178,160"
+      android:strokeWidth="6"
+      android:strokeLineCap="round"
+      android:fillColor="#00000000"
+      android:strokeColor="#76FF03"/>
+
+  <!-- Dynamic Decibel / Frequency Bars Mascot -->
+  <path
+      android:pathData="M92,136 L92,120"
+      android:strokeWidth="5"
+      android:strokeLineCap="round"
+      android:strokeColor="#76FF03"/>
+  <path
+      android:pathData="M104,142 L104,108"
+      android:strokeWidth="5"
+      android:strokeLineCap="round"
+      android:strokeColor="#76FF03"/>
+  <path
+      android:pathData="M116,146 L116,96"
+      android:strokeWidth="5"
+      android:strokeLineCap="round"
+      android:strokeColor="#FFB300"/>
+  <path
+      android:pathData="M128,148 L128,88"
+      android:strokeWidth="6"
+      android:strokeLineCap="round"
+      android:strokeColor="#FFD54F"/>
+  <path
+      android:pathData="M140,146 L140,96"
+      android:strokeWidth="5"
+      android:strokeLineCap="round"
+      android:strokeColor="#FFB300"/>
+  <path
+      android:pathData="M152,142 L152,108"
+      android:strokeWidth="5"
+      android:strokeLineCap="round"
+      android:strokeColor="#76FF03"/>
+  <path
+      android:pathData="M164,136 L164,120"
+      android:strokeWidth="5"
+      android:strokeLineCap="round"
+      android:strokeColor="#76FF03"/>
+
+  <!-- Master Gain Needle -->
+  <path
+      android:pathData="M128,138 L152,86"
+      android:strokeWidth="2.5"
+      android:strokeLineCap="round"
+      android:strokeColor="#FF3D00"/>
+  <path
+      android:pathData="M128,138m-5,0a5,5 0 1,0 10,0a5,5 0 1,0 -10,0"
+      android:fillColor="#FFB300"/>
+
+  <!-- High-Res Audio Emblem Text Representation -->
+  <path
+      android:pathData="M110,166 L146,166"
+      android:strokeWidth="3"
+      android:strokeLineCap="round"
+      android:strokeColor="#FFB300"/>
+</vector>

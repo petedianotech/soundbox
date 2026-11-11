@@ -1,0 +1,118 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="256dp"
+    android:height="256dp"
+    android:viewportWidth="256"
+    android:viewportHeight="256">
+
+  <!-- Background Gradient -->
+  <path
+      android:pathData="M0,0h256v256h-256z">
+    <aapt:attr name="android:fillColor">
+      <gradient
+          android:startX="0"
+          android:startY="0"
+          android:endX="256"
+          android:endY="256"
+          android:type="linear">
+        <item android:offset="0.0" android:color="#FF0B1522"/>
+        <item android:offset="0.5" android:color="#FF060D17"/>
+        <item android:offset="1.0" android:color="#FF03070C"/>
+      </gradient>
+    </aapt:attr>
+  </path>
+
+  <!-- Ambient Blue Cyan Glow -->
+  <path
+      android:pathData="M128,128m-100,0a100,100 0 1,0 200,0a100,100 0 1,0 -200,0">
+    <aapt:attr name="android:fillColor">
+      <gradient
+          android:centerX="128"
+          android:centerY="128"
+          android:gradientRadius="100"
+          android:type="radial">
+        <item android:offset="0.0" android:color="#3500E5FF"/>
+        <item android:offset="0.7" android:color="#1000B0FF"/>
+        <item android:offset="1.0" android:color="#00000000"/>
+      </gradient>
+    </aapt:attr>
+  </path>
+
+  <!-- Soundwave Frequency Field in Background -->
+  <path
+      android:pathData="M40,160 Q62,130 84,160 T128,160 T172,160 T216,160"
+      android:strokeWidth="2"
+      android:fillColor="#00000000"
+      android:strokeAlpha="0.3"
+      android:strokeColor="#76FF03"/>
+  <path
+      android:pathData="M40,172 Q62,148 84,172 T128,172 T172,172 T216,172"
+      android:strokeWidth="2"
+      android:fillColor="#00000000"
+      android:strokeAlpha="0.25"
+      android:strokeColor="#00E5FF"/>
+
+  <!-- Headband Arc -->
+  <path
+      android:pathData="M64,136 C64,74 192,74 192,136"
+      android:strokeWidth="10"
+      android:strokeLineCap="round"
+      android:fillColor="#00000000"
+      android:strokeColor="#17263A"/>
+  <path
+      android:pathData="M74,130 C74,86 182,86 182,130"
+      android:strokeWidth="3.5"
+      android:strokeLineCap="round"
+      android:fillColor="#00000000"
+      android:strokeColor="#00E5FF"/>
+
+  <!-- Left Ear Cup Bracket -->
+  <path
+      android:pathData="M60,132 L60,150"
+      android:strokeWidth="5"
+      android:strokeLineCap="round"
+      android:strokeColor="#00E5FF"/>
+  <!-- Left Ear Cup (Pillow Cushion) -->
+  <path
+      android:pathData="M44,142 A14,24 0 0,0 72,142 A14,24 0 0,0 44,142 Z"
+      android:fillColor="#0F1F33"
+      android:strokeWidth="2.5"
+      android:strokeColor="#00E5FF"/>
+  <!-- Left Neon Accent Ring -->
+  <path
+      android:pathData="M52,142 A6,14 0 0,0 64,142 A6,14 0 0,0 52,142 Z"
+      android:fillColor="#76FF03"/>
+
+  <!-- Right Ear Cup Bracket -->
+  <path
+      android:pathData="M196,132 L196,150"
+      android:strokeWidth="5"
+      android:strokeLineCap="round"
+      android:strokeColor="#00E5FF"/>
+  <!-- Right Ear Cup (Pillow Cushion) -->
+  <path
+      android:pathData="M184,142 A14,24 0 0,0 212,142 A14,24 0 0,0 184,142 Z"
+      android:fillColor="#0F1F33"
+      android:strokeWidth="2.5"
+      android:strokeColor="#00E5FF"/>
+  <!-- Right Neon Accent Ring -->
+  <path
+      android:pathData="M192,142 A6,14 0 0,0 204,142 A6,14 0 0,0 192,142 Z"
+      android:fillColor="#76FF03"/>
+
+  <!-- Center Digital Sine Wave Visualizer -->
+  <path
+      android:pathData="M92,142 L98,136 L104,148 L110,126 L116,158 L122,118 L128,166 L134,118 L140,158 L146,126 L152,148 L158,136 L164,142"
+      android:strokeWidth="3.5"
+      android:strokeLineCap="round"
+      android:strokeLineJoin="round"
+      android:fillColor="#00000000"
+      android:strokeColor="#00E5FF"/>
+
+  <!-- Top Floating Hi-Res Badge -->
+  <path
+      android:pathData="M110,50 L146,50"
+      android:strokeWidth="3"
+      android:strokeLineCap="round"
+      android:strokeColor="#76FF03"/>
+</vector>
