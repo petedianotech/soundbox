@@ -242,7 +242,7 @@ fun SleepTimerDialog(
                             OutlinedButton(
                                 onClick = { viewModel.extendSleepTimer(5) },
                                 modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(14.dp),
+                                shape = com.example.ui.theme.SoundboxButtonShapes.CompactIcon,
                                 colors = ButtonDefaults.outlinedButtonColors(
                                     containerColor = colors.surfaceVariant.copy(alpha = 0.5f),
                                     contentColor = colors.textPrimary
@@ -257,7 +257,7 @@ fun SleepTimerDialog(
                             OutlinedButton(
                                 onClick = { viewModel.extendSleepTimer(15) },
                                 modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(14.dp),
+                                shape = com.example.ui.theme.SoundboxButtonShapes.CompactIcon,
                                 colors = ButtonDefaults.outlinedButtonColors(
                                     containerColor = colors.surfaceVariant.copy(alpha = 0.5f),
                                     contentColor = colors.textPrimary
@@ -282,7 +282,7 @@ fun SleepTimerDialog(
                                     isAdjustingActiveTimer = false
                                 },
                                 modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(14.dp),
+                                shape = com.example.ui.theme.SoundboxButtonShapes.CompactIcon,
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = Color(0xFFEF4444).copy(alpha = 0.18f),
                                     contentColor = Color(0xFFEF4444)
@@ -296,7 +296,7 @@ fun SleepTimerDialog(
                             Button(
                                 onClick = { isAdjustingActiveTimer = true },
                                 modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(14.dp),
+                                shape = com.example.ui.theme.SoundboxButtonShapes.CompactIcon,
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = colors.accentCyan,
                                     contentColor = Color(0xFF0F172A)
@@ -398,7 +398,7 @@ fun SleepTimerDialog(
                                     customInputText = selectedMinutes.toString()
                                     isEditingCustomTime = !isEditingCustomTime
                                 },
-                                shape = RoundedCornerShape(10.dp),
+                                shape = com.example.ui.theme.SoundboxButtonShapes.SmallAction,
                                 color = colors.surfaceElevated,
                                 border = ButtonDefaults.outlinedButtonBorder.copy(brush = Brush.horizontalGradient(listOf(colors.border, colors.border)))
                             ) {
@@ -472,7 +472,7 @@ fun SleepTimerDialog(
                                         }),
                                         modifier = Modifier.weight(1f),
                                         singleLine = true,
-                                        shape = RoundedCornerShape(12.dp),
+                                        shape = com.example.ui.theme.SoundboxButtonShapes.SmallAction,
                                         colors = OutlinedTextFieldDefaults.colors(
                                             focusedBorderColor = colors.accentCyan,
                                             unfocusedBorderColor = colors.border
@@ -488,7 +488,7 @@ fun SleepTimerDialog(
                                             isEditingCustomTime = false
                                             focusManager.clearFocus()
                                         },
-                                        shape = RoundedCornerShape(12.dp),
+                                        shape = com.example.ui.theme.SoundboxButtonShapes.SmallAction,
                                         colors = ButtonDefaults.buttonColors(
                                             containerColor = colors.accentCyan,
                                             contentColor = Color(0xFF0F172A)
@@ -519,7 +519,7 @@ fun SleepTimerDialog(
                                         containerColor = colors.surfaceVariant.copy(alpha = 0.5f),
                                         labelColor = colors.textSecondary
                                     ),
-                                    shape = RoundedCornerShape(10.dp),
+                                    shape = com.example.ui.theme.SoundboxButtonShapes.SmallAction,
                                     border = null,
                                     modifier = Modifier.weight(1f)
                                 )
@@ -534,7 +534,7 @@ fun SleepTimerDialog(
                                 viewModel.startSleepTimerEndOfTrack(fadeOutAtEnd = fadeOutAtEnd)
                                 onDismiss()
                             },
-                            shape = RoundedCornerShape(14.dp),
+                            shape = com.example.ui.theme.SoundboxButtonShapes.CompactIcon,
                             color = colors.surfaceVariant.copy(alpha = 0.45f),
                             border = ButtonDefaults.outlinedButtonBorder.copy(brush = Brush.horizontalGradient(listOf(colors.border, colors.border))),
                             modifier = Modifier.fillMaxWidth()
@@ -578,7 +578,7 @@ fun SleepTimerDialog(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(14.dp))
+                                .clip(com.example.ui.theme.SoundboxButtonShapes.CompactIcon)
                                 .background(colors.surfaceVariant.copy(alpha = 0.35f))
                                 .padding(horizontal = 12.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
@@ -636,7 +636,7 @@ fun SleepTimerDialog(
                             OutlinedButton(
                                 onClick = onDismiss,
                                 modifier = Modifier.weight(0.8f),
-                                shape = RoundedCornerShape(14.dp),
+                                shape = com.example.ui.theme.SoundboxButtonShapes.CompactIcon,
                                 colors = ButtonDefaults.outlinedButtonColors(
                                     containerColor = Color.Transparent,
                                     contentColor = colors.textSecondary
@@ -652,7 +652,7 @@ fun SleepTimerDialog(
                                     onDismiss()
                                 },
                                 modifier = Modifier.weight(1.2f),
-                                shape = RoundedCornerShape(14.dp),
+                                shape = com.example.ui.theme.SoundboxButtonShapes.CompactIcon,
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = colors.accentCyan,
                                     contentColor = Color(0xFF0F172A)

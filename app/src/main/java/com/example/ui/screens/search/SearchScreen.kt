@@ -213,7 +213,7 @@ fun SearchScreen(
 
                             searchHistory.forEach { historyQuery ->
                                 Surface(
-                                    shape = RoundedCornerShape(10.dp),
+                                    shape = com.example.ui.theme.SoundboxButtonShapes.SmallAction,
                                     color = colors.surface,
                                     border = androidx.compose.foundation.BorderStroke(1.dp, colors.border),
                                     modifier = Modifier

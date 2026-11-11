@@ -376,16 +376,20 @@ fun PlaylistsScreen(
                                 playlistNameInput = ""
                                 snackbarMessage = "Playlist created"
                             }
-                        }
+                        },
+                        shape = com.example.ui.theme.SoundboxButtonShapes.StandardAction
                     ) {
                         Text("Create")
                     }
                 },
                 dismissButton = {
-                    TextButton(onClick = {
-                        showCreateDialog = false
-                        playlistNameInput = ""
-                    }) {
+                    TextButton(
+                        onClick = {
+                            showCreateDialog = false
+                            playlistNameInput = ""
+                        },
+                        shape = com.example.ui.theme.SoundboxButtonShapes.StandardAction
+                    ) {
                         Text("Cancel")
                     }
                 }
@@ -449,24 +453,36 @@ fun PlaylistsScreen(
 
                         // Save Smart Playlist as custom button if in smart playlist mode
                         if (activeSmartPlaylist != null) {
-                            IconButton(onClick = {
-                                viewModel.saveSmartPlaylistAsCustom(activeSmartPlaylist!!)
-                                snackbarMessage = "Saved '${activeSmartPlaylist!!.title}' to My Playlists"
-                            }) {
-                                Icon(
-                                    imageVector = Icons.Default.BookmarkAdd,
-                                    contentDescription = "Save to My Playlists",
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
+                            Surface(
+                                onClick = {
+                                    viewModel.saveSmartPlaylistAsCustom(activeSmartPlaylist!!)
+                                    snackbarMessage = "Saved '${activeSmartPlaylist!!.title}' to My Playlists"
+                                },
+                                shape = com.example.ui.theme.SoundboxButtonShapes.CompactIcon,
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                                modifier = Modifier.size(38.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Default.BookmarkAdd,
+                                        contentDescription = "Save to My Playlists",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
                             }
+                            Spacer(modifier = Modifier.width(8.dp))
                         }
 
                         if (activeListSongs.isNotEmpty()) {
-                            Button(onClick = {
-                                viewModel.playSong(activeListSongs.first(), activeListSongs)
-                                onSongSelected(activeListSongs.first())
-                                activeListName = null
-                            }) {
+                            Button(
+                                onClick = {
+                                    viewModel.playSong(activeListSongs.first(), activeListSongs)
+                                    onSongSelected(activeListSongs.first())
+                                    activeListName = null
+                                },
+                                shape = com.example.ui.theme.SoundboxButtonShapes.StandardAction
+                            ) {
                                 Icon(Icons.Default.PlayArrow, contentDescription = null)
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text("Play All")

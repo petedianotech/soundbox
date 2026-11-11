@@ -135,7 +135,7 @@ fun PowerampEqualizerScreen(
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Black,
                                 letterSpacing = 1.5.sp,
-                                fontFamily = FontFamily.Monospace
+                                
                             ),
                             color = if (equalizerEnabled) colors.accentCyan else colors.textPrimary
                         )
@@ -151,7 +151,7 @@ fun PowerampEqualizerScreen(
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 8.sp,
-                                    fontFamily = FontFamily.Monospace
+                                    
                                 ),
                                 color = colors.accentCyan
                             )
@@ -159,25 +159,42 @@ fun PowerampEqualizerScreen(
                     }
                 },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = colors.textPrimary)
+                    Surface(
+                        onClick = onNavigateBack,
+                        shape = com.example.ui.theme.SoundboxButtonShapes.CompactIcon,
+                        color = colors.surfaceElevated,
+                        border = androidx.compose.foundation.BorderStroke(0.5.dp, colors.borderSubtle),
+                        modifier = Modifier.padding(start = 12.dp).size(36.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = colors.textPrimary, modifier = Modifier.size(18.dp))
+                        }
                     }
                 },
                 actions = {
                     // Reset to Flat button
-                    TextButton(
+                    Surface(
                         onClick = { viewModel.resetEqualizerToFlat() },
-                        colors = ButtonDefaults.textButtonColors(contentColor = colors.accentAmber)
+                        shape = com.example.ui.theme.SoundboxButtonShapes.SmallAction,
+                        color = colors.accentAmber.copy(alpha = 0.12f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, colors.accentAmber.copy(alpha = 0.35f)),
+                        modifier = Modifier.padding(end = 8.dp)
                     ) {
-                        Icon(Icons.Default.RestartAlt, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text(
-                            text = "FLAT",
-                            style = MaterialTheme.typography.labelMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.Monospace
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                        ) {
+                            Icon(Icons.Default.RestartAlt, contentDescription = null, tint = colors.accentAmber, modifier = Modifier.size(15.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text(
+                                text = "FLAT",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.sp
+                                ),
+                                color = colors.accentAmber
                             )
-                        )
+                        }
                     }
 
                     // Master EQ Switch
@@ -229,7 +246,6 @@ fun PowerampEqualizerScreen(
                         if (hwBands > 0) "HARDWARE DSP ENGINE: ACTIVE ($hwBands BANDS)" else "PRECISION DSP ENGINE: ACTIVE"
                     } else "DSP BYPASSED • BIT-PERFECT DIRECT AUDIO",
                     style = MaterialTheme.typography.labelSmall.copy(
-                        fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold,
                         fontSize = 9.5.sp,
                         letterSpacing = 0.5.sp
@@ -241,7 +257,6 @@ fun PowerampEqualizerScreen(
                     Text(
                         text = "SESSION #$audioSessionId",
                         style = MaterialTheme.typography.labelSmall.copy(
-                            fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.Bold,
                             fontSize = 8.5.sp
                         ),
@@ -279,7 +294,7 @@ fun PowerampEqualizerScreen(
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = if (isCatSelected) FontWeight.Black else FontWeight.Bold,
                                 fontSize = 9.5.sp,
-                                fontFamily = FontFamily.Monospace
+                                
                             ),
                             color = if (isCatSelected) Color.Black else colors.textSecondary,
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
@@ -324,7 +339,6 @@ fun PowerampEqualizerScreen(
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = if (isSelected) FontWeight.Black else FontWeight.Bold,
                                 letterSpacing = 0.8.sp,
-                                fontFamily = FontFamily.Monospace,
                                 fontSize = 10.sp
                             ),
                             color = if (isSelected) colors.accentCyan else colors.textSecondary,
@@ -367,7 +381,6 @@ fun PowerampEqualizerScreen(
                     style = MaterialTheme.typography.labelMedium.copy(
                         fontWeight = FontWeight.Black,
                         letterSpacing = 1.2.sp,
-                        fontFamily = FontFamily.Monospace,
                         fontSize = 11.sp
                     ),
                     color = colors.textSecondary
@@ -377,7 +390,6 @@ fun PowerampEqualizerScreen(
                     text = "TAP dB TO ZERO • DRAG FADER",
                     style = MaterialTheme.typography.labelSmall.copy(
                         fontWeight = FontWeight.Medium,
-                        fontFamily = FontFamily.Monospace,
                         fontSize = 8.5.sp
                     ),
                     color = colors.textMuted
@@ -461,7 +473,6 @@ fun PowerampEqualizerScreen(
                 style = MaterialTheme.typography.labelMedium.copy(
                     fontWeight = FontWeight.Black,
                     letterSpacing = 1.2.sp,
-                    fontFamily = FontFamily.Monospace,
                     fontSize = 11.sp
                 ),
                 color = colors.textSecondary,
@@ -559,7 +570,6 @@ fun PowerampEqualizerScreen(
                 style = MaterialTheme.typography.labelMedium.copy(
                     fontWeight = FontWeight.Black,
                     letterSpacing = 1.2.sp,
-                    fontFamily = FontFamily.Monospace,
                     fontSize = 11.sp
                 ),
                 color = colors.textSecondary,
@@ -600,7 +610,6 @@ fun PowerampEqualizerScreen(
                             text = title,
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = if (isSelected) FontWeight.Black else FontWeight.Bold,
-                                fontFamily = FontFamily.Monospace,
                                 fontSize = 10.sp,
                                 letterSpacing = 0.5.sp
                             ),
@@ -667,7 +676,7 @@ fun TactileVerticalFader(
                 style = MaterialTheme.typography.labelSmall.copy(
                     fontSize = 9.sp,
                     fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace
+                    
                 ),
                 color = if (isEnabled) {
                     if (abs(value) > 0.1f) accentColor else colors.textPrimary
@@ -912,7 +921,7 @@ fun TactileVerticalFader(
             style = MaterialTheme.typography.labelSmall.copy(
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Black,
-                fontFamily = FontFamily.Monospace
+                
             ),
             color = if (isEnabled) colors.textPrimary else colors.textMuted
         )
@@ -921,7 +930,7 @@ fun TactileVerticalFader(
             style = MaterialTheme.typography.labelSmall.copy(
                 fontSize = 8.sp,
                 fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Monospace
+                
             ),
             color = if (isEnabled) colors.textSecondary else colors.textMuted
         )

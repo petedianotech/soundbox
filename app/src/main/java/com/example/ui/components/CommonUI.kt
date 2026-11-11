@@ -298,21 +298,38 @@ fun TrackRow(
                 }
             }
 
-            IconButton(onClick = onFavoriteToggle) {
-                Icon(
-                    imageVector = if (song.isFavorite) Icons.Default.ThumbUp else Icons.Outlined.ThumbUp,
-                    contentDescription = if (song.isFavorite) "Unlike song" else "Like song",
-                    tint = if (song.isFavorite) colors.accentCyan else colors.textMuted,
-                    modifier = Modifier.size(19.dp)
-                )
+            Surface(
+                onClick = onFavoriteToggle,
+                shape = com.example.ui.theme.SoundboxButtonShapes.CompactIcon,
+                color = if (song.isFavorite) colors.accentCyan.copy(alpha = 0.12f) else Color.Transparent,
+                modifier = Modifier.size(36.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = if (song.isFavorite) Icons.Default.ThumbUp else Icons.Outlined.ThumbUp,
+                        contentDescription = if (song.isFavorite) "Unlike song" else "Like song",
+                        tint = if (song.isFavorite) colors.accentCyan else colors.textMuted,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
 
-            IconButton(onClick = onMenuClick) {
-                Icon(
-                    imageVector = Icons.Default.MoreVert,
-                    contentDescription = "Song options",
-                    tint = colors.textMuted
-                )
+            Spacer(modifier = Modifier.width(2.dp))
+
+            Surface(
+                onClick = onMenuClick,
+                shape = com.example.ui.theme.SoundboxButtonShapes.CompactIcon,
+                color = Color.Transparent,
+                modifier = Modifier.size(36.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = "Song options",
+                        tint = colors.textMuted,
+                        modifier = Modifier.size(19.dp)
+                    )
+                }
             }
         }
     }
@@ -682,7 +699,10 @@ fun EmptyPlaceholder(
         )
         if (actionText != null && onActionClick != null) {
             Spacer(modifier = Modifier.height(24.dp))
-            Button(onClick = onActionClick) {
+            Button(
+                onClick = onActionClick,
+                shape = com.example.ui.theme.SoundboxButtonShapes.StandardAction
+            ) {
                 Text(text = actionText, fontWeight = FontWeight.Bold)
             }
         }

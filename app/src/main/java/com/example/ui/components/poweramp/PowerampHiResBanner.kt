@@ -97,7 +97,7 @@ fun PowerampHiResBanner(
                             fontWeight = FontWeight.Black,
                             fontSize = 8.5.sp,
                             letterSpacing = 1.sp,
-                            fontFamily = FontFamily.Monospace
+                            
                         ),
                         color = Color.Black
                     )
@@ -107,7 +107,6 @@ fun PowerampHiResBanner(
                     text = "$format • $sampleRate • $bitDepth",
                     style = MaterialTheme.typography.labelSmall.copy(
                         fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Monospace,
                         letterSpacing = 0.5.sp
                     ),
                     color = if (colors.isDark) colors.accentCyan else colors.accentCyan
@@ -160,7 +159,7 @@ private fun PowerampChip(
                 fontWeight = FontWeight.Black,
                 fontSize = 7.5.sp,
                 letterSpacing = 0.8.sp,
-                fontFamily = FontFamily.Monospace
+                
             ),
             color = color
         )

@@ -2,6 +2,7 @@ package com.example.ui.screens.settings
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -79,7 +80,19 @@ fun SettingsScreen(
                         color = colors.textPrimary
                     )
                 },
-                navigationIcon = { IconButton(onClick = onNavigateBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = colors.textPrimary) } },
+                navigationIcon = {
+                    Surface(
+                        onClick = onNavigateBack,
+                        shape = com.example.ui.theme.SoundboxButtonShapes.CompactIcon,
+                        color = colors.surfaceElevated,
+                        border = androidx.compose.foundation.BorderStroke(0.5.dp, colors.borderSubtle),
+                        modifier = Modifier.padding(start = 12.dp).size(36.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = colors.textPrimary, modifier = Modifier.size(18.dp))
+                        }
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = colors.topBarBackground)
             )
         }
@@ -103,6 +116,65 @@ fun SettingsScreen(
             }
 
             SettingsSection(title = "LOOK & FEEL (SKIN & VISUALIZER)", sectionIcon = Icons.Default.Palette) {
+                var showFontDialog by remember { mutableStateOf(false) }
+                SettingsCardRow(
+                    title = "App Typography Font",
+                    subtitle = com.example.ui.theme.AppFont.fromId(currentFont).displayName,
+                    icon = Icons.Default.FontDownload,
+                    badge = "ACTIVE",
+                    badgeColor = Poweramp_Cyan,
+                    onClick = { showFontDialog = true }
+                )
+                if (showFontDialog) {
+                    AlertDialog(
+                        onDismissRequest = { showFontDialog = false },
+                        title = { Text("Select App Typography", fontWeight = FontWeight.Bold) },
+                        text = {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                com.example.ui.theme.AppFont.entries.forEach { font ->
+                                    val isSelected = font.id.equals(currentFont, ignoreCase = true)
+                                    Surface(
+                                        shape = RoundedCornerShape(12.dp),
+                                        color = if (isSelected) colors.surfaceElevated else Color.Transparent,
+                                        border = if (isSelected) androidx.compose.foundation.BorderStroke(1.5.dp, colors.accentCyan) else null,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable {
+                                                viewModel.settingsManager.setFont(font.id)
+                                                showFontDialog = false
+                                            }
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            RadioButton(
+                                                selected = isSelected,
+                                                onClick = {
+                                                    viewModel.settingsManager.setFont(font.id)
+                                                    showFontDialog = false
+                                                },
+                                                colors = RadioButtonDefaults.colors(selectedColor = colors.accentCyan)
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Column {
+                                                Text(font.displayName, fontWeight = FontWeight.Bold, color = colors.textPrimary)
+                                                Text(font.subtitle, fontSize = 11.sp, color = colors.textSecondary)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        confirmButton = {
+                            TextButton(onClick = { showFontDialog = false }) {
+                                Text("Close", color = colors.accentCyan)
+                            }
+                        },
+                        containerColor = colors.dialogBackground
+                    )
+                }
+                SettingsDivider()
                 SettingsToggleRow(title = "Album Art Dynamic Glow Theme", subtitle = "Extract ambient accent colors from active album artwork", icon = Icons.Default.AutoAwesome, checked = dynamicTheme, onCheckedChange = { viewModel.settingsManager.setDynamicThemeFromAlbumArt(it) })
                 SettingsDivider()
                 SettingsToggleRow(title = "Audio Visualizer", subtitle = if (visualizerEnabled) "Dynamic real-time audio spectrum enabled" else "Visualizer turned off", icon = Icons.Default.GraphicEq, checked = visualizerEnabled, onCheckedChange = { viewModel.settingsManager.setVisualizerEnabled(it) })

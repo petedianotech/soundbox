@@ -59,12 +59,21 @@ fun SoundboxInsightsScreen(
                     }
                 },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = colors.textPrimary
-                        )
+                    Surface(
+                        onClick = onNavigateBack,
+                        shape = com.example.ui.theme.SoundboxButtonShapes.CompactIcon,
+                        color = colors.surfaceElevated,
+                        border = androidx.compose.foundation.BorderStroke(0.5.dp, colors.borderSubtle),
+                        modifier = Modifier.padding(start = 12.dp).size(36.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back",
+                                tint = colors.textPrimary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(

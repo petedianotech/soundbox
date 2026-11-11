@@ -269,7 +269,7 @@ fun AlbumsScreen(
                                 }
                             },
                             modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(12.dp),
+                            shape = com.example.ui.theme.SoundboxButtonShapes.StandardAction,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = colors.accentCyan,
                                 contentColor = Color.Black
@@ -289,7 +289,7 @@ fun AlbumsScreen(
                                 }
                             },
                             modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(12.dp),
+                            shape = com.example.ui.theme.SoundboxButtonShapes.StandardAction,
                             border = androidx.compose.foundation.BorderStroke(1.dp, colors.borderSubtle),
                             colors = ButtonDefaults.outlinedButtonColors(
                                 contentColor = colors.textPrimary

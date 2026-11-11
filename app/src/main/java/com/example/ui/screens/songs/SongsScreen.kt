@@ -168,7 +168,7 @@ fun SongsScreen(
                             containerColor = colors.accentCyan,
                             contentColor = Color.Black
                         ),
-                        shape = RoundedCornerShape(14.dp),
+                        shape = com.example.ui.theme.SoundboxButtonShapes.StandardAction,
                         contentPadding = PaddingValues(vertical = 12.dp)
                     ) {
                         Icon(
@@ -198,7 +198,7 @@ fun SongsScreen(
                             contentColor = colors.textPrimary
                         ),
                         border = androidx.compose.foundation.BorderStroke(1.dp, colors.border),
-                        shape = RoundedCornerShape(14.dp),
+                        shape = com.example.ui.theme.SoundboxButtonShapes.StandardAction,
                         contentPadding = PaddingValues(vertical = 12.dp)
                     ) {
                         Icon(
@@ -263,7 +263,8 @@ fun SongsScreen(
                     Spacer(modifier = Modifier.height(16.dp))
                     Button(
                         onClick = { viewModel.scanStorage() },
-                        colors = ButtonDefaults.buttonColors(containerColor = colors.accentCyan, contentColor = Color.Black)
+                        colors = ButtonDefaults.buttonColors(containerColor = colors.accentCyan, contentColor = Color.Black),
+                        shape = com.example.ui.theme.SoundboxButtonShapes.StandardAction
                     ) {
                         Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))

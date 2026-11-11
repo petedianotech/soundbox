@@ -125,7 +125,7 @@ fun SplashScreen(
                     fontWeight = FontWeight.Black,
                     letterSpacing = 6.sp,
                     fontSize = 26.sp,
-                    fontFamily = FontFamily.Monospace
+                    
                 ),
                 color = Color.White,
                 modifier = Modifier.alpha(textAlpha)
@@ -147,7 +147,6 @@ fun SplashScreen(
                         color = Poweramp_Lime,
                         letterSpacing = 1.8.sp,
                         fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Monospace,
                         fontSize = 9.sp
                     )
                 )

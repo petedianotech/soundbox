@@ -92,7 +92,7 @@ fun PowerampRotaryKnob(
                 style = MaterialTheme.typography.labelSmall.copy(
                     fontWeight = FontWeight.Black,
                     letterSpacing = 1.5.sp,
-                    fontFamily = FontFamily.Monospace
+                    
                 ),
                 color = colors.textSecondary,
                 modifier = Modifier.padding(bottom = 4.dp)
@@ -258,7 +258,6 @@ fun PowerampRotaryKnob(
                     text = displayValue,
                     style = MaterialTheme.typography.labelMedium.copy(
                         fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Monospace,
                         letterSpacing = 0.5.sp
                     ),
                     color = accentColor,

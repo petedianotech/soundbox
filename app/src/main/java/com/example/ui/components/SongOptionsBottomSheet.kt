@@ -396,13 +396,17 @@ fun SongOptionsBottomSheet(
                         onDismiss()
                         Toast.makeText(context, "Saved meta tag edits!", Toast.LENGTH_SHORT).show()
                     },
+                    shape = com.example.ui.theme.SoundboxButtonShapes.StandardAction,
                     colors = ButtonDefaults.textButtonColors(contentColor = colors.accentCyan)
                 ) {
                     Text("Save Tags", fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showEditTagsDialog = false }) {
+                TextButton(
+                    onClick = { showEditTagsDialog = false },
+                    shape = com.example.ui.theme.SoundboxButtonShapes.StandardAction
+                ) {
                     Text("Cancel", color = colors.textSecondary)
                 }
             }
@@ -445,7 +449,10 @@ fun SongOptionsBottomSheet(
                 }
             },
             confirmButton = {
-                TextButton(onClick = { showSongDetailsDialog = false }) {
+                TextButton(
+                    onClick = { showSongDetailsDialog = false },
+                    shape = com.example.ui.theme.SoundboxButtonShapes.StandardAction
+                ) {
                     Text("Close", color = colors.accentCyan, fontWeight = FontWeight.Bold)
                 }
             }

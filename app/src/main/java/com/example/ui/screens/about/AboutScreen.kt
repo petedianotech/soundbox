@@ -47,18 +47,27 @@ fun AboutScreen(
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Black,
                             letterSpacing = 1.5.sp,
-                            fontFamily = FontFamily.Monospace
+                            
                         ),
                         color = colors.textPrimary
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = colors.textPrimary
-                        )
+                    Surface(
+                        onClick = onNavigateBack,
+                        shape = com.example.ui.theme.SoundboxButtonShapes.CompactIcon,
+                        color = colors.surfaceElevated,
+                        border = androidx.compose.foundation.BorderStroke(0.5.dp, colors.borderSubtle),
+                        modifier = Modifier.padding(start = 12.dp).size(36.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back",
+                                tint = colors.textPrimary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -99,7 +108,7 @@ fun AboutScreen(
                 style = MaterialTheme.typography.headlineMedium.copy(
                     fontWeight = FontWeight.Black,
                     letterSpacing = 2.sp,
-                    fontFamily = FontFamily.Monospace
+                    
                 ),
                 color = colors.textPrimary
             )
@@ -118,7 +127,7 @@ fun AboutScreen(
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace
+                            
                         ),
                         color = colors.accentLime
                     )
@@ -150,7 +159,7 @@ fun AboutScreen(
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.Black,
                                 letterSpacing = 1.2.sp,
-                                fontFamily = FontFamily.Monospace
+                                
                             ),
                             color = colors.accentCyan
                         )
@@ -204,7 +213,7 @@ fun AboutScreen(
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.Black,
                                 letterSpacing = 1.2.sp,
-                                fontFamily = FontFamily.Monospace
+                                
                             ),
                             color = colors.accentLime
                         )
@@ -261,7 +270,7 @@ fun AboutScreen(
 
             Text(
                 text = "Soundbox • Crafted with Precision",
-                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                style = MaterialTheme.typography.bodySmall.copy(),
                 color = colors.textMuted,
                 textAlign = TextAlign.Center
             )

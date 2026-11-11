@@ -719,6 +719,7 @@ fun SoundCutterDialog(
                                 onDismiss()
                             }
                         },
+                        shape = com.example.ui.theme.SoundboxButtonShapes.StandardAction,
                         modifier = Modifier.weight(1f),
                         enabled = !isProcessing
                     ) {

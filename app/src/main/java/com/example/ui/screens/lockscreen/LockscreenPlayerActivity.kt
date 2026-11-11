@@ -516,42 +516,73 @@ fun LockscreenPlayerContent(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // Action icons row (Shuffle, Favorite, Lyrics Toggle)
+                // Action icons row (Shuffle, Favorite, Lyrics Toggle, Seek)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(
+                    Surface(
                         onClick = { showFullLyrics = !showFullLyrics },
-                        modifier = Modifier.testTag("lockscreen_toggle_lyrics_button")
+                        shape = com.example.ui.theme.SoundboxButtonShapes.CompactIcon,
+                        color = if (showFullLyrics) palette.primary.copy(alpha = 0.22f) else palette.surfaceTint,
+                        border = if (showFullLyrics) BorderStroke(1.2.dp, palette.primary) else BorderStroke(0.5.dp, Color.White.copy(alpha = 0.12f)),
+                        modifier = Modifier.size(42.dp).testTag("lockscreen_toggle_lyrics_button")
                     ) {
-                        Icon(
-                            if (showFullLyrics) Icons.Default.Album else Icons.Default.Lyrics,
-                            contentDescription = "Toggle Lyrics",
-                            tint = if (showFullLyrics) palette.primary else Color.White.copy(alpha = 0.7f)
-                        )
-                    }
-
-                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        IconButton(onClick = onRewind10) {
-                            Icon(Icons.Default.Replay10, contentDescription = "Rewind 10s", tint = Color.White)
-                        }
-                        IconButton(onClick = onForward10) {
-                            Icon(Icons.Default.Forward10, contentDescription = "Forward 10s", tint = Color.White)
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                if (showFullLyrics) Icons.Default.Album else Icons.Default.Lyrics,
+                                contentDescription = "Toggle Lyrics",
+                                tint = if (showFullLyrics) palette.primary else Color.White.copy(alpha = 0.8f),
+                                modifier = Modifier.size(20.dp)
+                            )
                         }
                     }
 
-                    IconButton(onClick = onToggleFavorite) {
-                        Icon(
-                            if (song.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                            contentDescription = "Favorite",
-                            tint = if (song.isFavorite) Color.Red else Color.White.copy(alpha = 0.7f)
-                        )
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Surface(
+                            onClick = onRewind10,
+                            shape = com.example.ui.theme.SoundboxButtonShapes.CompactIcon,
+                            color = palette.surfaceTint,
+                            border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.12f)),
+                            modifier = Modifier.size(42.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(Icons.Default.Replay10, contentDescription = "Rewind 10s", tint = Color.White, modifier = Modifier.size(20.dp))
+                            }
+                        }
+                        Surface(
+                            onClick = onForward10,
+                            shape = com.example.ui.theme.SoundboxButtonShapes.CompactIcon,
+                            color = palette.surfaceTint,
+                            border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.12f)),
+                            modifier = Modifier.size(42.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(Icons.Default.Forward10, contentDescription = "Forward 10s", tint = Color.White, modifier = Modifier.size(20.dp))
+                            }
+                        }
+                    }
+
+                    Surface(
+                        onClick = onToggleFavorite,
+                        shape = com.example.ui.theme.SoundboxButtonShapes.CompactIcon,
+                        color = if (song.isFavorite) Color.Red.copy(alpha = 0.2f) else palette.surfaceTint,
+                        border = if (song.isFavorite) BorderStroke(1.2.dp, Color.Red) else BorderStroke(0.5.dp, Color.White.copy(alpha = 0.12f)),
+                        modifier = Modifier.size(42.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                if (song.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                contentDescription = "Favorite",
+                                tint = if (song.isFavorite) Color.Red else Color.White.copy(alpha = 0.8f),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
                 // Primary Playback Controls (Prev, Big Play/Pause, Next)
                 Row(
@@ -559,22 +590,28 @@ fun LockscreenPlayerContent(
                     horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(
+                    Surface(
                         onClick = onSkipPrevious,
+                        shape = com.example.ui.theme.SoundboxButtonShapes.LargeAction,
+                        color = palette.surfaceTint,
+                        border = BorderStroke(1.dp, palette.primary.copy(alpha = 0.25f)),
                         modifier = Modifier
-                            .size(52.dp)
+                            .size(54.dp)
                             .testTag("lockscreen_prev_button")
                     ) {
-                        Icon(Icons.Default.SkipPrevious, contentDescription = "Previous", tint = Color.White, modifier = Modifier.size(36.dp))
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(Icons.Default.SkipPrevious, contentDescription = "Previous", tint = Color.White, modifier = Modifier.size(30.dp))
+                        }
                     }
 
                     Surface(
                         onClick = onPlayPause,
                         shape = CircleShape,
                         color = palette.primary,
-                        shadowElevation = 8.dp,
+                        shadowElevation = 10.dp,
+                        border = BorderStroke(2.dp, Color.White.copy(alpha = 0.35f)),
                         modifier = Modifier
-                            .size(68.dp)
+                            .size(72.dp)
                             .testTag("lockscreen_play_pause_button")
                     ) {
                         Box(contentAlignment = Alignment.Center) {
@@ -582,18 +619,23 @@ fun LockscreenPlayerContent(
                                 if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                                 contentDescription = if (isPlaying) "Pause" else "Play",
                                 tint = Color.Black,
-                                modifier = Modifier.size(38.dp)
+                                modifier = Modifier.size(40.dp)
                             )
                         }
                     }
 
-                    IconButton(
+                    Surface(
                         onClick = onSkipNext,
+                        shape = com.example.ui.theme.SoundboxButtonShapes.LargeAction,
+                        color = palette.surfaceTint,
+                        border = BorderStroke(1.dp, palette.primary.copy(alpha = 0.25f)),
                         modifier = Modifier
-                            .size(52.dp)
+                            .size(54.dp)
                             .testTag("lockscreen_next_button")
                     ) {
-                        Icon(Icons.Default.SkipNext, contentDescription = "Next", tint = Color.White, modifier = Modifier.size(36.dp))
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(Icons.Default.SkipNext, contentDescription = "Next", tint = Color.White, modifier = Modifier.size(30.dp))
+                        }
                     }
                 }
 

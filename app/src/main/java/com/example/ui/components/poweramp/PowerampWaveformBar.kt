@@ -231,7 +231,6 @@ fun PowerampWaveformBar(
                     text = "${formatDurationMs(scrubTimeMs)} / ${formatDurationMs(duration)}",
                     style = MaterialTheme.typography.labelMedium.copy(
                         fontWeight = FontWeight.Black,
-                        fontFamily = FontFamily.Monospace,
                         letterSpacing = 1.sp
                     ),
                     color = accentColor,

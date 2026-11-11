@@ -280,35 +280,85 @@ fun HomeScreen(
                         }
                     },
                     actions = {
-                        IconButton(onClick = onNavigateToInsights) {
-                            Icon(
-                                Icons.Default.Insights,
-                                contentDescription = "Soundbox Insights",
-                                tint = colors.accentCyan
-                            )
-                        }
-                        IconButton(onClick = onNavigateToEqualizer) {
-                            Box(contentAlignment = Alignment.TopEnd) {
-                                Icon(
-                                    Icons.Default.Equalizer,
-                                    contentDescription = "Equalizer",
-                                    tint = if (equalizerEnabled) colors.accentCyan else colors.textSecondary
-                                )
-                                if (equalizerEnabled) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(6.dp)
-                                            .clip(CircleShape)
-                                            .background(colors.accentLime)
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Surface(
+                                onClick = onNavigateToInsights,
+                                shape = com.example.ui.theme.SoundboxButtonShapes.CompactIcon,
+                                color = colors.surfaceElevated,
+                                border = androidx.compose.foundation.BorderStroke(0.5.dp, colors.borderSubtle),
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        Icons.Default.Insights,
+                                        contentDescription = "Soundbox Insights",
+                                        tint = colors.accentCyan,
+                                        modifier = Modifier.size(18.dp)
                                     )
                                 }
                             }
-                        }
-                        IconButton(onClick = onNavigateToSearch) {
-                            Icon(Icons.Default.Search, contentDescription = "Search songs", tint = MaterialTheme.colorScheme.onSurface)
-                        }
-                        IconButton(onClick = onNavigateToSettings) {
-                            Icon(Icons.Default.Settings, contentDescription = "Settings", tint = MaterialTheme.colorScheme.onSurface)
+
+                            Surface(
+                                onClick = onNavigateToEqualizer,
+                                shape = com.example.ui.theme.SoundboxButtonShapes.CompactIcon,
+                                color = if (equalizerEnabled) colors.accentCyan.copy(alpha = 0.15f) else colors.surfaceElevated,
+                                border = androidx.compose.foundation.BorderStroke(if (equalizerEnabled) 1.dp else 0.5.dp, if (equalizerEnabled) colors.accentCyan else colors.borderSubtle),
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        Icons.Default.Equalizer,
+                                        contentDescription = "Equalizer",
+                                        tint = if (equalizerEnabled) colors.accentCyan else colors.textSecondary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    if (equalizerEnabled) {
+                                        Box(
+                                            modifier = Modifier
+                                                .align(Alignment.TopEnd)
+                                                .padding(3.dp)
+                                                .size(6.dp)
+                                                .clip(CircleShape)
+                                                .background(colors.accentLime)
+                                        )
+                                    }
+                                }
+                            }
+
+                            Surface(
+                                onClick = onNavigateToSearch,
+                                shape = com.example.ui.theme.SoundboxButtonShapes.CompactIcon,
+                                color = colors.surfaceElevated,
+                                border = androidx.compose.foundation.BorderStroke(0.5.dp, colors.borderSubtle),
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        Icons.Default.Search,
+                                        contentDescription = "Search songs",
+                                        tint = colors.textPrimary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+
+                            Surface(
+                                onClick = onNavigateToSettings,
+                                shape = com.example.ui.theme.SoundboxButtonShapes.CompactIcon,
+                                color = colors.surfaceElevated,
+                                border = androidx.compose.foundation.BorderStroke(0.5.dp, colors.borderSubtle),
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        Icons.Default.Settings,
+                                        contentDescription = "Settings",
+                                        tint = colors.textPrimary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.width(4.dp))
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(

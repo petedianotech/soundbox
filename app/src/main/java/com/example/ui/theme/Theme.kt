@@ -121,12 +121,31 @@ private val DarkColors = darkColorScheme(
     outlineVariant = Color(0xFF1A2536)
 )
 
+/**
+ * Centralized, reusable Soundbox Action Button Shape System.
+ * Adheres to Soundbox global button hierarchy:
+ * - Small action buttons: 12dp corner radius.
+ * - Compact icon action buttons: 14dp corner radius.
+ * - Standard action buttons: 16dp corner radius.
+ * - Large action buttons: 20dp corner radius.
+ * - Prominent playback buttons: 24dp corner radius.
+ * - Circular controls: CircleShape.
+ */
+object SoundboxButtonShapes {
+    val SmallAction = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
+    val CompactIcon = androidx.compose.foundation.shape.RoundedCornerShape(14.dp)
+    val StandardAction = androidx.compose.foundation.shape.RoundedCornerShape(16.dp)
+    val LargeAction = androidx.compose.foundation.shape.RoundedCornerShape(20.dp)
+    val ProminentPlayback = androidx.compose.foundation.shape.RoundedCornerShape(24.dp)
+    val CircularAction = androidx.compose.foundation.shape.CircleShape
+}
+
 val SamsungOneUiShapes = androidx.compose.material3.Shapes(
     extraSmall = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
-    small = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
-    medium = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
-    large = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
-    extraLarge = androidx.compose.foundation.shape.RoundedCornerShape(24.dp)
+    small = SoundboxButtonShapes.SmallAction,        // 12dp
+    medium = SoundboxButtonShapes.StandardAction,   // 16dp
+    large = SoundboxButtonShapes.LargeAction,       // 20dp
+    extraLarge = SoundboxButtonShapes.ProminentPlayback // 24dp
 )
 
 val CircularPillShapes = SamsungOneUiShapes
