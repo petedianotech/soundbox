@@ -106,7 +106,25 @@ fun SettingsScreen(
                 SettingsDivider()
                 SettingsToggleRow(title = "Hi-Res Audio Engine (32-bit)", subtitle = "Direct hardware floating-point audio output pipeline", icon = Icons.Default.HighQuality, checked = hiResEngine, onCheckedChange = { viewModel.settingsManager.setHiResAudioEngine(it) })
                 SettingsDivider()
-                SettingsCardRow(title = "ReplayGain Normalization", subtitle = when (replayGain) { "TRACK" -> "Track Peak Normalization (-14 LUFS)"; "ALBUM" -> "Album Peak Normalization"; else -> "Disabled" }, icon = Icons.Default.VolumeUp, onClick = { })
+                SettingsCardRow(
+                    title = "ReplayGain Normalization",
+                    subtitle = when (replayGain) {
+                        "TRACK" -> "Track Peak Normalization (-14 LUFS)"
+                        "ALBUM" -> "Album Peak Normalization"
+                        else -> "Disabled"
+                    },
+                    icon = Icons.Default.VolumeUp,
+                    badge = replayGain,
+                    badgeColor = if (replayGain != "OFF") Poweramp_Cyan else Color(0xFF5A697D),
+                    onClick = {
+                        val nextMode = when (replayGain) {
+                            "OFF" -> "TRACK"
+                            "TRACK" -> "ALBUM"
+                            else -> "OFF"
+                        }
+                        viewModel.settingsManager.setReplayGainMode(nextMode)
+                    }
+                )
             }
 
             SettingsSection(title = "Playback & Sleep Timer", sectionIcon = Icons.Default.PlayCircle) {

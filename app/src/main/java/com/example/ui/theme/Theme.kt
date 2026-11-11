@@ -122,6 +122,51 @@ private val DarkColors = darkColorScheme(
 )
 
 /**
+ * Centralized, reusable Soundbox Design System Tokens.
+ */
+object SoundboxDesignTokens {
+    object Spacing {
+        val xs = 4.dp
+        val sm = 8.dp
+        val md = 12.dp
+        val lg = 16.dp
+        val xl = 24.dp
+        val xxl = 32.dp
+    }
+
+    object Heights {
+        val miniPlayer = 64.dp
+        val buttonStandard = 48.dp
+        val buttonCompact = 36.dp
+        val searchField = 52.dp
+        val songRow = 68.dp
+        val topAppBar = 64.dp
+    }
+
+    object IconSizes {
+        val xs = 14.dp
+        val sm = 18.dp
+        val md = 22.dp
+        val lg = 28.dp
+        val xl = 40.dp
+    }
+
+    object Elevations {
+        val none = 0.dp
+        val low = 2.dp
+        val medium = 6.dp
+        val high = 12.dp
+        val max = 24.dp
+    }
+
+    object Animations {
+        const val fast = 150
+        const val normal = 300
+        const val slow = 500
+    }
+}
+
+/**
  * Centralized, reusable Soundbox Action Button Shape System.
  * Adheres to Soundbox global button hierarchy:
  * - Small action buttons: 12dp corner radius.
