@@ -27,6 +27,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -35,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.example.R
 import com.example.data.model.Song
 import com.example.ui.theme.SoundboxTheme
 import com.example.ui.viewmodel.MusicViewModel
@@ -614,10 +616,10 @@ fun SoundCutterDialog(
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
                                         Icon(
-                                            imageVector = if (isPreviewPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                            painter = painterResource(if (isPreviewPlaying) R.drawable.ic_sb_pause else R.drawable.ic_sb_play),
                                             contentDescription = if (isPreviewPlaying) "Pause Preview" else "Play Preview",
                                             tint = Color.Black,
-                                            modifier = Modifier.size(24.dp)
+                                            modifier = Modifier.size(22.dp)
                                         )
                                     }
                                 }
@@ -645,9 +647,10 @@ fun SoundCutterDialog(
                                 }
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Replay,
+                                    painter = painterResource(R.drawable.ic_sb_replay),
                                     contentDescription = "Restart Cut Preview",
-                                    tint = colors.accentCyan
+                                    tint = colors.accentCyan,
+                                    modifier = Modifier.size(22.dp)
                                 )
                             }
                         }

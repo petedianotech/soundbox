@@ -13,7 +13,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Album
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -22,10 +21,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.R
 import com.example.data.model.Song
 import com.example.ui.components.ArtworkThumbnail
 import com.example.ui.components.EmptyPlaceholder
@@ -75,7 +76,7 @@ fun AlbumsScreen(
                 items(albumMap.keys.toList()) { albumName ->
                     val songsInAlbum = albumMap[albumName] ?: emptyList()
                     val firstSong = songsInAlbum.firstOrNull()
-                    val artistName = firstSong?.artist ?: "Unknown Artist"
+                    val artistName = firstSong?.artist?.takeIf { it.isNotBlank() && !it.equals("<unknown>", ignoreCase = true) } ?: "Unknown Artist"
                     val trackCount = songsInAlbum.size
 
                     Card(
@@ -162,10 +163,10 @@ fun AlbumsScreen(
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
                                         Icon(
-                                            imageVector = Icons.Default.PlayArrow,
+                                            painter = painterResource(R.drawable.ic_sb_play),
                                             contentDescription = "Play Album",
                                             tint = Color.Black,
-                                            modifier = Modifier.size(20.dp)
+                                            modifier = Modifier.size(18.dp)
                                         )
                                     }
                                 }
@@ -245,8 +246,9 @@ fun AlbumsScreen(
                                 overflow = TextOverflow.Ellipsis
                             )
                             Spacer(modifier = Modifier.height(2.dp))
+                            val sheetArtist = firstSong?.artist?.takeIf { it.isNotBlank() && !it.equals("<unknown>", ignoreCase = true) } ?: "Unknown Artist"
                             Text(
-                                text = "${firstSong?.artist ?: "Unknown Artist"} • ${albumSongs.size} tracks",
+                                text = "$sheetArtist • ${albumSongs.size} tracks",
                                 style = MaterialTheme.typography.bodyMedium.copy(
                                     color = colors.textSecondary
                                 )
@@ -275,7 +277,7 @@ fun AlbumsScreen(
                                 contentColor = Color.Black
                             )
                         ) {
-                            Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Icon(painter = painterResource(R.drawable.ic_sb_play), contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(6.dp))
                             Text("Play all", fontWeight = FontWeight.Bold)
                         }

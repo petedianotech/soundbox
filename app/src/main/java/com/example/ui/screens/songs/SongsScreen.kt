@@ -19,12 +19,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.R
 import com.example.data.model.Song
 import com.example.ui.components.TrackRow
 import com.example.ui.theme.SoundboxTheme
@@ -172,7 +174,7 @@ fun SongsScreen(
                         contentPadding = PaddingValues(vertical = 12.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.PlayArrow,
+                            painter = painterResource(R.drawable.ic_sb_play),
                             contentDescription = null,
                             modifier = Modifier.size(18.dp)
                         )

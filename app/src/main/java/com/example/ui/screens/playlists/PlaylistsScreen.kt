@@ -17,10 +17,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.R
 import com.example.data.model.Playlist
 import com.example.data.model.SmartPlaylist
 import com.example.data.model.Song
@@ -322,16 +324,23 @@ fun PlaylistsScreen(
                                 }
 
                                 if (playlistSongs.isNotEmpty()) {
-                                    IconButton(onClick = {
-                                        viewModel.playSong(playlistSongs.first(), playlistSongs)
-                                        onSongSelected(playlistSongs.first())
-                                    }) {
-                                        Icon(
-                                            imageVector = Icons.Default.PlayCircle,
-                                            contentDescription = "Play Playlist",
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(32.dp)
-                                        )
+                                    Surface(
+                                        onClick = {
+                                            viewModel.playSong(playlistSongs.first(), playlistSongs)
+                                            onSongSelected(playlistSongs.first())
+                                        },
+                                        shape = CircleShape,
+                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+                                        modifier = Modifier.size(36.dp)
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(
+                                                painter = painterResource(R.drawable.ic_sb_play),
+                                                contentDescription = "Play Playlist",
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
                                     }
                                 }
 
@@ -483,7 +492,7 @@ fun PlaylistsScreen(
                                 },
                                 shape = com.example.ui.theme.SoundboxButtonShapes.StandardAction
                             ) {
-                                Icon(Icons.Default.PlayArrow, contentDescription = null)
+                                Icon(painter = painterResource(R.drawable.ic_sb_play), contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text("Play All")
                             }
@@ -587,16 +596,20 @@ fun SmartPlaylistGridCard(
                 }
 
                 if (smartPlaylist.songs.isNotEmpty()) {
-                    IconButton(
+                    Surface(
                         onClick = onPlayClick,
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(32.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.PlayCircleFilled,
-                            contentDescription = "Quick Play",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(28.dp)
-                        )
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_sb_play),
+                                contentDescription = "Quick Play",
+                                tint = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
                     }
                 }
             }

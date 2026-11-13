@@ -28,11 +28,13 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -160,15 +162,14 @@ fun NowPlayingScreen(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Surface(
                             shape = RoundedCornerShape(12.dp),
-                            color = effectiveSurfaceTint,
-                            border = BorderStroke(1.dp, effectiveAccent.copy(alpha = 0.25f)),
+                            color = Color.White.copy(alpha = 0.08f),
                             modifier = Modifier.padding(bottom = 2.dp)
                         ) {
                             Text(
                                 text = "NOW PLAYING",
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = FontWeight.Bold,
-                                    letterSpacing = 2.sp,
+                                    letterSpacing = 1.6.sp,
                                     fontSize = 10.sp
                                 ),
                                 color = effectiveAccent,
@@ -176,7 +177,7 @@ fun NowPlayingScreen(
                             )
                         }
                         Text(
-                            text = song.album.ifEmpty { "Soundbox Audio" },
+                            text = song.album.takeIf { it.isNotBlank() && !it.equals("<unknown>", ignoreCase = true) } ?: "Soundbox Audio",
                             style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
                             color = effectiveTextMuted,
                             maxLines = 1,
@@ -188,9 +189,8 @@ fun NowPlayingScreen(
                     Surface(
                         onClick = onBackClick,
                         shape = CircleShape,
-                        color = effectiveSurfaceTint,
-                        border = BorderStroke(1.dp, effectiveAccent.copy(alpha = 0.3f)),
-                        modifier = Modifier.padding(start = 12.dp).size(42.dp)
+                        color = Color.White.copy(alpha = 0.08f),
+                        modifier = Modifier.padding(start = 12.dp).size(44.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
@@ -212,15 +212,14 @@ fun NowPlayingScreen(
                             context.startActivity(lockIntent)
                         },
                         shape = CircleShape,
-                        color = effectiveSurfaceTint,
-                        border = BorderStroke(1.dp, effectiveAccent.copy(alpha = 0.3f)),
+                        color = Color.White.copy(alpha = 0.08f),
                         modifier = Modifier.padding(end = 6.dp).size(42.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 Icons.Default.LockClock,
                                 contentDescription = "Lockscreen Player",
-                                tint = effectiveAccent,
+                                tint = Color.White.copy(alpha = 0.9f),
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -230,8 +229,7 @@ fun NowPlayingScreen(
                     Surface(
                         onClick = onNavigateToEqualizer,
                         shape = CircleShape,
-                        color = effectiveSurfaceTint,
-                        border = BorderStroke(1.dp, effectiveAccent.copy(alpha = 0.3f)),
+                        color = if (eqEnabled) effectiveAccent.copy(alpha = 0.18f) else Color.White.copy(alpha = 0.08f),
                         modifier = Modifier.padding(end = 6.dp).size(42.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
@@ -248,8 +246,7 @@ fun NowPlayingScreen(
                     Surface(
                         onClick = { showSongOptionsSheet = true },
                         shape = CircleShape,
-                        color = effectiveSurfaceTint,
-                        border = BorderStroke(1.dp, effectiveAccent.copy(alpha = 0.3f)),
+                        color = Color.White.copy(alpha = 0.08f),
                         modifier = Modifier.padding(end = 12.dp).size(42.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
@@ -459,21 +456,21 @@ fun NowPlayingScreen(
                                 }
                             }
                         } else {
-                            // ALBUM ART STAGE WITH FLOATING GLOW CARD & METADATA PILLS
+                            // ALBUM ART STAGE WITH RESTRAINED SHADOW & CLEAN METADATA
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.Center
                             ) {
                                 Box(
                                     modifier = Modifier
-                                        .size(280.dp)
+                                        .size(276.dp)
                                         .shadow(
-                                            elevation = if (dynamicThemeGlowEnabled) 28.dp else 16.dp,
-                                            shape = RoundedCornerShape(28.dp),
-                                            ambientColor = effectiveAccent,
-                                            spotColor = effectiveAccent
+                                            elevation = if (dynamicThemeGlowEnabled) 18.dp else 10.dp,
+                                            shape = RoundedCornerShape(24.dp),
+                                            ambientColor = effectiveAccent.copy(alpha = 0.55f),
+                                            spotColor = effectiveAccent.copy(alpha = 0.55f)
                                         )
-                                        .clip(RoundedCornerShape(28.dp))
+                                        .clip(RoundedCornerShape(24.dp))
                                         .background(effectiveSurfaceTint)
                                         .sharedSongArt(song.id)
                                         .clickable { showInPlayerLyrics = true },
@@ -485,20 +482,20 @@ fun NowPlayingScreen(
                                         artist = song.artist,
                                         genre = song.genre,
                                         path = song.path,
-                                        size = 280f,
+                                        size = 276f,
                                         isCircle = false,
                                         modifier = Modifier.fillMaxSize()
                                     )
                                 }
 
-                                Spacer(modifier = Modifier.height(20.dp))
+                                Spacer(modifier = Modifier.height(22.dp))
 
                                 // Track title & Artist Header
                                 Text(
                                     text = cleanSongTitle(song.title),
                                     color = effectiveTextColor,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    fontSize = 22.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 21.sp,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                     textAlign = TextAlign.Center,
@@ -508,9 +505,9 @@ fun NowPlayingScreen(
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = song.artist.ifEmpty { "Unknown Artist" },
+                                    text = song.artist.takeIf { it.isNotBlank() && !it.equals("<unknown>", ignoreCase = true) } ?: "Unknown Artist",
                                     color = effectiveTextMuted,
-                                    fontSize = 15.sp,
+                                    fontSize = 14.5.sp,
                                     fontWeight = FontWeight.Medium,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
@@ -518,32 +515,32 @@ fun NowPlayingScreen(
 
                                 Spacer(modifier = Modifier.height(14.dp))
 
-                                // Floating Frosted Glass Live Lyric Snippet Pill
+                                // Restrained Soft Lyric Snippet Pill
                                 Surface(
                                     onClick = { showInPlayerLyrics = true },
-                                    shape = RoundedCornerShape(22.dp),
-                                    color = effectiveSurfaceTint,
-                                    border = BorderStroke(1.dp, effectiveAccent.copy(alpha = 0.35f)),
+                                    shape = RoundedCornerShape(20.dp),
+                                    color = Color.White.copy(alpha = 0.07f),
+                                    border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.10f)),
                                     modifier = Modifier
                                         .fillMaxWidth(0.94f)
                                         .testTag("in_player_lyric_pill")
                                 ) {
                                     Row(
-                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Box(
                                             modifier = Modifier
-                                                .size(24.dp)
+                                                .size(22.dp)
                                                 .clip(CircleShape)
-                                                .background(effectiveAccent.copy(alpha = 0.2f)),
+                                                .background(effectiveAccent.copy(alpha = 0.16f)),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Icon(
                                                 Icons.Default.MusicNote,
                                                 contentDescription = null,
                                                 tint = effectiveAccent,
-                                                modifier = Modifier.size(14.dp)
+                                                modifier = Modifier.size(13.dp)
                                             )
                                         }
                                         Spacer(modifier = Modifier.width(10.dp))
@@ -560,8 +557,8 @@ fun NowPlayingScreen(
                                         Icon(
                                             Icons.Default.Lyrics,
                                             contentDescription = "Expand Lyrics",
-                                            tint = effectiveAccent,
-                                            modifier = Modifier.size(18.dp)
+                                            tint = effectiveAccent.copy(alpha = 0.9f),
+                                            modifier = Modifier.size(17.dp)
                                         )
                                     }
                                 }
@@ -570,15 +567,13 @@ fun NowPlayingScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
-                // PROGRESS SLIDER CONTAINER (Pill-styled & tactile)
+                // ELEGANT PROGRESS SLIDER (Clean Samsung Music-style direct backdrop placement)
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(18.dp))
-                        .background(effectiveSurfaceTint.copy(alpha = 0.5f))
-                        .padding(horizontal = 14.dp, vertical = 8.dp)
+                        .padding(horizontal = 4.dp)
                 ) {
                     Slider(
                         value = currentDisplayFraction,
@@ -595,7 +590,7 @@ fun NowPlayingScreen(
                         colors = SliderDefaults.colors(
                             thumbColor = effectiveAccent,
                             activeTrackColor = effectiveAccent,
-                            inactiveTrackColor = Color.White.copy(alpha = 0.15f)
+                            inactiveTrackColor = Color.White.copy(alpha = 0.18f)
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -604,64 +599,62 @@ fun NowPlayingScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 4.dp),
+                            .padding(horizontal = 6.dp),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
                             text = formatDuration(currentDisplayPosition),
                             color = effectiveTextMuted,
                             fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.SemiBold
                         )
                         Text(
                             text = formatDuration(duration),
                             color = effectiveTextMuted,
                             fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.SemiBold
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
-                // SECONDARY ACTION BUTTONS (Sleek pill icon buttons)
+                // SECONDARY ACTION BUTTONS (Soft, borderless controls with subtle active tint)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Shuffle Pill Button
+                    // Shuffle Button
                     Surface(
                         onClick = { viewModel.setShuffleMode(!shuffleMode) },
                         shape = CircleShape,
-                        color = if (shuffleMode) effectiveAccent.copy(alpha = 0.22f) else effectiveSurfaceTint,
-                        border = if (shuffleMode) BorderStroke(1.2.dp, effectiveAccent) else BorderStroke(0.5.dp, Color.White.copy(alpha = 0.1f)),
-                        modifier = Modifier.size(44.dp)
+                        color = if (shuffleMode) effectiveAccent.copy(alpha = 0.18f) else Color.Transparent,
+                        modifier = Modifier.size(48.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 Icons.Default.Shuffle,
                                 contentDescription = "Shuffle",
-                                tint = if (shuffleMode) effectiveAccent else effectiveTextMuted,
-                                modifier = Modifier.size(20.dp)
+                                tint = if (shuffleMode) effectiveAccent else Color.White.copy(alpha = 0.72f),
+                                modifier = Modifier.size(21.dp)
                             )
                         }
                     }
 
-                    // Favorite Pill Button
+                    // Favorite Button
                     Surface(
                         onClick = { viewModel.toggleFavorite(song) },
                         shape = CircleShape,
-                        color = if (song.isFavorite) Color.Red.copy(alpha = 0.2f) else effectiveSurfaceTint,
-                        border = if (song.isFavorite) BorderStroke(1.2.dp, Color.Red) else BorderStroke(0.5.dp, Color.White.copy(alpha = 0.1f)),
-                        modifier = Modifier.size(44.dp)
+                        color = if (song.isFavorite) Color(0xFFEF4444).copy(alpha = 0.18f) else Color.Transparent,
+                        modifier = Modifier.size(48.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 if (song.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                                 contentDescription = "Favorite",
-                                tint = if (song.isFavorite) Color.Red else Color.White,
-                                modifier = Modifier.size(20.dp)
+                                tint = if (song.isFavorite) Color(0xFFEF4444) else Color.White.copy(alpha = 0.85f),
+                                modifier = Modifier.size(21.dp)
                             )
                         }
                     }
@@ -670,16 +663,15 @@ fun NowPlayingScreen(
                     Surface(
                         onClick = { showInPlayerLyrics = !showInPlayerLyrics },
                         shape = CircleShape,
-                        color = if (showInPlayerLyrics) effectiveAccent.copy(alpha = 0.22f) else effectiveSurfaceTint,
-                        border = if (showInPlayerLyrics) BorderStroke(1.2.dp, effectiveAccent) else BorderStroke(0.5.dp, Color.White.copy(alpha = 0.1f)),
-                        modifier = Modifier.size(44.dp).testTag("toggle_lyrics_display_button")
+                        color = if (showInPlayerLyrics) effectiveAccent.copy(alpha = 0.18f) else Color.Transparent,
+                        modifier = Modifier.size(48.dp).testTag("toggle_lyrics_display_button")
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 if (showInPlayerLyrics) Icons.Default.Album else Icons.Default.Lyrics,
                                 contentDescription = "Toggle Lyrics",
-                                tint = if (showInPlayerLyrics) effectiveAccent else effectiveTextMuted,
-                                modifier = Modifier.size(20.dp)
+                                tint = if (showInPlayerLyrics) effectiveAccent else Color.White.copy(alpha = 0.72f),
+                                modifier = Modifier.size(21.dp)
                             )
                         }
                     }
@@ -695,9 +687,8 @@ fun NowPlayingScreen(
                             viewModel.setRepeatMode(next)
                         },
                         shape = CircleShape,
-                        color = if (repeatMode != Player.REPEAT_MODE_OFF) effectiveAccent.copy(alpha = 0.22f) else effectiveSurfaceTint,
-                        border = if (repeatMode != Player.REPEAT_MODE_OFF) BorderStroke(1.2.dp, effectiveAccent) else BorderStroke(0.5.dp, Color.White.copy(alpha = 0.1f)),
-                        modifier = Modifier.size(44.dp)
+                        color = if (repeatMode != Player.REPEAT_MODE_OFF) effectiveAccent.copy(alpha = 0.18f) else Color.Transparent,
+                        modifier = Modifier.size(48.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
@@ -707,8 +698,8 @@ fun NowPlayingScreen(
                                     else -> Icons.Default.Repeat
                                 },
                                 contentDescription = "Repeat",
-                                tint = if (repeatMode != Player.REPEAT_MODE_OFF) effectiveAccent else effectiveTextMuted,
-                                modifier = Modifier.size(20.dp)
+                                tint = if (repeatMode != Player.REPEAT_MODE_OFF) effectiveAccent else Color.White.copy(alpha = 0.72f),
+                                modifier = Modifier.size(21.dp)
                             )
                         }
                     }
@@ -717,28 +708,28 @@ fun NowPlayingScreen(
                     Surface(
                         onClick = { showTimerDialog = true },
                         shape = CircleShape,
-                        color = if (sleepTimerLeft > 0) effectiveAccent.copy(alpha = 0.22f) else effectiveSurfaceTint,
-                        border = if (sleepTimerLeft > 0) BorderStroke(1.2.dp, effectiveAccent) else BorderStroke(0.5.dp, Color.White.copy(alpha = 0.1f)),
-                        modifier = Modifier.size(44.dp)
+                        color = if (sleepTimerLeft > 0) effectiveAccent.copy(alpha = 0.18f) else Color.Transparent,
+                        modifier = Modifier.size(48.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 Icons.Default.Timer,
                                 contentDescription = "Sleep timer",
-                                tint = if (sleepTimerLeft > 0) effectiveAccent else effectiveTextMuted,
-                                modifier = Modifier.size(20.dp)
+                                tint = if (sleepTimerLeft > 0) effectiveAccent else Color.White.copy(alpha = 0.72f),
+                                modifier = Modifier.size(21.dp)
                             )
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(18.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
-                // PRIMARY PLAYBACK CONTROLS (Floating pill deck with large play/pause)
+                // PRIMARY PLAYBACK CONTROLS (Samsung Music-inspired rounded icons & balanced proportions)
+                val playIconTint = if (effectiveAccent.luminance() > 0.45f) Color(0xFF090D14) else Color.White
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 8.dp),
+                        .widthIn(max = 320.dp),
                     horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -746,39 +737,39 @@ fun NowPlayingScreen(
                     Surface(
                         onClick = { viewModel.skipPrevious() },
                         shape = CircleShape,
-                        color = effectiveSurfaceTint,
-                        border = BorderStroke(1.dp, effectiveAccent.copy(alpha = 0.25f)),
+                        color = Color.White.copy(alpha = 0.08f),
                         modifier = Modifier
                             .size(56.dp)
                             .testTag("nowplaying_prev_button")
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
-                                Icons.Default.SkipPrevious,
+                                painter = painterResource(id = com.example.R.drawable.ic_sb_skip_prev),
                                 contentDescription = "Previous",
-                                modifier = Modifier.size(30.dp),
+                                modifier = Modifier.size(28.dp),
                                 tint = Color.White
                             )
                         }
                     }
 
-                    // Main Glowing Play / Pause Button
+                    // Main Play / Pause Button (Prominent, clean, no harsh border or excessive glow)
                     Surface(
                         onClick = { viewModel.playPause() },
                         shape = CircleShape,
                         color = effectiveAccent,
-                        shadowElevation = 14.dp,
-                        border = BorderStroke(2.dp, Color.White.copy(alpha = 0.35f)),
+                        shadowElevation = 6.dp,
                         modifier = Modifier
-                            .size(76.dp)
+                            .size(68.dp)
                             .testTag("nowplaying_play_pause_button")
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
-                                if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                painter = painterResource(
+                                    id = if (isPlaying) com.example.R.drawable.ic_sb_pause else com.example.R.drawable.ic_sb_play
+                                ),
                                 contentDescription = if (isPlaying) "Pause" else "Play",
-                                modifier = Modifier.size(42.dp),
-                                tint = Color.Black
+                                modifier = Modifier.size(32.dp),
+                                tint = playIconTint
                             )
                         }
                     }
@@ -787,27 +778,26 @@ fun NowPlayingScreen(
                     Surface(
                         onClick = { viewModel.skipNext() },
                         shape = CircleShape,
-                        color = effectiveSurfaceTint,
-                        border = BorderStroke(1.dp, effectiveAccent.copy(alpha = 0.25f)),
+                        color = Color.White.copy(alpha = 0.08f),
                         modifier = Modifier
                             .size(56.dp)
                             .testTag("nowplaying_next_button")
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
-                                Icons.Default.SkipNext,
+                                painter = painterResource(id = com.example.R.drawable.ic_sb_skip_next),
                                 contentDescription = "Next",
-                                modifier = Modifier.size(30.dp),
+                                modifier = Modifier.size(28.dp),
                                 tint = Color.White
                             )
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(14.dp))
                 Text(
                     text = "Swipe left/right to change track • Tap artwork for full lyrics",
-                    color = Color.White.copy(alpha = 0.45f),
+                    color = Color.White.copy(alpha = 0.42f),
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Medium
                 )

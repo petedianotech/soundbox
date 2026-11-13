@@ -33,10 +33,12 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -432,7 +434,7 @@ fun LockscreenPlayerContent(
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = song.artist,
+                                    text = song.artist.takeIf { it.isNotBlank() && !it.equals("<unknown>", ignoreCase = true) } ?: "Unknown Artist",
                                     color = Color.White.copy(alpha = 0.7f),
                                     fontSize = 14.sp,
                                     maxLines = 1,
@@ -445,8 +447,8 @@ fun LockscreenPlayerContent(
                                 Surface(
                                     onClick = { showFullLyrics = true },
                                     shape = RoundedCornerShape(16.dp),
-                                    color = palette.surfaceTint,
-                                    border = BorderStroke(1.dp, palette.primary.copy(alpha = 0.35f)),
+                                    color = Color.White.copy(alpha = 0.08f),
+                                    border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.12f)),
                                     modifier = Modifier
                                         .fillMaxWidth(0.92f)
                                         .testTag("lockscreen_lyric_pill")
@@ -516,7 +518,7 @@ fun LockscreenPlayerContent(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // Action icons row (Shuffle, Favorite, Lyrics Toggle, Seek)
+                // Action icons row (Lyrics Toggle, Rewind/Forward 10s, Favorite)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -524,16 +526,15 @@ fun LockscreenPlayerContent(
                 ) {
                     Surface(
                         onClick = { showFullLyrics = !showFullLyrics },
-                        shape = com.example.ui.theme.SoundboxButtonShapes.CompactIcon,
-                        color = if (showFullLyrics) palette.primary.copy(alpha = 0.22f) else palette.surfaceTint,
-                        border = if (showFullLyrics) BorderStroke(1.2.dp, palette.primary) else BorderStroke(0.5.dp, Color.White.copy(alpha = 0.12f)),
-                        modifier = Modifier.size(42.dp).testTag("lockscreen_toggle_lyrics_button")
+                        shape = CircleShape,
+                        color = if (showFullLyrics) palette.primary.copy(alpha = 0.2f) else Color.White.copy(alpha = 0.08f),
+                        modifier = Modifier.size(44.dp).testTag("lockscreen_toggle_lyrics_button")
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 if (showFullLyrics) Icons.Default.Album else Icons.Default.Lyrics,
                                 contentDescription = "Toggle Lyrics",
-                                tint = if (showFullLyrics) palette.primary else Color.White.copy(alpha = 0.8f),
+                                tint = if (showFullLyrics) palette.primary else Color.White.copy(alpha = 0.85f),
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -542,40 +543,47 @@ fun LockscreenPlayerContent(
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Surface(
                             onClick = onRewind10,
-                            shape = com.example.ui.theme.SoundboxButtonShapes.CompactIcon,
-                            color = palette.surfaceTint,
-                            border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.12f)),
-                            modifier = Modifier.size(42.dp)
+                            shape = CircleShape,
+                            color = Color.White.copy(alpha = 0.08f),
+                            modifier = Modifier.size(44.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
-                                Icon(Icons.Default.Replay10, contentDescription = "Rewind 10s", tint = Color.White, modifier = Modifier.size(20.dp))
+                                Icon(
+                                    painter = painterResource(id = com.example.R.drawable.ic_replay_10),
+                                    contentDescription = "Rewind 10s",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(21.dp)
+                                )
                             }
                         }
                         Surface(
                             onClick = onForward10,
-                            shape = com.example.ui.theme.SoundboxButtonShapes.CompactIcon,
-                            color = palette.surfaceTint,
-                            border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.12f)),
-                            modifier = Modifier.size(42.dp)
+                            shape = CircleShape,
+                            color = Color.White.copy(alpha = 0.08f),
+                            modifier = Modifier.size(44.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
-                                Icon(Icons.Default.Forward10, contentDescription = "Forward 10s", tint = Color.White, modifier = Modifier.size(20.dp))
+                                Icon(
+                                    painter = painterResource(id = com.example.R.drawable.ic_forward_10),
+                                    contentDescription = "Forward 10s",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(21.dp)
+                                )
                             }
                         }
                     }
 
                     Surface(
                         onClick = onToggleFavorite,
-                        shape = com.example.ui.theme.SoundboxButtonShapes.CompactIcon,
-                        color = if (song.isFavorite) Color.Red.copy(alpha = 0.2f) else palette.surfaceTint,
-                        border = if (song.isFavorite) BorderStroke(1.2.dp, Color.Red) else BorderStroke(0.5.dp, Color.White.copy(alpha = 0.12f)),
-                        modifier = Modifier.size(42.dp)
+                        shape = CircleShape,
+                        color = if (song.isFavorite) Color(0xFFEF4444).copy(alpha = 0.18f) else Color.White.copy(alpha = 0.08f),
+                        modifier = Modifier.size(44.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 if (song.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                                 contentDescription = "Favorite",
-                                tint = if (song.isFavorite) Color.Red else Color.White.copy(alpha = 0.8f),
+                                tint = if (song.isFavorite) Color(0xFFEF4444) else Color.White.copy(alpha = 0.85f),
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -584,23 +592,30 @@ fun LockscreenPlayerContent(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // Primary Playback Controls (Prev, Big Play/Pause, Next)
+                // Primary Playback Controls (Prev, Play/Pause, Next)
+                val lockPlayIconTint = if (palette.primary.luminance() > 0.45f) Color(0xFF090D14) else Color.White
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .widthIn(max = 300.dp),
                     horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Surface(
                         onClick = onSkipPrevious,
-                        shape = com.example.ui.theme.SoundboxButtonShapes.LargeAction,
-                        color = palette.surfaceTint,
-                        border = BorderStroke(1.dp, palette.primary.copy(alpha = 0.25f)),
+                        shape = CircleShape,
+                        color = Color.White.copy(alpha = 0.08f),
                         modifier = Modifier
                             .size(54.dp)
                             .testTag("lockscreen_prev_button")
                     ) {
                         Box(contentAlignment = Alignment.Center) {
-                            Icon(Icons.Default.SkipPrevious, contentDescription = "Previous", tint = Color.White, modifier = Modifier.size(30.dp))
+                            Icon(
+                                painter = painterResource(id = com.example.R.drawable.ic_sb_skip_prev),
+                                contentDescription = "Previous",
+                                tint = Color.White,
+                                modifier = Modifier.size(28.dp)
+                            )
                         }
                     }
 
@@ -608,33 +623,38 @@ fun LockscreenPlayerContent(
                         onClick = onPlayPause,
                         shape = CircleShape,
                         color = palette.primary,
-                        shadowElevation = 10.dp,
-                        border = BorderStroke(2.dp, Color.White.copy(alpha = 0.35f)),
+                        shadowElevation = 6.dp,
                         modifier = Modifier
-                            .size(72.dp)
+                            .size(66.dp)
                             .testTag("lockscreen_play_pause_button")
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
-                                if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                painter = painterResource(
+                                    id = if (isPlaying) com.example.R.drawable.ic_sb_pause else com.example.R.drawable.ic_sb_play
+                                ),
                                 contentDescription = if (isPlaying) "Pause" else "Play",
-                                tint = Color.Black,
-                                modifier = Modifier.size(40.dp)
+                                tint = lockPlayIconTint,
+                                modifier = Modifier.size(31.dp)
                             )
                         }
                     }
 
                     Surface(
                         onClick = onSkipNext,
-                        shape = com.example.ui.theme.SoundboxButtonShapes.LargeAction,
-                        color = palette.surfaceTint,
-                        border = BorderStroke(1.dp, palette.primary.copy(alpha = 0.25f)),
+                        shape = CircleShape,
+                        color = Color.White.copy(alpha = 0.08f),
                         modifier = Modifier
                             .size(54.dp)
                             .testTag("lockscreen_next_button")
                     ) {
                         Box(contentAlignment = Alignment.Center) {
-                            Icon(Icons.Default.SkipNext, contentDescription = "Next", tint = Color.White, modifier = Modifier.size(30.dp))
+                            Icon(
+                                painter = painterResource(id = com.example.R.drawable.ic_sb_skip_next),
+                                contentDescription = "Next",
+                                tint = Color.White,
+                                modifier = Modifier.size(28.dp)
+                            )
                         }
                     }
                 }

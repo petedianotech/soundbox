@@ -533,8 +533,11 @@ fun MiniPlayer(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
+                                val displayArtist = song.artist.takeIf {
+                                    it.isNotBlank() && !it.equals("<unknown>", ignoreCase = true)
+                                } ?: "Unknown Artist"
                                 Text(
-                                    text = song.artist,
+                                    text = displayArtist,
                                     style = MaterialTheme.typography.bodySmall.copy(
                                         fontSize = 11.5.sp,
                                         fontWeight = FontWeight.Medium
@@ -570,9 +573,8 @@ fun MiniPlayer(
                             Surface(
                                 onClick = onFavoriteToggle,
                                 shape = CircleShape,
-                                shadowElevation = 3.dp,
-                                color = colors.surfaceElevated,
-                                modifier = Modifier.size(36.dp)
+                                color = if (isFavorite) colors.accentCyan.copy(alpha = 0.14f) else Color.Transparent,
+                                modifier = Modifier.size(38.dp)
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
@@ -583,7 +585,7 @@ fun MiniPlayer(
                                     )
                                 }
                             }
-                            Spacer(modifier = Modifier.width(6.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
                         }
 
                         // PREVIOUS BUTTON (If handler provided)
@@ -591,13 +593,12 @@ fun MiniPlayer(
                             Surface(
                                 onClick = onSkipPrevious,
                                 shape = CircleShape,
-                                shadowElevation = 3.dp,
-                                color = colors.surfaceElevated,
+                                color = colors.surfaceElevated.copy(alpha = 0.75f),
                                 modifier = Modifier.size(38.dp)
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
-                                        imageVector = Icons.Default.SkipPrevious,
+                                        painter = painterResource(id = com.example.R.drawable.ic_sb_skip_prev),
                                         contentDescription = "Previous Song",
                                         tint = colors.textPrimary,
                                         modifier = Modifier.size(20.dp)
@@ -607,37 +608,38 @@ fun MiniPlayer(
                             Spacer(modifier = Modifier.width(6.dp))
                         }
 
-                        // PLAY / PAUSE BUTTON (High Contrast Elevated Circle)
+                        // PLAY / PAUSE BUTTON (Soft prominent rounded-icon control)
                         Surface(
                             onClick = onPlayPause,
                             shape = CircleShape,
-                            shadowElevation = 6.dp,
+                            shadowElevation = 2.dp,
                             color = colors.accentCyan,
                             modifier = Modifier.size(44.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
-                                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                    painter = painterResource(
+                                        id = if (isPlaying) com.example.R.drawable.ic_sb_pause else com.example.R.drawable.ic_sb_play
+                                    ),
                                     contentDescription = if (isPlaying) "Pause" else "Play",
                                     tint = Color.Black,
-                                    modifier = Modifier.size(24.dp)
+                                    modifier = Modifier.size(22.dp)
                                 )
                             }
                         }
 
                         Spacer(modifier = Modifier.width(6.dp))
 
-                        // SKIP NEXT BUTTON (Elevated Circle)
+                        // SKIP NEXT BUTTON
                         Surface(
                             onClick = onSkipNext,
                             shape = CircleShape,
-                            shadowElevation = 3.dp,
-                            color = colors.surfaceElevated,
+                            color = colors.surfaceElevated.copy(alpha = 0.75f),
                             modifier = Modifier.size(38.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
-                                    imageVector = Icons.Default.SkipNext,
+                                    painter = painterResource(id = com.example.R.drawable.ic_sb_skip_next),
                                     contentDescription = "Next Song",
                                     tint = colors.textPrimary,
                                     modifier = Modifier.size(20.dp)

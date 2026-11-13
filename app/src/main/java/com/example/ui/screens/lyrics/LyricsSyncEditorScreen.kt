@@ -33,6 +33,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -40,6 +41,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.R
 import com.example.data.model.Song
 import com.example.player.LyricsManager
 import com.example.ui.components.ArtworkThumbnail
@@ -1296,16 +1298,20 @@ fun SyncStudioModeView(
 
                                 // Quick 1-tap Audition / Tag Buttons
                                 if (line.timeMs != null) {
-                                    IconButton(
+                                    Surface(
                                         onClick = { onAuditionLine(line.timeMs) },
+                                        shape = CircleShape,
+                                        color = colors.accentLime.copy(alpha = 0.14f),
                                         modifier = Modifier.size(28.dp)
                                     ) {
-                                        Icon(
-                                            imageVector = Icons.Default.PlayCircleOutline,
-                                            contentDescription = "Audition line",
-                                            tint = colors.accentLime,
-                                            modifier = Modifier.size(18.dp)
-                                        )
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(
+                                                painter = painterResource(R.drawable.ic_sb_play),
+                                                contentDescription = "Audition line",
+                                                tint = colors.accentLime,
+                                                modifier = Modifier.size(13.dp)
+                                            )
+                                        }
                                     }
                                 } else {
                                     IconButton(
@@ -1398,7 +1404,7 @@ fun SyncStudioModeView(
                                                 modifier = Modifier.weight(1f),
                                                 contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp)
                                             ) {
-                                                Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(14.dp), tint = colors.accentLime)
+                                                Icon(painter = painterResource(R.drawable.ic_sb_play), contentDescription = null, modifier = Modifier.size(13.dp), tint = colors.accentLime)
                                                 Spacer(modifier = Modifier.width(2.dp))
                                                 Text("Audition", style = MaterialTheme.typography.labelSmall)
                                             }
@@ -1466,12 +1472,12 @@ fun SyncStudioModeView(
                     ) {
                         // Replay 5s
                         IconButton(onClick = { onSeekTo((currentPosition - 5000).coerceAtLeast(0)) }) {
-                            Icon(Icons.Default.Replay5, contentDescription = "Back 5s", tint = colors.accentCyan, modifier = Modifier.size(24.dp))
+                            Icon(painter = painterResource(R.drawable.ic_sb_replay_5), contentDescription = "Back 5s", tint = colors.accentCyan, modifier = Modifier.size(24.dp))
                         }
 
                         // Replay 1s
                         IconButton(onClick = { onSeekTo((currentPosition - 1000).coerceAtLeast(0)) }) {
-                            Icon(Icons.Default.Replay, contentDescription = "Back 1s", tint = colors.accentCyan, modifier = Modifier.size(20.dp))
+                            Icon(painter = painterResource(R.drawable.ic_sb_replay), contentDescription = "Back 1s", tint = colors.accentCyan, modifier = Modifier.size(20.dp))
                         }
 
                         // Play / Pause Circle
@@ -1483,22 +1489,22 @@ fun SyncStudioModeView(
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
-                                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                    painter = painterResource(if (isPlaying) R.drawable.ic_sb_pause else R.drawable.ic_sb_play),
                                     contentDescription = "Play/Pause",
                                     tint = Color.Black,
-                                    modifier = Modifier.size(24.dp)
+                                    modifier = Modifier.size(22.dp)
                                 )
                             }
                         }
 
                         // Forward 1s
                         IconButton(onClick = { onSeekTo((currentPosition + 1000).coerceAtMost(songDuration)) }) {
-                            Icon(Icons.Default.Forward10, contentDescription = "Forward 1s", tint = colors.accentCyan, modifier = Modifier.size(20.dp))
+                            Icon(painter = painterResource(R.drawable.ic_sb_forward), contentDescription = "Forward 1s", tint = colors.accentCyan, modifier = Modifier.size(20.dp))
                         }
 
                         // Forward 5s
                         IconButton(onClick = { onSeekTo((currentPosition + 5000).coerceAtMost(songDuration)) }) {
-                            Icon(Icons.Default.Forward5, contentDescription = "Forward 5s", tint = colors.accentCyan, modifier = Modifier.size(24.dp))
+                            Icon(painter = painterResource(R.drawable.ic_sb_forward_5), contentDescription = "Forward 5s", tint = colors.accentCyan, modifier = Modifier.size(24.dp))
                         }
 
                         // Undo Button
@@ -1920,7 +1926,7 @@ fun LiveKaraokePreviewModeView(
                                             horizontalArrangement = Arrangement.spacedBy(4.dp),
                                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                         ) {
-                                            Icon(Icons.Default.PlayArrow, contentDescription = null, tint = if (isLineActive) colors.accentLime else colors.accentCyan, modifier = Modifier.size(12.dp))
+                                            Icon(painter = painterResource(R.drawable.ic_sb_play), contentDescription = null, tint = if (isLineActive) colors.accentLime else colors.accentCyan, modifier = Modifier.size(11.dp))
                                             Text(
                                                 text = formatLrcTimeLabel(line.timeMs),
                                                 style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace, fontSize = 10.sp, fontWeight = FontWeight.Bold),
@@ -1970,16 +1976,20 @@ fun LiveKaraokePreviewModeView(
 
                                     if (line.timeMs != null) {
                                         // Audition 3s
-                                        IconButton(
+                                        Surface(
                                             onClick = { onAuditionLine(line.timeMs) },
+                                            shape = CircleShape,
+                                            color = colors.accentLime.copy(alpha = 0.16f),
                                             modifier = Modifier.size(24.dp)
                                         ) {
-                                            Icon(
-                                                imageVector = Icons.Default.PlayCircle,
-                                                contentDescription = "Audition",
-                                                tint = colors.accentLime,
-                                                modifier = Modifier.size(16.dp)
-                                            )
+                                            Box(contentAlignment = Alignment.Center) {
+                                                Icon(
+                                                    painter = painterResource(R.drawable.ic_sb_play),
+                                                    contentDescription = "Audition",
+                                                    tint = colors.accentLime,
+                                                    modifier = Modifier.size(12.dp)
+                                                )
+                                            }
                                         }
 
                                         // Micro Nudges: -0.1s, +0.1s
@@ -2081,24 +2091,31 @@ fun LiveKaraokePreviewModeView(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         IconButton(onClick = { onSeekTo((currentPosition - 5000).coerceAtLeast(0)) }) {
-                            Icon(Icons.Default.Replay5, contentDescription = "Back 5s", tint = colors.accentCyan, modifier = Modifier.size(22.dp))
+                            Icon(painter = painterResource(R.drawable.ic_sb_replay_5), contentDescription = "Back 5s", tint = colors.accentCyan, modifier = Modifier.size(22.dp))
                         }
                         IconButton(onClick = { onSeekTo((currentPosition - 1000).coerceAtLeast(0)) }) {
-                            Icon(Icons.Default.Replay, contentDescription = "Back 1s", tint = colors.accentCyan, modifier = Modifier.size(18.dp))
+                            Icon(painter = painterResource(R.drawable.ic_sb_replay), contentDescription = "Back 1s", tint = colors.accentCyan, modifier = Modifier.size(18.dp))
                         }
-                        IconButton(onClick = onPlayPause) {
-                            Icon(
-                                imageVector = if (isPlaying) Icons.Default.PauseCircle else Icons.Default.PlayCircle,
-                                contentDescription = "Play/Pause",
-                                tint = colors.accentCyan,
-                                modifier = Modifier.size(36.dp)
-                            )
+                        Surface(
+                            onClick = onPlayPause,
+                            shape = CircleShape,
+                            color = colors.accentCyan,
+                            modifier = Modifier.size(38.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    painter = painterResource(if (isPlaying) R.drawable.ic_sb_pause else R.drawable.ic_sb_play),
+                                    contentDescription = "Play/Pause",
+                                    tint = Color.Black,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
                         }
                         IconButton(onClick = { onSeekTo((currentPosition + 1000).coerceAtMost(songDuration)) }) {
-                            Icon(Icons.Default.Forward10, contentDescription = "Forward 1s", tint = colors.accentCyan, modifier = Modifier.size(18.dp))
+                            Icon(painter = painterResource(R.drawable.ic_sb_forward), contentDescription = "Forward 1s", tint = colors.accentCyan, modifier = Modifier.size(18.dp))
                         }
                         IconButton(onClick = { onSeekTo((currentPosition + 5000).coerceAtMost(songDuration)) }) {
-                            Icon(Icons.Default.Forward5, contentDescription = "Forward 5s", tint = colors.accentCyan, modifier = Modifier.size(22.dp))
+                            Icon(painter = painterResource(R.drawable.ic_sb_forward_5), contentDescription = "Forward 5s", tint = colors.accentCyan, modifier = Modifier.size(22.dp))
                         }
                     }
                 }

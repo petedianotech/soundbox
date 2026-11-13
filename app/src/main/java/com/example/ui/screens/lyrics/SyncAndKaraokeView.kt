@@ -21,12 +21,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.R
 import com.example.ui.theme.SoundboxTheme
 import java.util.Locale
 
@@ -118,7 +120,7 @@ fun SyncAndKaraokeView(
                             modifier = Modifier.size(30.dp)
                         ) {
                             Icon(
-                                Icons.Default.Replay5,
+                                painter = painterResource(R.drawable.ic_sb_replay_5),
                                 contentDescription = "Back 5s",
                                 tint = colors.textPrimary,
                                 modifier = Modifier.size(18.dp)
@@ -134,9 +136,9 @@ fun SyncAndKaraokeView(
                             modifier = Modifier.size(32.dp)
                         ) {
                             Icon(
-                                imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                painter = painterResource(if (isPlaying) R.drawable.ic_sb_pause else R.drawable.ic_sb_play),
                                 contentDescription = if (isPlaying) "Pause" else "Play",
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(16.dp)
                             )
                         }
 
@@ -145,7 +147,7 @@ fun SyncAndKaraokeView(
                             modifier = Modifier.size(30.dp)
                         ) {
                             Icon(
-                                Icons.Default.Forward5,
+                                painter = painterResource(R.drawable.ic_sb_forward_5),
                                 contentDescription = "Forward 5s",
                                 tint = colors.textPrimary,
                                 modifier = Modifier.size(18.dp)
@@ -475,7 +477,7 @@ fun SyncAndKaraokeView(
                                                 onClick = { onAuditionLine(line.timeMs) },
                                                 modifier = Modifier.size(26.dp)
                                             ) {
-                                                Icon(Icons.Default.PlayArrow, contentDescription = "Test 3s", tint = colors.accentCyan, modifier = Modifier.size(16.dp))
+                                                Icon(painter = painterResource(R.drawable.ic_sb_play), contentDescription = "Test 3s", tint = colors.accentCyan, modifier = Modifier.size(15.dp))
                                             }
                                         }
 

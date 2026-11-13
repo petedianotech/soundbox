@@ -59,8 +59,10 @@ class SoundboxHeroWidget : AppWidgetProvider() {
             val isPlaying = playbackManager.isPlaying.value
 
             if (currentSong != null) {
+                val safeArtist = currentSong.artist.takeIf { it.isNotBlank() && !it.equals("<unknown>", ignoreCase = true) } ?: "Unknown Artist"
+                val safeAlbum = currentSong.album.takeIf { it.isNotBlank() && !it.equals("<unknown>", ignoreCase = true) }
                 views.setTextViewText(R.id.widget_hero_title, currentSong.title)
-                views.setTextViewText(R.id.widget_hero_artist, "${currentSong.artist} • ${currentSong.album}")
+                views.setTextViewText(R.id.widget_hero_artist, if (safeAlbum != null) "$safeArtist • $safeAlbum" else safeArtist)
                 views.setTextViewText(R.id.widget_hero_badge, "SOUNDBOX • HI-RES DSP")
 
                 val bitmap = AlbumArtHelper.getWidgetArtworkBitmap(context, currentSong, 200)

@@ -59,8 +59,9 @@ class SoundboxAppWidget : AppWidgetProvider() {
             val isPlaying = playbackManager.isPlaying.value
 
             if (currentSong != null) {
+                val safeArtist = currentSong.artist.takeIf { it.isNotBlank() && !it.equals("<unknown>", ignoreCase = true) } ?: "Unknown Artist"
                 views.setTextViewText(R.id.widget_song_title, currentSong.title)
-                views.setTextViewText(R.id.widget_song_artist, currentSong.artist)
+                views.setTextViewText(R.id.widget_song_artist, safeArtist)
                 val bitmap = AlbumArtHelper.getWidgetArtworkBitmap(context, currentSong, 140)
                 if (bitmap != null) {
                     views.setImageViewBitmap(R.id.widget_album_art, bitmap)
