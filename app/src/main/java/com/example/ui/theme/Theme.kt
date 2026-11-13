@@ -27,6 +27,7 @@ data class SoundboxSkinColors(
     val textMuted: Color,
     val accentCyan: Color,
     val accentAmber: Color,
+    val accentIndigo: Color,
     val accentLime: Color,
     val topBarBackground: Color,
     val miniPlayerBackground: Color,
@@ -46,7 +47,8 @@ val SoundboxDarkSkin = SoundboxSkinColors(
     textMuted = Color(0xFF64748B),
     accentCyan = Color(0xFF38BDF8),
     accentAmber = Color(0xFFF59E0B),
-    accentLime = Color(0xFF10B981),
+    accentIndigo = Color(0xFF818CF8),
+    accentLime = Color(0xFF818CF8),
     topBarBackground = Color(0xFF0C1017),
     miniPlayerBackground = Color(0xFF131924),
     dialogBackground = Color(0xFF192230)
@@ -65,7 +67,8 @@ val SoundboxLightSkin = SoundboxSkinColors(
     textMuted = Color(0xFF64748B),
     accentCyan = Color(0xFF1D4ED8),
     accentAmber = Color(0xFFD97706),
-    accentLime = Color(0xFF059669),
+    accentIndigo = Color(0xFF4F46E5),
+    accentLime = Color(0xFF4F46E5),
     topBarBackground = Color(0xFFF8FAFC),
     miniPlayerBackground = Color(0xFFFFFFFF),
     dialogBackground = Color(0xFFFFFFFF)

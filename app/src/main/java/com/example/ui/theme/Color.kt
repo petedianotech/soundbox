@@ -15,7 +15,7 @@ val Poweramp_Cyan = Color(0xFF38BDF8) // Refined Studio Sky/Cerulean
 val Poweramp_Cyan_Glow = Color(0x3338BDF8)
 val Poweramp_Amber = Color(0xFFF59E0B) // Warm Amber Brass
 val Poweramp_Amber_Glow = Color(0x33F59E0B)
-val Poweramp_Lime = Color(0xFF10B981) // Studio Acoustic Emerald
+val Poweramp_Lime = Color(0xFF818CF8) // Studio Indigo Accent
 val Poweramp_Purple = Color(0xFF818CF8) // Muted Indigo
 
 val Poweramp_Text_Primary = Color(0xFFF1F5F9)
@@ -65,7 +65,7 @@ val md_theme_dark_secondary = Color(0xFF94A3B8) // Brushed Aluminum
 val md_theme_dark_onSecondary = Color(0xFF0F172A)
 val md_theme_dark_secondaryContainer = Color(0xFF334155)
 val md_theme_dark_onSecondaryContainer = Color(0xFFE2E8F0)
-val md_theme_dark_tertiary = Color(0xFF10B981) // Studio Emerald
+val md_theme_dark_tertiary = Color(0xFF818CF8) // Studio Indigo
 val md_theme_dark_onTertiary = Color(0xFF022C22)
 val md_theme_dark_tertiaryContainer = Color(0xFF065F46)
 val md_theme_dark_onTertiaryContainer = Color(0xFFD1FAE5)

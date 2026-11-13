@@ -208,7 +208,7 @@ fun HomeScreen(
                                         modifier = Modifier
                                             .size(6.dp)
                                             .clip(CircleShape)
-                                            .background(colors.accentLime)
+                                            .background(colors.accentIndigo)
                                     )
                                 }
                             }
@@ -319,7 +319,7 @@ fun HomeScreen(
                                                 .padding(3.dp)
                                                 .size(6.dp)
                                                 .clip(CircleShape)
-                                                .background(colors.accentLime)
+                                                .background(colors.accentIndigo)
                                         )
                                     }
                                 }
